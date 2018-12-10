@@ -1,0 +1,16 @@
+{
+    "ide.default.maximized": false,
+    "ide.default.width": 960,
+    "ide.default.height": 480,
+    "ide.default.fps": 60,
+    "ide.suggestions": true,
+    "ide.debug.fps": false,
+    "editor.default.theme": "visual studio",
+    "editor.default.language": "adept",
+    "editor.default.text": "",
+    "editor.default.position": 0,
+    "editor.icons": true,
+    "editor.caret.animation": true,
+    "adept.root": "C:\\Users\\isaac\\Google Drive\\Adept\\Adept\\bin\\",
+    "adept.compiler": "adept"
+}
