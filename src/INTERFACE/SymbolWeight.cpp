@@ -8,6 +8,6 @@ SymbolWeight::SymbolWeight(const std::string& name, const std::string& label, in
     this->isFunction = isFunction;
 }
 
-bool SymbolWeight::operator<(const SymbolWeight& other){
+bool SymbolWeight::operator<(const SymbolWeight& other) const {
     return weight < other.weight;
 }

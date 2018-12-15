@@ -9,7 +9,7 @@
 #include "OPENGL/Model.h"
 #include "OPENGL/Shader.h"
 #include "OPENGL/SolidModel.h"
-#include "INTERFACE/Editor.h"
+#include "INTERFACE/TextEditor.h"
 
 typedef void (*MenuAction)(void*);
 
@@ -35,7 +35,7 @@ public:
     Menu(const std::string& label, Font *font, MenuAction action, void *data);
     ~Menu();
 
-    void update();
+    void update(double delta);
     void targetPlainFontWidth();
     void targetBoldFontWidth();
 };
@@ -76,7 +76,7 @@ private:
     float xOffset;
     float yOffset;
     float previousWindowWidth;
-    std::vector<Editor*> *editors;
+    std::vector<GenericEditor *> *editors;
 
     SolidModel *barModel;
     SolidModel *underlineBaseModel;
@@ -96,7 +96,7 @@ public:
     MenuBar();
     ~MenuBar();
 
-    void load(Settings *settings, Font *font, Texture *fontTexture, std::vector<Editor*> *editors);
+    void load(Settings *settings, Font *font, Texture *fontTexture, std::vector<GenericEditor*> *editors);
     void addMenu(const std::string& label, MenuAction action, void *data);
 
     void update();

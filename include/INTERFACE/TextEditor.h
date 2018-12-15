@@ -1,6 +1,6 @@
 
-#ifndef EDITOR_H
-#define EDITOR_H
+#ifndef TEXT_EDITOR_H_INCLUDED
+#define TEXT_EDITOR_H_INCLUDED
 
 #include <string>
 
@@ -11,13 +11,13 @@
 #include "INTERFACE/FileType.h"
 #include "INTERFACE/RichText.h"
 #include "INTERFACE/Settings.h"
-#include "INTERFACE/SuggestionBox.h"
 #include "INTERFACE/SymbolWeight.h"
+#include "INTERFACE/GenericEditor.h"
+#include "INTERFACE/SuggestionBox.h"
 
 #include "INSIGHT/insight.h"
 
-class Editor {
-    Settings *settings;
+class TextEditor : public GenericEditor {
     Font *font;
     Texture *fontTexture;
     SyntaxColorPalette palette;
@@ -40,6 +40,16 @@ class Editor {
     int scroll;
     float textXOffset;
 
+    ast_t ast;
+    tokenlist_t preserveTokenlist;
+    char *preserveBuffer;
+    bool hasAst;
+
+    RichText richText;
+    SuggestionBox suggestionBox;
+    bool showSuggestionBox;
+    std::vector<SymbolWeight> symbolWeights;
+
     void handleSelection();
     float calculateScrollOffset();
     float calculateScrollOffset(size_t line);
@@ -47,29 +57,6 @@ class Editor {
     void makeAst();
 
 public:
-    RichText richText;
-    SuggestionBox suggestionBox;
-    bool showSuggestionBox;
-    std::vector<SymbolWeight> symbolWeights;
-
-    std::string filename;
-    float xOffset, yOffset;
-    float scrollXOffset, scrollYOffset;
-    float targetScrollXOffset, targetScrollYOffset;
-    float textWidth;
-    float textEdge;
-    float maxWidth;
-    float maxHeight;
-
-    TextModel filenameModel;
-    bool hasFilenameModel;
-    std::string displayFilename;
-
-    ast_t ast;
-    tokenlist_t preserveTokenlist;
-    char *preserveBuffer;
-    bool hasAst;
-
     void free();
     void load(Settings *settings, Font *font, Texture *fontTexture, float maxWidth, float maxHeight);
     void render(Matrix4f& projectionMatrix, Shader *fontShader, Shader *solidShader);
@@ -148,6 +135,8 @@ public:
 
     void getRowAndColumnAt(double xpos, double ypos, int *out_row, int *out_column);
     size_t getCaretPosition();
+
+    TextEditor *asTextEditor();
 };
 
-#endif // EDITOR_H
+#endif // TEXT_EDITOR_H_INCLUDED

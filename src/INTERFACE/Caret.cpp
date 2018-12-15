@@ -40,6 +40,8 @@ void Caret::draw(){
     if(this->caretModel) this->caretModel->draw();
 }
 
+#include <iostream>
+
 void Caret::getTransformationMatrix(const std::string& text, float xOffset, float yOffset, Matrix4f *matrix){
     float targetX, targetY;
     this->getTargetCoords(this->caretPosition, text, *this->font, xOffset, yOffset, &targetX, &targetY);
@@ -48,14 +50,14 @@ void Caret::getTransformationMatrix(const std::string& text, float xOffset, floa
 
         // Expression used for scaling decay movement by delta
         // (where delta is 1.0 for expected frame rate)
-        // relativeDistanceChange = ( -1 / (2 delta) ) + 1
+        // relativeDistanceChange = delta / 2
 
         if(fabs(this->x - targetX) > 0.01f){
-            this->x += (targetX > this->x ? 1 : -1) * fabs(this->x - targetX) * (-1 / (2 * this->settings->hidden.delta) + 1);
+            this->x += (targetX > this->x ? 1 : -1) * fabs(this->x - targetX) * (this->settings->hidden.delta / 2);
         } else this->x = targetX;
 
         if(fabs(this->y - targetY) > 0.01f){
-            this->y += (targetY > this->y ? 1 : -1) * fabs(this->y - targetY) * (-1 / (2 * this->settings->hidden.delta) + 1);
+            this->y += (targetY > this->y ? 1 : -1) * fabs(this->y - targetY) * (this->settings->hidden.delta / 2);
         } else this->y = targetY;
     } else {
         this->x = targetX;

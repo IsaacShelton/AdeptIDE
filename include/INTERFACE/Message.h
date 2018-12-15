@@ -10,7 +10,7 @@
 #include "INTERFACE/Font.h"
 
 class Message {
-    double timer;
+    double exitTime;
     std::string text;
     TextModel model;
     SolidModel *container;

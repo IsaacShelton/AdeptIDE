@@ -1,5 +1,5 @@
 {
-    "ide.default.maximized": false,
+    "ide.default.maximized": true,
     "ide.default.width": 960,
     "ide.default.height": 480,
     "ide.default.fps": 60,
@@ -11,6 +11,6 @@
     "editor.default.position": 0,
     "editor.icons": true,
     "editor.caret.animation": true,
-    "adept.root": "C:\\Users\\isaac\\Google Drive\\Adept\\Adept\\bin\\",
-    "adept.compiler": "adept"
+    "adept.root": "/Users/isaac/Projects/Adept/bin/",
+    "adept.compiler": "/Users/isaac/Projects/Adept/bin/adept"
 }

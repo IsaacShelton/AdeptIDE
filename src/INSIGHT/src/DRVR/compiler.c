@@ -34,7 +34,11 @@ void compiler_invoke(compiler_t *compiler, int argc, char **argv){
     #ifdef _WIN32
     GetModuleFileNameA(NULL, compiler->location, 512);
     #else
-    #error "compiler_invoke doesn't have GetModuleFileNameA for this platform"
+    if (argv == NULL || argv[0] == NULL || strcmp(argv[0], "") == 0){
+        redprintf("EXTERNAL ERROR: Compiler was invoked with NULL or empty argv[0]\n");
+        return;
+    }
+    compiler->location = filename_absolute(argv[0]);
     #endif
 
     char *absolute_compiler_filename = filename_absolute(compiler->location);

@@ -2,10 +2,11 @@
 #include <GL/glew.h>
 #include <GLFW/glfw3.h>
 
+#include "UTIL/dialog.h"
+
+#ifdef _WIN32
 #define GLFW_EXPOSE_NATIVE_WIN32
 #include <GLFW/glfw3native.h>
-
-#include "UTIL/dialog.h"
 
 #define DIALOG_FILTER "Source Code\0*.adept;*.java;*.html\0Adept Source Code (*.adept)\0*.adept\0Java Source Code (*.java)\0*.java\0HTML Document (*.html)\0*.html\0All files (*.*)\0*.*\0"
 
@@ -149,3 +150,10 @@ bool saveFileDialog(GLFWwindow* window, std::string& output){
     // We should never get here
     return false;
 }
+#else
+
+bool openFileDialog(GLFWwindow *window, std::string &output) { return false; }
+bool openMultipleFileDialog(GLFWwindow *window, std::vector<std::string> &output) { return false; }
+bool saveFileDialog(GLFWwindow *window, std::string &output) { return false; }
+
+#endif

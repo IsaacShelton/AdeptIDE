@@ -4,7 +4,7 @@
 
 #include <vector>
 
-#include "INTERFACE/Editor.h"
+#include "INTERFACE/TextEditor.h"
 #include "INTERFACE/MenuBar.h"
 #include "INTERFACE/Message.h"
 #include "INTERFACE/Settings.h"
@@ -29,7 +29,7 @@ public:
     Settings settings;
 
     MenuBar menubar;
-    std::vector<Editor*> editors;
+    std::vector<GenericEditor*> editors;
     size_t currentEditorIndex;
 
     bool mouseReleased;
@@ -50,8 +50,9 @@ public:
     void openFile();
     void openEditor(const std::string& filename);
     void newFile();
-    Editor* getCurrentEditor();
-    Editor* addEditor();
+    GenericEditor* getCurrentEditor();
+    TextEditor *getCurrentEditorAsTextEditor();
+    TextEditor* addTextEditor();
     void removeEditor(size_t index);
     void removeCurrentEditor();
     void moveToPreviousEditorTab();
@@ -147,6 +148,8 @@ void theme_fruit_smoothie(void *data);
 void theme_tropical_ocean(void *data);
 void theme_island_campfire(void *data);
 void theme_one_dark(void *data);
+
+void maximize(void *data);
 
 void build_adept_project(void *data);
 void build_and_run_adept_project(void *data);

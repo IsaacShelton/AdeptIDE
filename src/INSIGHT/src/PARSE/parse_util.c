@@ -23,6 +23,7 @@ void parse_panic_token(parse_ctx_t *ctx, source_t source, unsigned int token_id,
     int line, column;
     length_t message_length = strlen(message);
     char *format = malloc(message_length + 13);
+    lex_get_location(ctx->object->buffer, source.index, &line, &column);
 
     if(ctx->object->traits & OBJECT_PACKAGE){
         memcpy(format, "%s: ", 4);
@@ -30,7 +31,6 @@ void parse_panic_token(parse_ctx_t *ctx, source_t source, unsigned int token_id,
         memcpy(&format[4 + message_length], "!\n", 3);
         redprintf(format, filename_name_const(ctx->object->filename), global_token_name_table[token_id]);
     } else {
-        lex_get_location(ctx->object->buffer, source.index, &line, &column);
         memcpy(format, "%s:%d:%d: ", 10);
         memcpy(&format[10], message, message_length);
         memcpy(&format[10 + message_length], "!\n", 3);

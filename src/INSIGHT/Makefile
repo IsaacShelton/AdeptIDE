@@ -12,7 +12,7 @@ OBJDIR=obj
 C_SOURCES=$(wildcard $(SRCDIR)/AST/*.c) $(wildcard $(SRCDIR)/BRIDGE/*.c) $(wildcard $(SRCDIR)/DRVR/*.c) $(wildcard $(SRCDIR)/LEX/*.c) $(wildcard $(SRCDIR)/PARSE/*.c) $(wildcard $(SRCDIR)/UTIL/*.c)
 C_OBJECTS=$(C_SOURCES:$(SRCDIR)/%.c=$(OBJDIR)/%.o)
 INSIGHT=../../obj/insight.a
-CFLAGS=-c -Wall -I"include" -fmax-errors=5 -Werror -O3
+CFLAGS=-c -Wall -I"include" -O3 # -fmax-errors=5 -Werror
 
 release: directories $(INSIGHT)
 
@@ -31,6 +31,15 @@ directories:
 	@if not exist obj\LEX mkdir obj\LEX
 	@if not exist obj\PARSE mkdir obj\PARSE
 	@if not exist obj\UTIL mkdir obj\UTIL
+else
+directories:
+	@mkdir -p obj
+	@mkdir -p obj/AST
+	@mkdir -p obj/BRIDGE
+	@mkdir -p obj/DRVR
+	@mkdir -p obj/LEX
+	@mkdir -p obj/PARSE
+	@mkdir -p obj/UTIL
 endif
 
 clean:
@@ -42,4 +51,12 @@ ifeq ($(OS), Windows_NT)
 	del obj\LEX\*.* /Q
 	del obj\PARSE\*.* /Q
 	del obj\UTIL\*.* /Q
+else
+	rm -f 2> /dev/null $(INSIGHT)
+	rm -f 2> /dev/null obj/AST/*.*
+	rm -f 2> /dev/null obj/BRIDGE/*.*
+	rm -f 2> /dev/null obj/DRVR/*.*
+	rm -f 2> /dev/null obj/LEX/*.*
+	rm -f 2> /dev/null obj/PARSE/*.*
+	rm -f 2> /dev/null obj/UTIL/*.*
 endif

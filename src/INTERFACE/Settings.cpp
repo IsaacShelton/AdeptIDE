@@ -16,6 +16,7 @@
    #include <unistd.h>
 #endif
 
+#include "INTERFACE/Alert.h"
 #include "INTERFACE/Settings.h"
 #include "UTIL/nlohmann_json.hpp"
 
@@ -24,11 +25,11 @@ void HiddenState::defaults(){
 }
 
 void invalidSettingValueType(const std::string& name, const std::string& expectedType){
-    MessageBox(NULL, ("Invalid value type for setting '" + name + "'!\n\nExpected type '" + expectedType + "'").c_str(),  "Invalid settings.json file", MB_OK | MB_ICONERROR);
+    alertError(("Invalid value type for setting '" + name + "'!\n\nExpected type '" + expectedType + "'").c_str(), "Invalid settings.json file");
 }
 
 void unknownSetting(const std::string& name){
-    MessageBox(NULL, ("Unknown setting '" + name + "'").c_str(),  "Invalid settings.json file", MB_OK | MB_ICONERROR);
+    alertError(("Unknown setting '" + name + "'").c_str(),  "Invalid settings.json file");
 }
 
 bool setting(nlohmann::json::iterator it, const std::string& name, bool *out){
@@ -182,9 +183,9 @@ void Settings::loadFromFile(const std::string& filename){
                 unknownSetting(it.key());
             }
         } else {
-            MessageBox(NULL, "Expected settings.json to be an object",  "Invalid settings.json file", MB_OK | MB_ICONERROR);
+            alertError("Expected settings.json to be an object", "Invalid settings.json file");
         }
     } catch(...){
-        MessageBox(NULL, "Failed to parse settings.json file",  "Invalid settings.json file", MB_OK | MB_ICONERROR);
+        alertError("Failed to parse settings.json file", "Invalid settings.json file");
     }
 }

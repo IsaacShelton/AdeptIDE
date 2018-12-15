@@ -12,24 +12,23 @@ else
 	LINKER=g++
 endif
 
-BOOST_INCLUDE_DIR=C:/.storage/OpenSource/boost_1_60_0/boost_1_60_0
-BOOST_LIB_DIR=C:/.storage/OpenSource/boost_1_60_0/build-result/lib
-
-CFLAGS=-c -Wall -I"include" I"src/INSIGHT/include" -fmax-errors=5 -Werror -O0
-CXXFLAGS=-c -Wall -I"include" -I"src/INSIGHT/include" -fmax-errors=5 -Werror -std=c++11 -DGLEW_STATIC -I$(BOOST_INCLUDE_DIR) -O0
+CFLAGS=-c -Wall -I"include" I"src/INSIGHT/include" -O0 # -fmax-errors=5 -Werror
+CXXFLAGS=-c -Wall -I"include" -I"src/INSIGHT/include" -std=c++11 -DGLEW_STATIC -O0 # -fmax-errors=5 -Werror
 CXXDEBUGFLAGS=-g
 LDFLAGS=
 SRCDIR=src
 OBJDIR=obj
-DEPENDENCIES=-Ldependencies -lglfw3 -lgdi32 -lopengl32 -lcomdlg32 -L$(BOOST_LIB_DIR) C:/.storage/OpenSource/boost_1_60_0/build-result/lib/libboost_system-mgw53-mt-1_60.a -lwsock32 -lws2_32 $(INSIGHT)
 SOURCES=$(wildcard $(SRCDIR)/INTERFACE/*.cpp) $(wildcard $(SRCDIR)/OPENGL/*.cpp) $(wildcard $(SRCDIR)/PROCESS/*.cpp) $(wildcard $(SRCDIR)/UTIL/*.cpp)
 C_SOURCES=
 OBJECTS=$(SOURCES:$(SRCDIR)/%.cpp=$(OBJDIR)/%.o)
 C_OBJECTS=$(C_SOURCES:$(SRCDIR)/%.c=$(OBJDIR)/%.o)
 DEBUG_OBJECTS=$(SOURCES:$(SRCDIR)/%.cpp=$(OBJDIR)/debug/%.o)
+INSIGHT=obj/insight.a
+
+ifeq ($(OS), Windows_NT)
 EXECUTABLE=bin/AdeptIDE.exe
 DEBUG_EXECUTABLE=bin/AdeptIDE_debug.exe
-INSIGHT=obj/insight.a
+DEPENDENCIES=-Ldependencies -lglfw3 -lgdi32 -lopengl32 -lcomdlg32 -lwsock32 -lws2_32 $(INSIGHT)
 
 develop: directories $(SOURCES) $(C_SOURCES) $(EXECUTABLE)
 
@@ -39,7 +38,6 @@ release: develop
 debug: CFLAGS += -g
 debug: directories $(SOURCES) $(C_SOURCES) $(DEBUG_EXECUTABLE)
 
-ifeq ($(OS), Windows_NT)
 $(EXECUTABLE): $(INSIGHT) $(OBJECTS) $(C_OBJECTS) $(WIN_ICON)
 	$(LINKER) $(LDFLAGS) $(OBJECTS) $(C_OBJECTS) $(WIN_ICON) $(DEPENDENCIES) -o $@
 
@@ -58,6 +56,17 @@ directories:
 	@if not exist obj\UTIL mkdir obj\UTIL
 	@if not exist obj\debug\UTIL mkdir obj\debug\UTIL
 else
+EXECUTABLE=bin/AdeptIDE
+DEBUG_EXECUTABLE=bin/AdeptIDE_debug
+DEPENDENCIES=-lglfw -framework Cocoa -framework OpenGL -framework IOKit -framework CoreVideo $(INSIGHT)
+
+develop: directories $(SOURCES) $(C_SOURCES) $(EXECUTABLE)
+
+release: develop
+
+debug: CFLAGS += -g
+debug: directories $(SOURCES) $(C_SOURCES) $(DEBUG_EXECUTABLE)
+
 $(EXECUTABLE): $(INSIGHT) $(OBJECTS) $(C_OBJECTS)
 	$(LINKER) $(LDFLAGS) $(OBJECTS) $(C_OBJECTS) $(DEPENDENCIES) -o $@
 

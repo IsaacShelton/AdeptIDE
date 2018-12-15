@@ -1,5 +1,6 @@
 
 #include <stdlib.h>
+#include <string.h>
 
 #ifdef _WIN32
 #define WIN32_LEAN_AND_MEAN
@@ -40,9 +41,8 @@ char* filename_absolute(const char *filename){
         return NULL;
     }
     return buffer;
-
     #else
-    #error "Getting absolute paths not implemented for this platform"
+    return realpath(filename, NULL);
     #endif
 
     return NULL;

@@ -60,7 +60,7 @@ AdeptIDE::~AdeptIDE(){
     delete this->fontShader;
     delete this->solidShader;
 
-    for(Editor* editor : this->editors){
+    for(GenericEditor* editor : this->editors){
         editor->free();
         delete editor;
     }
@@ -78,13 +78,20 @@ int AdeptIDE::main(int argc, const char **argv){
     #ifdef _WIN32
     GetModuleFileNameA(NULL, location, 512);
     #else
-    #error "compiler_invoke doesn't have GetModuleFileNameA for this platform"
+    if (argv == NULL || argv[0] == NULL || strcmp(argv[0], "") == 0)
+    {
+        std::cerr << "EXTERNAL ERROR: Compiler was invoked with NULL or empty argv[0]\n" << std::endl;
+        return 1;
+    }
+    char *l = filename_absolute(argv[0]);
+    strcpy(location, l);
+    free(l);
     #endif
 
     char *absolute_filename = filename_absolute(location);
     char *absolute_path = filename_path(absolute_filename);
     this->root = absolute_path;
-    this->assetsFolder = this->root + "assets\\";
+    this->assetsFolder = this->root + "assets/";
     free(absolute_path);
     free(absolute_filename);
 
@@ -94,6 +101,10 @@ int AdeptIDE::main(int argc, const char **argv){
 
     const bool fullscreen = false;
     glfwWindowHint(GLFW_MAXIMIZED, this->settings.ide_default_maximized);
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 2);
+    glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
+    glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 
     if(fullscreen){
         GLFWmonitor *monitor = glfwGetPrimaryMonitor();
@@ -106,7 +117,6 @@ int AdeptIDE::main(int argc, const char **argv){
         this->height = this->settings.ide_default_height;
         this->window = glfwCreateWindow(this->width, this->height, "AdeptIDE", NULL, NULL);
     }    
-
 
     glfwMakeContextCurrent(this->window);
     glfwSwapInterval(this->settings.ide_default_fps <= 0 ? 0 : 60 / this->settings.ide_default_fps);
@@ -197,6 +207,7 @@ int AdeptIDE::main(int argc, const char **argv){
     changeThemeDropdown->menus.push_back(new Menu("Island Campfire      Ctrl+Shift+3", this->menubar.font, theme_island_campfire, this));
     changeThemeDropdown->menus.push_back(new Menu("One Dark             Ctrl+Shift+4", this->menubar.font, theme_one_dark, this));
     changeThemeDropdown->menus.push_back(new Menu("Fruit Smoothie (Legacy)         ", this->menubar.font, theme_fruit_smoothie, this));
+    this->menubar.menus[2]->dropdownMenu->menus.push_back(new Menu("Maximize                         ", this->menubar.font, maximize, this));
 
     selectionDropDownX = 8.0f + this->menubar.menus[0]->textWidth + this->menubar.menus[1]->textWidth + this->menubar.menus[2]->textWidth + 16.0f * 3;
     this->menubar.menus[3]->dropdownMenu = new DropdownMenu(&this->font, selectionDropDownX, 20.0f, 32);
@@ -245,7 +256,7 @@ int AdeptIDE::main(int argc, const char **argv){
         // Handle user input & update
         this->handleInput();
 
-        Editor *currentEditor = this->getCurrentEditor();
+        TextEditor *currentTextEditor = this->getCurrentEditorAsTextEditor();
         
         // Prepare render
         glClearColor(0.07, 0.09, 0.1, 1.0f);
@@ -256,17 +267,17 @@ int AdeptIDE::main(int argc, const char **argv){
         this->projectionMatrix.ortho(0.0f, this->width, this->height, 0.0f, -1.0f, 1.0f);
 
         // Resize editors to new window size
-        for(Editor *editor : this->editors){
-            editor->resize(this->width, this->height - 32 - 20);
+        for(GenericEditor *editor : this->editors){
+            editor->asTextEditor()->resize(this->width, this->height - 32 - 20);
         }
 
         // Render menubar
         menubar.render(this->projectionMatrix, this->fontShader, this->solidShader, (float) this->width);
 
         // Render filenames and current editor
-        if(currentEditor){
+        if(currentTextEditor){
             this->renderEditorFilenames();
-            currentEditor->render(this->projectionMatrix, this->fontShader, this->solidShader);
+            currentTextEditor->render(this->projectionMatrix, this->fontShader, this->solidShader);
         } else if(this->settings.ide_emblem){
             // Render emblem
             this->shader->bind();
@@ -283,7 +294,7 @@ int AdeptIDE::main(int argc, const char **argv){
             global_background_output.updated.store(false);
             global_background_output.mutex.unlock();
         }
-
+        
         if(this->rootWatcher.changeOccured()){
             this->loadSettings();
 
@@ -294,7 +305,6 @@ int AdeptIDE::main(int argc, const char **argv){
         }
 
         if(this->message){
-            this->message->update(this->width, this->settings.hidden.delta);
             this->message->render(projectionMatrix, fontShader, solidShader, fontTexture, width, height);
             if(this->message->shouldClose(this->width)){
                 delete this->message;
@@ -321,14 +331,14 @@ void AdeptIDE::handleInput(){
     double mouseX, mouseY;
     glfwGetCursorPos(window, &mouseX, &mouseY);
 
-    Editor *currentEditor = this->getCurrentEditor();
+    TextEditor *currentTextEditor = this->getCurrentEditorAsTextEditor();
 
-    if(currentEditor){
-        if(!this->mouseReleased && distance(mouseX + currentEditor->getNetXOffset(), mouseY + currentEditor->getNetYOffset(),
+    if(currentTextEditor){
+        if(!this->mouseReleased && distance(mouseX + currentTextEditor->getNetXOffset(), mouseY + currentTextEditor->getNetYOffset(),
                     this->mouseDownX + this->mouseDownNetXOffset , this->mouseDownY + this->mouseDownNetYOffset) > 5.0f
             
-            /*&& currentEditor->xOffset < mouseX*/ && currentEditor->yOffset < mouseY){
-            currentEditor->moveCaretToPosition(this->mouseDownCaretPosition);
+            /*&& currentTextEditor->xOffset < mouseX*/ && currentTextEditor->yOffset < mouseY){
+            currentTextEditor->moveCaretToPosition(this->mouseDownCaretPosition);
             this->startSelection();
             this->moveCaret(mouseX, mouseY);
             this->endSelection();
@@ -340,19 +350,22 @@ void AdeptIDE::handleInput(){
 
 void AdeptIDE::update(){
     this->menubar.update();
+    if(this->message) this->message->update(this->width, this->settings.hidden.delta);
 }
 
 void AdeptIDE::renderEditorFilenames(){
     this->transformationMatrix.translateFromIdentity(8.0f, 26.0f, 0.9);
 
     size_t index = 0;
-    for(Editor *editor : this->editors){
+    for(GenericEditor *editor : this->editors){
         if(this->settings.editor_icons){
             this->shader->bind();
             this->shader->giveMatrix4f("projection_matrix", this->projectionMatrix);
             this->shader->giveMatrix4f("transformation_matrix", this->transformationMatrix);
 
-            switch(editor->getFileType()){
+            TextEditor *textEditor = editor->asTextEditor();
+
+            switch(textEditor ? textEditor->getFileType() : PLAIN_TEXT){
             case PLAIN_TEXT: renderModel(this->plainTextModel); break;
             case ADEPT:      renderModel(this->adeptModel); break;
             case JAVA:       renderModel(this->javaModel);  break;
@@ -370,7 +383,8 @@ void AdeptIDE::renderEditorFilenames(){
         glActiveTexture(GL_TEXTURE0);
         glBindTexture(GL_TEXTURE_2D, this->fontTexture->getID());
 
-        if(editor->hasFilenameModel) editor->getFilenameModel()->draw();
+        TextModel *editorFilenameTextModel = editor->getFilenameModel();
+        if(editorFilenameTextModel) editorFilenameTextModel->draw();
         
         float advance = (editor->displayFilename.length() * (0.17f * this->font.mono_character_width)) + 16.0f;
         this->transformationMatrix.translate(advance, 0.0f, 0.0f);
@@ -391,7 +405,7 @@ void AdeptIDE::openFile(){
 }
 
 void AdeptIDE::openEditor(const std::string& filename){
-    Editor *newEditor = this->addEditor();
+    TextEditor *newEditor = this->addTextEditor();
 
     newEditor->filename = filename;
     newEditor->updateFilenameModel();
@@ -402,23 +416,25 @@ void AdeptIDE::openEditor(const std::string& filename){
 }
 
 void AdeptIDE::newFile(){
-    this->addEditor();
+    TextEditor *newEditor = this->addTextEditor();
     this->updateTitle();
-
-    // HACK: Set stuff for new file
-    Editor *newEditor = this->editors[this->editors.size() - 1];
     newEditor->type(this->settings.editor_default_text);
     newEditor->moveCaretToPosition(this->settings.editor_default_position <= this->settings.editor_default_text.length() ? this->settings.editor_default_position : 0);
 }
 
-Editor* AdeptIDE::getCurrentEditor(){
+GenericEditor* AdeptIDE::getCurrentEditor(){
     if(this->editors.size() == 0) return NULL;
 
     return this->editors[this->currentEditorIndex];
 }
 
-Editor* AdeptIDE::addEditor(){
-    Editor *editor = new Editor();
+TextEditor* AdeptIDE::getCurrentEditorAsTextEditor(){
+    if (this->editors.size() == 0) return NULL;
+    return this->editors[this->currentEditorIndex]->asTextEditor();
+}
+
+TextEditor* AdeptIDE::addTextEditor(){
+    TextEditor *editor = new TextEditor();
     editor->load(&this->settings, &this->font, this->fontTexture, this->width, this->height);
     editor->setOffset(4.0f, 20.0f + 32.0f + 4.0f);
     editor->setFileType(this->settings.editor_default_language);
@@ -473,8 +489,8 @@ void AdeptIDE::moveToNextEditorTab(){
 }
 
 void AdeptIDE::updateTitle(){
-    Editor *editor = this->getCurrentEditor();
-    
+    TextEditor *editor = this->getCurrentEditorAsTextEditor();
+
     if(editor == NULL){
         glfwSetWindowTitle(this->window, "AdeptIDE");
     } else if(editor->filename.length() == 0){
@@ -495,236 +511,236 @@ void AdeptIDE::setCurrentEditor(size_t index){
 }
 
 void AdeptIDE::scrollDown(int lineCount){
-    Editor *currentEditor = this->getCurrentEditor();
-    if(currentEditor) currentEditor->scrollDown(lineCount);
+    TextEditor *currentTextEditor = this->getCurrentEditorAsTextEditor();
+    if(currentTextEditor) currentTextEditor->scrollDown(lineCount);
 }
 
 void AdeptIDE::scrollUp(int lineCount){
-    Editor *currentEditor = this->getCurrentEditor();
-    if(currentEditor) currentEditor->scrollUp(lineCount);
+    TextEditor *currentTextEditor = this->getCurrentEditorAsTextEditor();
+    if(currentTextEditor) currentTextEditor->scrollUp(lineCount);
 }
 
 void AdeptIDE::pageUp(){
-    Editor *currentEditor = this->getCurrentEditor();
-    if(currentEditor) currentEditor->pageUp();
+    TextEditor *currentTextEditor = this->getCurrentEditorAsTextEditor();
+    if(currentTextEditor) currentTextEditor->pageUp();
 }
 
 void AdeptIDE::pageDown(){
-    Editor *currentEditor = this->getCurrentEditor();
-    if(currentEditor) currentEditor->pageDown();
+    TextEditor *currentTextEditor = this->getCurrentEditorAsTextEditor();
+    if(currentTextEditor) currentTextEditor->pageDown();
 }
 
 void AdeptIDE::selectAll(){
-    Editor *currentEditor = this->getCurrentEditor();
-    if(currentEditor) currentEditor->selectAll();
+    TextEditor *currentTextEditor = this->getCurrentEditorAsTextEditor();
+    if(currentTextEditor) currentTextEditor->selectAll();
 }
 
 void AdeptIDE::selectLine(){
-    Editor *currentEditor = this->getCurrentEditor();
-    if(currentEditor) currentEditor->selectLine();
+    TextEditor *currentTextEditor = this->getCurrentEditorAsTextEditor();
+    if(currentTextEditor) currentTextEditor->selectLine();
 }
 
 void AdeptIDE::duplicateCaretUp(){
-    Editor *currentEditor = this->getCurrentEditor();
-    if(currentEditor) currentEditor->duplicateCaretUp();
+    TextEditor *currentTextEditor = this->getCurrentEditorAsTextEditor();
+    if(currentTextEditor) currentTextEditor->duplicateCaretUp();
 }
 
 void AdeptIDE::duplicateCaretDown(){
-    Editor *currentEditor = this->getCurrentEditor();
-    if(currentEditor) currentEditor->duplicateCaretDown();
+    TextEditor *currentTextEditor = this->getCurrentEditorAsTextEditor();
+    if(currentTextEditor) currentTextEditor->duplicateCaretDown();
 }
 
 void AdeptIDE::type(const std::string& text){
-    Editor *currentEditor = this->getCurrentEditor();
-    if(currentEditor) currentEditor->type(text);
+    TextEditor *currentTextEditor = this->getCurrentEditorAsTextEditor();
+    if(currentTextEditor) currentTextEditor->type(text);
 }
 
 void AdeptIDE::type(char character){
-    Editor *currentEditor = this->getCurrentEditor();
-    if(currentEditor) currentEditor->type(character);
+    TextEditor *currentTextEditor = this->getCurrentEditorAsTextEditor();
+    if(currentTextEditor) currentTextEditor->type(character);
 }
 
 void AdeptIDE::typeBlock(){
-    Editor *currentEditor = this->getCurrentEditor();
-    if(currentEditor) currentEditor->typeBlock();
+    TextEditor *currentTextEditor = this->getCurrentEditorAsTextEditor();
+    if(currentTextEditor) currentTextEditor->typeBlock();
 }
 
 void AdeptIDE::typeExpression(){
-    Editor *currentEditor = this->getCurrentEditor();
-    if(currentEditor) currentEditor->typeExpression();
+    TextEditor *currentTextEditor = this->getCurrentEditorAsTextEditor();
+    if(currentTextEditor) currentTextEditor->typeExpression();
 }
 
 void AdeptIDE::typeArrayAccess(){
-    Editor *currentEditor = this->getCurrentEditor();
-    if(currentEditor) currentEditor->typeArrayAccess();
+    TextEditor *currentTextEditor = this->getCurrentEditorAsTextEditor();
+    if(currentTextEditor) currentTextEditor->typeArrayAccess();
 }
 
 void AdeptIDE::typeString(){
-    Editor *currentEditor = this->getCurrentEditor();
-    if(currentEditor) currentEditor->typeString();
+    TextEditor *currentTextEditor = this->getCurrentEditorAsTextEditor();
+    if(currentTextEditor) currentTextEditor->typeString();
 }
 
 void AdeptIDE::typeCString(){
-    Editor *currentEditor = this->getCurrentEditor();
-    if(currentEditor) currentEditor->typeCString();
+    TextEditor *currentTextEditor = this->getCurrentEditorAsTextEditor();
+    if(currentTextEditor) currentTextEditor->typeCString();
 }
 
 void AdeptIDE::backspace(){
-    Editor *currentEditor = this->getCurrentEditor();
-    if(currentEditor) currentEditor->backspace();
+    TextEditor *currentTextEditor = this->getCurrentEditorAsTextEditor();
+    if(currentTextEditor) currentTextEditor->backspace();
 }
 
 void AdeptIDE::del(){
-    Editor *currentEditor = this->getCurrentEditor();
-    if(currentEditor) currentEditor->del();
+    TextEditor *currentTextEditor = this->getCurrentEditorAsTextEditor();
+    if(currentTextEditor) currentTextEditor->del();
 }
 
 void AdeptIDE::smartBackspace(){
-    Editor *currentEditor = this->getCurrentEditor();
-    if(currentEditor) currentEditor->smartBackspace();
+    TextEditor *currentTextEditor = this->getCurrentEditorAsTextEditor();
+    if(currentTextEditor) currentTextEditor->smartBackspace();
 }
 
 void AdeptIDE::smartDel(){
-    Editor *currentEditor = this->getCurrentEditor();
-    if(currentEditor) currentEditor->smartDel();
+    TextEditor *currentTextEditor = this->getCurrentEditorAsTextEditor();
+    if(currentTextEditor) currentTextEditor->smartDel();
 }
 
 void AdeptIDE::backspaceLine(){
-    Editor *currentEditor = this->getCurrentEditor();
-    if(currentEditor) currentEditor->backspaceLine();
+    TextEditor *currentTextEditor = this->getCurrentEditorAsTextEditor();
+    if(currentTextEditor) currentTextEditor->backspaceLine();
 }
 
 void AdeptIDE::delLine(){
-    Editor *currentEditor = this->getCurrentEditor();
-    if(currentEditor) currentEditor->delLine();
+    TextEditor *currentTextEditor = this->getCurrentEditorAsTextEditor();
+    if(currentTextEditor) currentTextEditor->delLine();
 }
 
 void AdeptIDE::startSelection(){
-    Editor *currentEditor = this->getCurrentEditor();
-    if(currentEditor) currentEditor->startSelection();
+    TextEditor *currentTextEditor = this->getCurrentEditorAsTextEditor();
+    if(currentTextEditor) currentTextEditor->startSelection();
 }
 
 void AdeptIDE::endSelection(){
-    Editor *currentEditor = this->getCurrentEditor();
-    if(currentEditor) currentEditor->endSelection();
+    TextEditor *currentTextEditor = this->getCurrentEditorAsTextEditor();
+    if(currentTextEditor) currentTextEditor->endSelection();
 }
 
 void AdeptIDE::destroySelection(){
-    Editor *currentEditor = this->getCurrentEditor();
-    if(currentEditor) currentEditor->destroySelection();
+    TextEditor *currentTextEditor = this->getCurrentEditorAsTextEditor();
+    if(currentTextEditor) currentTextEditor->destroySelection();
 }
 
 void AdeptIDE::deleteSelected(){
-    Editor *currentEditor = this->getCurrentEditor();
-    if(currentEditor) currentEditor->deleteSelected();
+    TextEditor *currentTextEditor = this->getCurrentEditorAsTextEditor();
+    if(currentTextEditor) currentTextEditor->deleteSelected();
 }
 
 void AdeptIDE::copySelected(){
-    Editor *currentEditor = this->getCurrentEditor();
-    if(currentEditor) currentEditor->copySelected(this->window);
+    TextEditor *currentTextEditor = this->getCurrentEditorAsTextEditor();
+    if(currentTextEditor) currentTextEditor->copySelected(this->window);
 }
 
 void AdeptIDE::cutSelected(){
-    Editor *currentEditor = this->getCurrentEditor();
-    if(currentEditor) currentEditor->cutSelected(this->window);
+    TextEditor *currentTextEditor = this->getCurrentEditorAsTextEditor();
+    if(currentTextEditor) currentTextEditor->cutSelected(this->window);
 }
 
 void AdeptIDE::paste(){
-    Editor *currentEditor = this->getCurrentEditor();
-    if(currentEditor) currentEditor->paste(this->window);
+    TextEditor *currentTextEditor = this->getCurrentEditorAsTextEditor();
+    if(currentTextEditor) currentTextEditor->paste(this->window);
 }
 
 void AdeptIDE::tab(){
-    Editor *currentEditor = this->getCurrentEditor();
-    if(currentEditor) currentEditor->tab();
+    TextEditor *currentTextEditor = this->getCurrentEditorAsTextEditor();
+    if(currentTextEditor) currentTextEditor->tab();
 }
 
 void AdeptIDE::nextLine(){
-    Editor *currentEditor = this->getCurrentEditor();
-    if(currentEditor) currentEditor->nextLine();
+    TextEditor *currentTextEditor = this->getCurrentEditorAsTextEditor();
+    if(currentTextEditor) currentTextEditor->nextLine();
 }
 
 void AdeptIDE::nextPrecedingLine(){
-    Editor *currentEditor = this->getCurrentEditor();
-    if(currentEditor) currentEditor->nextPrecedingLine();
+    TextEditor *currentTextEditor = this->getCurrentEditorAsTextEditor();
+    if(currentTextEditor) currentTextEditor->nextPrecedingLine();
 }
 
 void AdeptIDE::finishSuggestion(){
-    Editor *currentEditor = this->getCurrentEditor();
-    if(currentEditor) currentEditor->finishSuggestion();
+    TextEditor *currentTextEditor = this->getCurrentEditorAsTextEditor();
+    if(currentTextEditor) currentTextEditor->finishSuggestion();
 }
 
 void AdeptIDE::moveCaret(double xpos, double ypos){
-    Editor *currentEditor = this->getCurrentEditor();
-    if(currentEditor) currentEditor->moveCaret(xpos, ypos);
+    TextEditor *currentTextEditor = this->getCurrentEditorAsTextEditor();
+    if(currentTextEditor) currentTextEditor->moveCaret(xpos, ypos);
 }
 
 void AdeptIDE::moveCaretLeft(){
-    Editor *currentEditor = this->getCurrentEditor();
-    if(currentEditor) currentEditor->moveCaretLeft();
+    TextEditor *currentTextEditor = this->getCurrentEditorAsTextEditor();
+    if(currentTextEditor) currentTextEditor->moveCaretLeft();
 }
 
 void AdeptIDE::moveCaretRight(){
-    Editor *currentEditor = this->getCurrentEditor();
-    if(currentEditor) currentEditor->moveCaretRight();
+    TextEditor *currentTextEditor = this->getCurrentEditorAsTextEditor();
+    if(currentTextEditor) currentTextEditor->moveCaretRight();
 }
 
 void AdeptIDE::moveCaretUp(){
-    Editor *currentEditor = this->getCurrentEditor();
-    if(currentEditor) currentEditor->moveCaretUp();
+    TextEditor *currentTextEditor = this->getCurrentEditorAsTextEditor();
+    if(currentTextEditor) currentTextEditor->moveCaretUp();
 }
 
 void AdeptIDE::moveCaretDown(){
-    Editor *currentEditor = this->getCurrentEditor();
-    if(currentEditor) currentEditor->moveCaretDown();
+    TextEditor *currentTextEditor = this->getCurrentEditorAsTextEditor();
+    if(currentTextEditor) currentTextEditor->moveCaretDown();
 }
 
 void AdeptIDE::moveCaretBeginningOfLine(){
-    Editor *currentEditor = this->getCurrentEditor();
-    if(currentEditor) currentEditor->moveCaretBeginningOfLine();
+    TextEditor *currentTextEditor = this->getCurrentEditorAsTextEditor();
+    if(currentTextEditor) currentTextEditor->moveCaretBeginningOfLine();
 }
 
 void AdeptIDE::moveCaretEndOfLine(){
-    Editor *currentEditor = this->getCurrentEditor();
-    if(currentEditor) currentEditor->moveCaretEndOfLine();
+    TextEditor *currentTextEditor = this->getCurrentEditorAsTextEditor();
+    if(currentTextEditor) currentTextEditor->moveCaretEndOfLine();
 }
 
 void AdeptIDE::moveCaretBeginningOfWord(){
-    Editor *currentEditor = this->getCurrentEditor();
-    if(currentEditor) currentEditor->moveCaretBeginningOfWord();
+    TextEditor *currentTextEditor = this->getCurrentEditorAsTextEditor();
+    if(currentTextEditor) currentTextEditor->moveCaretBeginningOfWord();
 }
 
 void AdeptIDE::moveCaretEndOfWord(){
-    Editor *currentEditor = this->getCurrentEditor();
-    if(currentEditor) currentEditor->moveCaretEndOfWord();
+    TextEditor *currentTextEditor = this->getCurrentEditorAsTextEditor();
+    if(currentTextEditor) currentTextEditor->moveCaretEndOfWord();
 }
 
 void AdeptIDE::moveCaretOutside(){
-    Editor *currentEditor = this->getCurrentEditor();
-    if(currentEditor) currentEditor->moveCaretOutside();
+    TextEditor *currentTextEditor = this->getCurrentEditorAsTextEditor();
+    if(currentTextEditor) currentTextEditor->moveCaretOutside();
 }
 
 void AdeptIDE::moveCaretBeginningOfSubWord(){
-    Editor *currentEditor = this->getCurrentEditor();
-    if(currentEditor) currentEditor->moveCaretBeginningOfSubWord();
+    TextEditor *currentTextEditor = this->getCurrentEditorAsTextEditor();
+    if(currentTextEditor) currentTextEditor->moveCaretBeginningOfSubWord();
 }
 
 void AdeptIDE::moveCaretEndOfSubWord(){
-    Editor *currentEditor = this->getCurrentEditor();
-    if(currentEditor) currentEditor->moveCaretEndOfSubWord();
+    TextEditor *currentTextEditor = this->getCurrentEditorAsTextEditor();
+    if(currentTextEditor) currentTextEditor->moveCaretEndOfSubWord();
 }
 
 void AdeptIDE::saveFile(){
-    Editor *currentEditor = this->getCurrentEditor();
+    TextEditor *currentTextEditor = this->getCurrentEditorAsTextEditor();
 
-    if(currentEditor){
-        if(currentEditor->filename == ""){
-            if(!saveFileDialog(this->window, currentEditor->filename)) return;
+    if(currentTextEditor){
+        if(currentTextEditor->filename == ""){
+            if(!saveFileDialog(this->window, currentTextEditor->filename)) return;
             this->updateTitle();
-            currentEditor->updateFilenameModel();
+            currentTextEditor->updateFilenameModel();
             this->setCurrentEditor(this->currentEditorIndex);
         }
-        currentEditor->saveFile();
+        currentTextEditor->saveFile();
     }
 }
 
@@ -753,7 +769,13 @@ void key_callback(GLFWwindow *window, int key, int scancode, int action, int mod
 
     bool input = (action == GLFW_PRESS || action == GLFW_REPEAT);
 
-    if(glfwGetKey(window, GLFW_KEY_RIGHT_ALT) == GLFW_PRESS && input){
+    #ifdef __APPLE__
+    #define QUICKTYPE_KEY GLFW_KEY_LEFT_SUPER
+    #else
+    #define QUICKTYPE_KEY GLFW_KEY_RIGHT_ALT
+    #endif
+
+    if (glfwGetKey(window, QUICKTYPE_KEY) == GLFW_PRESS && input){
         if(glfwGetKey(window, GLFW_KEY_SPACE)){
             adeptide->finishSuggestion();
             return;
@@ -807,7 +829,7 @@ void key_callback(GLFWwindow *window, int key, int scancode, int action, int mod
     }
 
     if(key == GLFW_KEY_ESCAPE && action == GLFW_PRESS){
-        Editor *editor = adeptide->getCurrentEditor();
+        TextEditor *editor = adeptide->getCurrentEditorAsTextEditor();
 
         if(editor){
             if(editor->hasSelection()){
@@ -1014,7 +1036,7 @@ void handle_left_click(AdeptIDE *adeptide, double xpos, double ypos){
     } else {
         adeptide->menubar.loseFocus();
 
-        Editor *editor = adeptide->getCurrentEditor();
+        TextEditor *editor = adeptide->getCurrentEditorAsTextEditor();
         if(editor == NULL) return;
 
         adeptide->moveCaret(xpos, ypos);
@@ -1090,7 +1112,7 @@ void select_all_menu(void *data){
 
 void language_plain(void *data){
     AdeptIDE *adeptide = static_cast<AdeptIDE*>(data);
-    Editor *editor = adeptide->getCurrentEditor();
+    TextEditor *editor = adeptide->getCurrentEditorAsTextEditor();
     if(editor){
         editor->setFileType(PLAIN_TEXT);
         adeptide->menubar.loseFocus();
@@ -1099,7 +1121,7 @@ void language_plain(void *data){
 
 void language_adept(void *data){
     AdeptIDE *adeptide = static_cast<AdeptIDE*>(data);
-    Editor *editor = adeptide->getCurrentEditor();
+    TextEditor *editor = adeptide->getCurrentEditorAsTextEditor();
     if(editor){
         editor->setFileType(ADEPT);
         adeptide->menubar.loseFocus();
@@ -1108,7 +1130,7 @@ void language_adept(void *data){
 
 void language_java(void *data){
     AdeptIDE *adeptide = static_cast<AdeptIDE*>(data);
-    Editor *editor = adeptide->getCurrentEditor();
+    TextEditor *editor = adeptide->getCurrentEditorAsTextEditor();
     if(editor){
         editor->setFileType(JAVA);
         adeptide->menubar.loseFocus();
@@ -1117,7 +1139,7 @@ void language_java(void *data){
 
 void language_html(void *data){
     AdeptIDE *adeptide = static_cast<AdeptIDE*>(data);
-    Editor *editor = adeptide->getCurrentEditor();
+    TextEditor *editor = adeptide->getCurrentEditorAsTextEditor();
     if(editor){
         editor->setFileType(HTML);
         adeptide->menubar.loseFocus();
@@ -1126,7 +1148,7 @@ void language_html(void *data){
 
 void theme_visual_studio(void *data){
     AdeptIDE *adeptide = static_cast<AdeptIDE*>(data);
-    Editor *editor = adeptide->getCurrentEditor();
+    TextEditor *editor = adeptide->getCurrentEditorAsTextEditor();
     if(editor){
         editor->setSyntaxColorPalette(SyntaxColorPalette::Defaults::VISUAL_STUDIO);
         adeptide->menubar.loseFocus();
@@ -1135,7 +1157,7 @@ void theme_visual_studio(void *data){
 
 void theme_fruit_smoothie(void *data){
     AdeptIDE *adeptide = static_cast<AdeptIDE*>(data);
-    Editor *editor = adeptide->getCurrentEditor();
+    TextEditor *editor = adeptide->getCurrentEditorAsTextEditor();
     if(editor){
         editor->setSyntaxColorPalette(SyntaxColorPalette::Defaults::FRUIT_SMOOTHIE);
         adeptide->menubar.loseFocus();
@@ -1144,7 +1166,7 @@ void theme_fruit_smoothie(void *data){
 
 void theme_tropical_ocean(void *data){
     AdeptIDE *adeptide = static_cast<AdeptIDE*>(data);
-    Editor *editor = adeptide->getCurrentEditor();
+    TextEditor *editor = adeptide->getCurrentEditorAsTextEditor();
     if(editor){
         editor->setSyntaxColorPalette(SyntaxColorPalette::Defaults::TROPICAL_OCEAN);
         adeptide->menubar.loseFocus();
@@ -1153,7 +1175,7 @@ void theme_tropical_ocean(void *data){
 
 void theme_island_campfire(void *data){
     AdeptIDE *adeptide = static_cast<AdeptIDE*>(data);
-    Editor *editor = adeptide->getCurrentEditor();
+    TextEditor *editor = adeptide->getCurrentEditorAsTextEditor();
     if(editor){
         editor->setSyntaxColorPalette(SyntaxColorPalette::Defaults::ISLAND_CAMPFIRE);
         adeptide->menubar.loseFocus();
@@ -1162,11 +1184,16 @@ void theme_island_campfire(void *data){
 
 void theme_one_dark(void *data){
     AdeptIDE *adeptide = static_cast<AdeptIDE*>(data);
-    Editor *editor = adeptide->getCurrentEditor();
+    TextEditor *editor = adeptide->getCurrentEditorAsTextEditor();
     if(editor){
         editor->setSyntaxColorPalette(SyntaxColorPalette::Defaults::ONE_DARK);
         adeptide->menubar.loseFocus();
     }
+}
+
+void maximize(void *data){
+    AdeptIDE *adeptide = static_cast<AdeptIDE *>(data);
+    glfwMaximizeWindow(adeptide->window);
 }
 
 
@@ -1182,12 +1209,13 @@ void build_menu(void *data){
 
 void build_adept_project(void *data){
     AdeptIDE *adeptide = static_cast<AdeptIDE*>(data);
-    Editor *editor = adeptide->getCurrentEditor();
+    TextEditor *editor = adeptide->getCurrentEditorAsTextEditor();
     if(editor){
         if(editor->filename == ""){
             adeptide->createMessage("File must be saved in order to compile", 2.0);
         }
-        else if(system( (adeptide->settings.adept_compiler + " \"" + editor->filename + "\" > \"" + adeptide->root + "\"adept.log 2>&1").c_str() )){
+        else if (system((adeptide->settings.adept_compiler + " \"" + editor->filename + "\" > \"" + adeptide->root + "adept.log\" 2>&1").c_str()))
+        {
             std::ifstream stream(adeptide->root + "adept.log");
             std::string notes;
 
@@ -1212,7 +1240,7 @@ void build_adept_project(void *data){
 
 void build_and_run_adept_project(void *data){
     AdeptIDE *adeptide = static_cast<AdeptIDE*>(data);
-    Editor *editor = adeptide->getCurrentEditor();
+    TextEditor *editor = adeptide->getCurrentEditorAsTextEditor();
     if(editor){
         if(editor->filename == ""){
             adeptide->createMessage("File must be saved in order to compile", 2.0);

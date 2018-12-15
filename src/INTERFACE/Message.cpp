@@ -3,13 +3,13 @@
 #include "INTERFACE/Message.h"
 
 Message::Message(const std::string& message, Font *font, double seconds, int windowWidth, int windowHeight){
-    timer = seconds * 60;
+    exitTime = glfwGetTime() + seconds;
     this->model = font->generatePlainTextModel(message, 0.17f);
 
     // Calculate Text Width
     int widthInCharacters = 0;
     int lineWidthInCharacters = 0;
-    int newlines;
+    int newlines = 0;
     for(size_t i = 0; i != message.length(); i++){
         if(message[i] == '\n'){
             if(lineWidthInCharacters > widthInCharacters) widthInCharacters = lineWidthInCharacters;
@@ -35,13 +35,11 @@ Message::~Message(){
 }
 
 void Message::update(int windowWidth, double delta){
-    timer -= delta;
-    float targetX = (timer < 0.0) ? windowWidth : windowWidth - containerWidth;
+    float targetX = (glfwGetTime() > exitTime) ? windowWidth : windowWidth - containerWidth;
 
-    if(fabs(targetX - this->x) > 0.01f){
-        this->x += (targetX > this->x ? 1 : -1) * fabs(x - targetX) * (-1 / (2 * delta) + 1) * 0.5;
+    if(fabs(this->x - targetX) > 0.01f){
+        this->x += (targetX > this->x ? 1 : -1) * fabs(this->x - targetX) * (delta / 2);
     } else this->x = targetX;
-
 }
 
 void Message::render(Matrix4f& projectionMatrix, Shader *fontShader, Shader *solidShader, Texture *fontTexture, int windowWidth, int windowHeight){
@@ -68,5 +66,5 @@ void Message::render(Matrix4f& projectionMatrix, Shader *fontShader, Shader *sol
 }
 
 bool Message::shouldClose(int windowWidth){
-    return timer < 0.0 && x >= windowWidth;
+    return glfwGetTime() > exitTime && x >= windowWidth;
 }

@@ -160,10 +160,7 @@ strong_cstr_t filename_absolute(const char *filename){
     return buffer;
 
     #else
-    #error "Getting absolute paths not implemented for this platform"
-    // char *buffer = malloc(512);
-    // memcpy(buffer, "test", 5);
-	// return buffer;
+    return realpath(filename, NULL);
     #endif
 
     return NULL;

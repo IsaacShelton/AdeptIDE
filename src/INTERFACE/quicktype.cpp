@@ -5,7 +5,7 @@
 #include "INTERFACE/quicktype.h"
 
 void quicktype(AdeptIDE *adeptide, int key){
-    Editor *editor = adeptide->getCurrentEditor();
+    TextEditor *editor = adeptide->getCurrentEditorAsTextEditor();
     if(!editor) return;
 
     switch(editor->getFileType()){

@@ -1,4 +1,5 @@
 
+#include <math.h>
 #include <algorithm>
 
 #include "OPENGL/Vector4f.h"
@@ -19,11 +20,11 @@ Menu::~Menu(){
     delete dropdownMenu;
 }
 
-void Menu::update(){
+void Menu::update(double delta){
     float targetFontWidthValue = this->targetFontWidth == FontWidthTarget::REGULAR ? 0.43f : 0.525f;
 
     if(fabs(this->fontWidth - targetFontWidthValue) > 0.0001f){
-        this->fontWidth += (targetFontWidthValue > this->fontWidth ? 1 : -1) * fabs(this->fontWidth - targetFontWidthValue) * 0.5f;
+        this->fontWidth += (targetFontWidthValue > this->fontWidth ? 1 : -1) * fabs(this->fontWidth - targetFontWidthValue) * (delta / 2);
     } else this->fontWidth = targetFontWidthValue;
 }
 
@@ -55,11 +56,11 @@ void DropdownMenu::update(double delta){
     float targetHeight = isOpen ? this->getBottom() : 0;
 
     if(fabs(this->height - targetHeight) > 0.01f){
-        this->height += (targetHeight > this->height ? 1 : -1) * fabs(this->height - targetHeight) * (-1 / (2 * delta) + 1);
+        this->height += (targetHeight > this->height ? 1 : -1) * fabs(this->height - targetHeight) * (delta / 2);
     } else this->height = targetHeight;
 
     for(Menu *menu : this->menus){
-        menu->update();
+        menu->update(delta);
 
         if(menu->dropdownMenu){
             if(!this->isOpen) menu->dropdownMenu->isOpen = false;
@@ -184,7 +185,7 @@ MenuBar::~MenuBar(){
     delete this->underlineBaseModel;
 }
 
-void MenuBar::load(Settings *settings, Font *font, Texture *fontTexture, std::vector<Editor*> *editors){
+void MenuBar::load(Settings *settings, Font *font, Texture *fontTexture, std::vector<GenericEditor*> *editors){
     this->settings = settings;
     this->font = font;
     this->fontTexture = fontTexture;
@@ -204,15 +205,15 @@ void MenuBar::addMenu(const std::string& label, MenuAction action, void *data){
 
 void MenuBar::update(){
     if(fabs(this->tabUnderlineBeginX - this->targetTabUnderlineBeginX) > 0.01f){
-        this->tabUnderlineBeginX += (this->targetTabUnderlineBeginX > this->tabUnderlineBeginX ? 1 : -1) * fabs(this->tabUnderlineBeginX - this->targetTabUnderlineBeginX) * (-1 / (2 * this->settings->hidden.delta) + 1);
+        this->tabUnderlineBeginX += (this->targetTabUnderlineBeginX > this->tabUnderlineBeginX ? 1 : -1) * fabs(this->tabUnderlineBeginX - this->targetTabUnderlineBeginX) * (this->settings->hidden.delta / 2);
     } else this->tabUnderlineBeginX = this->targetTabUnderlineBeginX;
 
     if(fabs(this->tabUnderlineEndX - this->targetTabUnderlineEndX) > 0.01f){
-        this->tabUnderlineEndX += (this->targetTabUnderlineEndX > this->tabUnderlineEndX ? 1 : -1) * fabs(this->tabUnderlineEndX - this->targetTabUnderlineEndX) * (-1 / (2 * this->settings->hidden.delta) + 1);
+        this->tabUnderlineEndX += (this->targetTabUnderlineEndX > this->tabUnderlineEndX ? 1 : -1) * fabs(this->tabUnderlineEndX - this->targetTabUnderlineEndX) * (this->settings->hidden.delta / 2);
     } else this->tabUnderlineEndX = this->targetTabUnderlineEndX;
 
     for(Menu *menu : this->menus){
-        menu->update();
+        menu->update(this->settings->hidden.delta);
 
         if(menu->dropdownMenu) menu->dropdownMenu->update(this->settings->hidden.delta);
     }
@@ -309,7 +310,7 @@ bool MenuBar::leftClick(double xpos, double ypos, size_t *outCurrentEditorIndex)
     // Try for tab selection
     if(ypos >= this->yOffset + 20.0f && ypos <= this->yOffset + 20.0f + 32.0f){
         const float padding = 8.0f;
-        const float spacing = 24.0f;
+        const float spacing = this->settings->editor_icons ? 24.0f : 0.0f;
         float displayNameX = this->xOffset + padding;
 
         for(size_t i = 0; i != this->editors->size(); i++){

@@ -11,7 +11,7 @@ struct SymbolWeight {
     bool isFunction;
 
     SymbolWeight(const std::string& name, const std::string& label, int weight, bool isFunction);
-    bool operator<(const SymbolWeight& other);
+    bool operator<(const SymbolWeight& other) const;
 };
 
 #endif // SYMBOL_WEIGHT_H
