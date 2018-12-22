@@ -18,8 +18,6 @@
 #include "INSIGHT/insight.h"
 
 class TextEditor : public GenericEditor {
-    Font *font;
-    Texture *fontTexture;
     SyntaxColorPalette palette;
     
     std::string lineNumbersText;
@@ -57,9 +55,9 @@ class TextEditor : public GenericEditor {
     void makeAst();
 
 public:
-    void free();
+    ~TextEditor();
     void load(Settings *settings, Font *font, Texture *fontTexture, float maxWidth, float maxHeight);
-    void render(Matrix4f& projectionMatrix, Shader *fontShader, Shader *solidShader);
+    void render(Matrix4f &projectionMatrix, Shader *shader, Shader *fontShader, Shader *solidShader);
     TextModel* getFilenameModel();
     void updateFilenameModel();
     FileType getFileType();
@@ -137,6 +135,7 @@ public:
     size_t getCaretPosition();
 
     TextEditor *asTextEditor();
+    ImageEditor *asImageEditor();
 };
 
 #endif // TEXT_EDITOR_H_INCLUDED

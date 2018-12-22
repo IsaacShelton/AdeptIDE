@@ -6,6 +6,8 @@
 #include <GL/glew.h>
 #include <GLFW/glfw3.h>
 
+#include "OPENGL/Image.h"
+
 enum TextureLoadOptions {
     ALPHA = 0x01,
     BLEND = 0x02,
@@ -17,6 +19,7 @@ private:
     GLuint id;
     int width, height;
 public:
+    Texture(Image* image);
     Texture(const std::string& filename, TextureLoadOptions options);
     ~Texture();
 

@@ -61,6 +61,151 @@ void TextModel::draw(){
     glDisableVertexAttribArray(0);
 }
 
+Model* makeSquareModel(Texture *texture, float size){
+    std::vector<float> vertices;
+    std::vector<float> textureCoords;
+    std::vector<unsigned int> indices;
+
+    vertices.push_back(  0.0f);
+    vertices.push_back(size);
+    vertices.push_back(  0);
+    vertices.push_back(  0.0f);
+    vertices.push_back(  0.0f);
+    vertices.push_back(  0);
+    vertices.push_back(size);
+    vertices.push_back(  0.0f);
+    vertices.push_back(  0.0f);
+    vertices.push_back(size);
+    vertices.push_back(size);
+    vertices.push_back(  0.0f);
+
+    textureCoords.push_back(0.0f);
+    textureCoords.push_back(1.0f);
+    textureCoords.push_back(0.0f);
+    textureCoords.push_back(0.0f);
+    textureCoords.push_back(1.0f);
+    textureCoords.push_back(0.0f);
+    textureCoords.push_back(1.0f);
+    textureCoords.push_back(1.0f);
+
+    indices.push_back(0);
+    indices.push_back(1);
+    indices.push_back(3);
+    indices.push_back(3);
+    indices.push_back(1);
+    indices.push_back(2);
+
+    VAO *vao = new VAO();
+    vao->bind();
+
+    VBO *verticesVBO = new VBO(VBOContentType::VERTICES, vertices);
+    vao->addVBO(verticesVBO);
+
+    VBO *textureCoordsVBO = new VBO(VBOContentType::TEXTURE_COORDS, textureCoords);
+    vao->addVBO(textureCoordsVBO);
+
+    EBO *ebo = new EBO(indices);
+
+    return new Model(vao, ebo, texture);
+}
+
+Model* makeRectangleModel(Texture *texture, float w, float h){
+    std::vector<float> vertices;
+    std::vector<float> textureCoords;
+    std::vector<unsigned int> indices;
+
+    vertices.push_back(  0.0f);
+    vertices.push_back(h);
+    vertices.push_back(  0);
+    vertices.push_back(  0.0f);
+    vertices.push_back(  0.0f);
+    vertices.push_back(  0);
+    vertices.push_back(w);
+    vertices.push_back(  0.0f);
+    vertices.push_back(  0.0f);
+    vertices.push_back(w);
+    vertices.push_back(h);
+    vertices.push_back(  0.0f);
+
+    textureCoords.push_back(0.0f);
+    textureCoords.push_back(1.0f);
+    textureCoords.push_back(0.0f);
+    textureCoords.push_back(0.0f);
+    textureCoords.push_back(1.0f);
+    textureCoords.push_back(0.0f);
+    textureCoords.push_back(1.0f);
+    textureCoords.push_back(1.0f);
+
+    indices.push_back(0);
+    indices.push_back(1);
+    indices.push_back(3);
+    indices.push_back(3);
+    indices.push_back(1);
+    indices.push_back(2);
+
+    VAO *vao = new VAO();
+    vao->bind();
+
+    VBO *verticesVBO = new VBO(VBOContentType::VERTICES, vertices);
+    vao->addVBO(verticesVBO);
+
+    VBO *textureCoordsVBO = new VBO(VBOContentType::TEXTURE_COORDS, textureCoords);
+    vao->addVBO(textureCoordsVBO);
+
+    EBO *ebo = new EBO(indices);
+
+    return new Model(vao, ebo, texture);
+}
+
+Model* makeRectangleModelCentered(Texture *texture, float w, float h){
+    std::vector<float> vertices;
+    std::vector<float> textureCoords;
+    std::vector<unsigned int> indices;
+
+    vertices.push_back(-w/2);
+    vertices.push_back(h/2);
+    vertices.push_back(0);
+    vertices.push_back(-w/2);
+    vertices.push_back(-h/2);
+    vertices.push_back(0);
+    vertices.push_back(w/2);
+    vertices.push_back(-h/2);
+    vertices.push_back(0);
+    vertices.push_back(w/2);
+    vertices.push_back(h/2);
+    vertices.push_back(0);
+
+    textureCoords.push_back(0.0f);
+    textureCoords.push_back(1.0f);
+    textureCoords.push_back(0.0f);
+    textureCoords.push_back(0.0f);
+    textureCoords.push_back(1.0f);
+    textureCoords.push_back(0.0f);
+    textureCoords.push_back(1.0f);
+    textureCoords.push_back(1.0f);
+
+    indices.push_back(0);
+    indices.push_back(1);
+    indices.push_back(3);
+    indices.push_back(3);
+    indices.push_back(1);
+    indices.push_back(2);
+
+    VAO *vao = new VAO();
+    vao->bind();
+
+    VBO *verticesVBO = new VBO(VBOContentType::VERTICES, vertices);
+    vao->addVBO(verticesVBO);
+
+    VBO *textureCoordsVBO = new VBO(VBOContentType::TEXTURE_COORDS, textureCoords);
+    vao->addVBO(textureCoordsVBO);
+
+    EBO *ebo = new EBO(indices);
+
+    return new Model(vao, ebo, texture);
+}
+
+
 void renderModel(Model *model){
     assert(model->vao);
     assert(model->ebo);

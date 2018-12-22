@@ -2,6 +2,8 @@
 #ifdef _WIN32
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
+#elif defined(__APPLE__)
+#include <mach-o/dyld.h>
 #endif
 
 #include <stdarg.h>
@@ -32,13 +34,29 @@ void compiler_invoke(compiler_t *compiler, int argc, char **argv){
     compiler->location = malloc(512);
 
     #ifdef _WIN32
-    GetModuleFileNameA(NULL, compiler->location, 512);
-    #else
-    if (argv == NULL || argv[0] == NULL || strcmp(argv[0], "") == 0){
-        redprintf("EXTERNAL ERROR: Compiler was invoked with NULL or empty argv[0]\n");
-        return;
+	char *module_location = malloc(1024);
+    GetModuleFileNameA(NULL, module_location, 1024);
+	
+	compiler->location = filename_absolute(module_location);
+	free(module_location);
+    #elif defined(__APPLE__)
+    {
+        char path[1024];
+        int32_t size = sizeof(path);
+        if (_NSGetExecutablePath(path, &size) == 0){
+            compiler->location = filename_absolute(path);
+        } else {
+            redprintf("Executable path is too long!\n");
+            return;
+        }
     }
-    compiler->location = filename_absolute(argv[0]);
+    #else
+	if(argv == NULL || argv[0] == NULL || strcmp(argv[0], "") == 0){
+		redprintf("EXTERNAL ERROR: Compiler was invoked with NULL or empty argv[0]\n");
+		return;
+	}
+	
+	compiler->location = filename_absolute(argv[0]);
     #endif
 
     char *absolute_compiler_filename = filename_absolute(compiler->location);

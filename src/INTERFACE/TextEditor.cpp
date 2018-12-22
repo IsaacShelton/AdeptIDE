@@ -6,6 +6,7 @@
 #include <algorithm>
 
 #include "UTIL/strings.h"
+#include "UTIL/lexical.h"
 #include "OPENGL/Vector3f.h"
 #include "INTERFACE/TextEditor.h"
 #include "INTERFACE/SymbolWeight.h"
@@ -14,7 +15,7 @@
 // src/INSIGHT/include
 #include "UTIL/levenshtein.h"
 
-void TextEditor::free(){
+TextEditor::~TextEditor(){
     if(this->hasLineNumbersModel) this->lineNumbersModel.free();
     if(this->hasFilenameModel) this->filenameModel.free();
     delete this->selection;
@@ -39,9 +40,7 @@ void TextEditor::free(){
 }
 
 void TextEditor::load(Settings *settings, Font *font, Texture *fontTexture, float maxWidth, float maxHeight){
-    this->settings = settings;
-    this->font = font;
-    this->fontTexture = fontTexture;
+    GenericEditor::load(settings, font, fontTexture, maxWidth, maxHeight);
     this->palette.generate(SyntaxColorPalette::VISUAL_STUDIO);
     this->richText.fileType = FileType::ADEPT;
     this->richText.setFont(this->font);
@@ -67,14 +66,11 @@ void TextEditor::load(Settings *settings, Font *font, Texture *fontTexture, floa
 
     this->suggestionBox.load(this->settings, this->font, this->fontTexture);
     this->showSuggestionBox = false;
-    
-    this->maxWidth = maxWidth;
-    this->maxHeight = maxHeight;
 
     this->hasAst = false;
 }
 
-void TextEditor::render(Matrix4f& projectionMatrix, Shader *fontShader, Shader *solidShader){
+void TextEditor::render(Matrix4f& projectionMatrix, Shader *shader, Shader *fontShader, Shader *solidShader){
     this->targetScrollYOffset = this->calculateScrollOffset();
 
     if(fabs(this->scrollXOffset - this->targetScrollXOffset) > 0.01f){
@@ -107,28 +103,6 @@ void TextEditor::render(Matrix4f& projectionMatrix, Shader *fontShader, Shader *
     
     fontShader->bind();
     fontShader->giveMatrix4f("projection_matrix", projectionMatrix);
-
-    /*
-    if(this->textUpdated){
-        if(this->hasTextModel) this->textModel.free();
-
-        switch(this->richText.fileType){
-        case FileType::ADEPT:
-            this->textModel = this->font->generateAdeptTextModel(this->text, 0.17f, this->palette);
-            break;
-        case FileType::JAVA:
-            this->textModel = this->font->generateJavaTextModel(this->text, 0.17f, this->palette);
-            break;
-        case FileType::HTML:
-            this->textModel = this->font->generateHtmlTextModel(this->text, 0.17f, this->palette);
-            break;
-        default:
-            this->textModel = this->font->generatePlainTextModel(this->text, 0.17f);
-        }
-
-        this->hasTextModel = true;
-        this->textUpdated = false;
-    }*/
 
     if(this->lineNumbersUpdated){
         if(this->hasLineNumbersModel) this->lineNumbersModel.free();
@@ -217,8 +191,6 @@ void TextEditor::updateFilenameModel(){
     this->filenameModel = this->font->generatePlainTextModel(this->displayFilename, 0.17f);
     this->hasFilenameModel = true;
 }
-
-#include "UTIL/lexical.h"
 
 void TextEditor::type(const std::string& characters){
     if(this->selection != NULL){
@@ -1089,6 +1061,10 @@ size_t TextEditor::getCaretPosition(){
     return this->caret.getPosition();
 }
 
-TextEditor* TextEditor::asTextEditor() {
+TextEditor* TextEditor::asTextEditor(){
     return this;
+}
+
+ImageEditor* TextEditor::asImageEditor(){
+    return NULL;
 }

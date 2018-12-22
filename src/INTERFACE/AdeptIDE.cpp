@@ -17,6 +17,8 @@
 #ifdef _WIN32
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
+#elif defined(__APPLE__)
+#include <mach-o/dyld.h>
 #endif
 
 AdeptIDE::AdeptIDE(){
@@ -33,12 +35,14 @@ AdeptIDE::AdeptIDE(){
     this->adeptModel        = NULL;
     this->javaModel         = NULL;
     this->htmlModel         = NULL;
+    this->paintingModel     = NULL;
     this->fontTexture       = NULL;
     this->emblemTexture     = NULL;
     this->plainTextTexture  = NULL;
     this->adeptTexture      = NULL;
     this->javaTexture       = NULL;
     this->htmlTexture       = NULL;
+    this->paintingTexture   = NULL;
     this->shader            = NULL;
     this->fontShader        = NULL;
     this->solidShader       = NULL;
@@ -50,12 +54,14 @@ AdeptIDE::~AdeptIDE(){
     delete this->adeptModel;
     delete this->javaModel;
     delete this->htmlModel;
+    delete this->paintingModel;
     delete this->fontTexture;
     delete this->emblemTexture;
     delete this->plainTextTexture;
     delete this->adeptTexture;
     delete this->javaTexture;
     delete this->htmlTexture;
+    delete this->paintingTexture;
     delete this->shader;
     delete this->fontShader;
     delete this->solidShader;
@@ -73,27 +79,37 @@ int AdeptIDE::main(int argc, const char **argv){
     }
 
     // Determine root directory of executable
-    char location[512];
-
-    #ifdef _WIN32
-    GetModuleFileNameA(NULL, location, 512);
-    #else
-    if (argv == NULL || argv[0] == NULL || strcmp(argv[0], "") == 0)
     {
-        std::cerr << "EXTERNAL ERROR: Compiler was invoked with NULL or empty argv[0]\n" << std::endl;
-        return 1;
-    }
-    char *l = filename_absolute(argv[0]);
-    strcpy(location, l);
-    free(l);
-    #endif
+        char location[1024];
 
-    char *absolute_filename = filename_absolute(location);
-    char *absolute_path = filename_path(absolute_filename);
-    this->root = absolute_path;
-    this->assetsFolder = this->root + "assets/";
-    free(absolute_path);
-    free(absolute_filename);
+        #ifdef _WIN32
+        GetModuleFileNameA(NULL, location, 512);
+        #elif defined(__APPLE__)
+        {
+            uint32_t size = sizeof(location);
+            if (_NSGetExecutablePath(location, &size) != 0){
+                std::cerr << "EXTERNAL ERROR: Executable path is too long!\n" << std::endl;
+                return 1;
+            }
+        }
+        #else
+        if (argv == NULL || argv[0] == NULL || strcmp(argv[0], "") == 0)
+        {
+            std::cerr << "EXTERNAL ERROR: Compiler was invoked with NULL or empty argv[0]\n" << std::endl;
+            return 1;
+        }
+        char *l = filename_absolute(argv[0]);
+        strcpy(location, l);
+        free(l);
+        #endif
+
+        char *absolute_filename = filename_absolute(location);
+        char *absolute_path = filename_path(absolute_filename);
+        this->root = absolute_path;
+        this->assetsFolder = this->root + "assets/";
+        free(absolute_path);
+        free(absolute_filename);
+    }
 
     // Load settings
     this->rootWatcher.target(this->root);
@@ -150,11 +166,13 @@ int AdeptIDE::main(int argc, const char **argv){
     this->adeptTexture      = new Texture(this->assetsFolder + "adept.png", TextureLoadOptions::ALPHA);
     this->javaTexture       = new Texture(this->assetsFolder + "java.png", TextureLoadOptions::ALPHA);
     this->htmlTexture       = new Texture(this->assetsFolder + "html.png", TextureLoadOptions::ALPHA);
+    this->paintingTexture  = new Texture(this->assetsFolder + "painting.png", TextureLoadOptions::ALPHA);
     this->emblemModel       = makeSquareModel(this->emblemTexture, 256);
     this->plainTextModel    = makeSquareModel(this->plainTextTexture, 16);
     this->adeptModel        = makeSquareModel(this->adeptTexture, 16);
     this->javaModel         = makeSquareModel(this->javaTexture, 16);
     this->htmlModel         = makeSquareModel(this->htmlTexture, 16);
+    this->paintingModel     = makeSquareModel(this->paintingTexture, 16);
     this->shader            = new Shader(this->assetsFolder + "vertex.glsl",       this->assetsFolder + "fragment.glsl",       {"position", "uvs"});
     this->fontShader        = new Shader(this->assetsFolder + "font_vertex.glsl",  this->assetsFolder + "font_fragment.glsl",  {"position", "uvs"});
     this->solidShader       = new Shader(this->assetsFolder + "solid_vertex.glsl", this->assetsFolder + "solid_fragment.glsl", {"position"});
@@ -169,9 +187,17 @@ int AdeptIDE::main(int argc, const char **argv){
     this->menubar.addMenu("EXECUTE",   NULL,            NULL);
     this->menubar.addMenu("HELP",      NULL,            NULL);
 
+    DropdownMenu *newFileDropdown = new DropdownMenu(&this->font, 8.0f + 256.0f + 16.0f * 3, 20.0f, 32);
+    Menu *newFileMenu = new Menu("New File                       >", this->menubar.font, NULL, newFileDropdown);
+    newFileMenu->dropdownMenu = newFileDropdown;
+    newFileDropdown->menus.push_back(new Menu("Adept File                Ctrl+N", this->menubar.font, new_adept_file, this));
+    newFileDropdown->menus.push_back(new Menu("Java File                       ", this->menubar.font, new_java_file, this));
+    newFileDropdown->menus.push_back(new Menu("Plain Text File                 ", this->menubar.font, new_plain_text_file, this));
+    newFileDropdown->menus.push_back(new Menu("Painting                        ", this->menubar.font, new_painting_file, this));
+
     this->menubar.menus[0]->dropdownMenu = new DropdownMenu(&this->font, 4.0f, 20.0f, 32);
     this->menubar.menus[0]->data = this->menubar.menus[0]->dropdownMenu;
-    this->menubar.menus[0]->dropdownMenu->menus.push_back(new Menu("New File                  Ctrl+N", this->menubar.font, &new_file_menu, this));
+    this->menubar.menus[0]->dropdownMenu->menus.push_back(newFileMenu);
     this->menubar.menus[0]->dropdownMenu->menus.push_back(new Menu("Open File                 Ctrl+O", this->menubar.font, &open_file_menu, this));
     this->menubar.menus[0]->dropdownMenu->menus.push_back(new Menu("Open Playground     Ctrl+Shift+N", this->menubar.font, &open_playground_menu, this));
     this->menubar.menus[0]->dropdownMenu->menus.push_back(new Menu("Save File                 Ctrl+S", this->menubar.font, &save_file_menu, this));
@@ -256,8 +282,8 @@ int AdeptIDE::main(int argc, const char **argv){
         // Handle user input & update
         this->handleInput();
 
-        TextEditor *currentTextEditor = this->getCurrentEditorAsTextEditor();
-        
+        GenericEditor *currentEditor = this->getCurrentEditor();
+
         // Prepare render
         glClearColor(0.07, 0.09, 0.1, 1.0f);
         //glClearColor(1.0, 1.0, 1.0, 1.0f);
@@ -268,16 +294,17 @@ int AdeptIDE::main(int argc, const char **argv){
 
         // Resize editors to new window size
         for(GenericEditor *editor : this->editors){
-            editor->asTextEditor()->resize(this->width, this->height - 32 - 20);
+            TextEditor *textEditor = editor->asTextEditor();
+            if(textEditor) textEditor->resize(this->width, this->height - 32 - 20);
         }
 
         // Render menubar
         menubar.render(this->projectionMatrix, this->fontShader, this->solidShader, (float) this->width);
 
         // Render filenames and current editor
-        if(currentTextEditor){
+        if(currentEditor){
             this->renderEditorFilenames();
-            currentTextEditor->render(this->projectionMatrix, this->fontShader, this->solidShader);
+            currentEditor->render(this->projectionMatrix, this->shader, this->fontShader, this->solidShader);
         } else if(this->settings.ide_emblem){
             // Render emblem
             this->shader->bind();
@@ -331,9 +358,7 @@ void AdeptIDE::handleInput(){
     double mouseX, mouseY;
     glfwGetCursorPos(window, &mouseX, &mouseY);
 
-    TextEditor *currentTextEditor = this->getCurrentEditorAsTextEditor();
-
-    if(currentTextEditor){
+    if(TextEditor *currentTextEditor = this->getCurrentEditorAsTextEditor()){
         if(!this->mouseReleased && distance(mouseX + currentTextEditor->getNetXOffset(), mouseY + currentTextEditor->getNetYOffset(),
                     this->mouseDownX + this->mouseDownNetXOffset , this->mouseDownY + this->mouseDownNetYOffset) > 5.0f
             
@@ -343,6 +368,29 @@ void AdeptIDE::handleInput(){
             this->moveCaret(mouseX, mouseY);
             this->endSelection();
         }
+
+        this->update();
+        return;
+    }
+
+    if(ImageEditor *currentImageEditor = this->getCurrentEditorAsImageEditor()){
+        double x, y;
+        glfwGetCursorPos(this->window, &x, &y);
+        
+        if(currentImageEditor->isDragging()){
+            if(glfwGetMouseButton(this->window, GLFW_MOUSE_BUTTON_LEFT)){
+                currentImageEditor->updateDrag(x, y);
+            } else {
+                currentImageEditor->endDrag(x, y);
+            }
+        } else {
+            if(glfwGetMouseButton(this->window, GLFW_MOUSE_BUTTON_LEFT)){
+                currentImageEditor->startDrag(x, y);
+            }
+        }
+
+        this->update();
+        return;
     }
 
     this->update();
@@ -363,13 +411,13 @@ void AdeptIDE::renderEditorFilenames(){
             this->shader->giveMatrix4f("projection_matrix", this->projectionMatrix);
             this->shader->giveMatrix4f("transformation_matrix", this->transformationMatrix);
 
-            TextEditor *textEditor = editor->asTextEditor();
 
-            switch(textEditor ? textEditor->getFileType() : PLAIN_TEXT){
+            switch(editor->getFileType()){
             case PLAIN_TEXT: renderModel(this->plainTextModel); break;
-            case ADEPT:      renderModel(this->adeptModel); break;
-            case JAVA:       renderModel(this->javaModel);  break;
-            case HTML:       renderModel(this->htmlModel);  break;
+            case ADEPT:      renderModel(this->adeptModel);     break;
+            case JAVA:       renderModel(this->javaModel);      break;
+            case HTML:       renderModel(this->htmlModel);      break;
+            case PAINTING:   renderModel(this->paintingModel);  break;
             }
 
             this->transformationMatrix.translate(24.0f, 0.0f, 0.0f);
@@ -415,11 +463,21 @@ void AdeptIDE::openEditor(const std::string& filename){
     this->setCurrentEditor(this->editors.size() - 1);
 }
 
-void AdeptIDE::newFile(){
-    TextEditor *newEditor = this->addTextEditor();
-    this->updateTitle();
-    newEditor->type(this->settings.editor_default_text);
-    newEditor->moveCaretToPosition(this->settings.editor_default_position <= this->settings.editor_default_text.length() ? this->settings.editor_default_position : 0);
+void AdeptIDE::newFile(FileType fileType){
+    switch(fileType){
+    case FileType::PAINTING: {
+            this->addImageEditor();
+            this->updateTitle();
+        }
+        break;
+    default: {
+            TextEditor *newEditor = this->addTextEditor();
+            newEditor->setFileType(fileType);
+            this->updateTitle();
+            newEditor->type(this->settings.editor_default_text);
+            newEditor->moveCaretToPosition(this->settings.editor_default_position <= this->settings.editor_default_text.length() ? this->settings.editor_default_position : 0);
+        }
+    }
 }
 
 GenericEditor* AdeptIDE::getCurrentEditor(){
@@ -433,12 +491,25 @@ TextEditor* AdeptIDE::getCurrentEditorAsTextEditor(){
     return this->editors[this->currentEditorIndex]->asTextEditor();
 }
 
+ImageEditor* AdeptIDE::getCurrentEditorAsImageEditor(){
+    if (this->editors.size() == 0) return NULL;
+    return this->editors[this->currentEditorIndex]->asImageEditor();
+}
+
 TextEditor* AdeptIDE::addTextEditor(){
     TextEditor *editor = new TextEditor();
     editor->load(&this->settings, &this->font, this->fontTexture, this->width, this->height);
     editor->setOffset(4.0f, 20.0f + 32.0f + 4.0f);
     editor->setFileType(this->settings.editor_default_language);
     editor->setSyntaxColorPalette(this->settings.editor_default_theme);
+    this->editors.push_back(editor);
+    this->setCurrentEditor(this->editors.size() - 1);
+    return editor;
+}
+
+ImageEditor* AdeptIDE::addImageEditor(){
+    ImageEditor *editor = new ImageEditor();
+    editor->load(&this->settings, &this->font, this->fontTexture, this->width, this->height);
     this->editors.push_back(editor);
     this->setCurrentEditor(this->editors.size() - 1);
     return editor;
@@ -511,13 +582,26 @@ void AdeptIDE::setCurrentEditor(size_t index){
 }
 
 void AdeptIDE::scrollDown(int lineCount){
-    TextEditor *currentTextEditor = this->getCurrentEditorAsTextEditor();
-    if(currentTextEditor) currentTextEditor->scrollDown(lineCount);
+    if(TextEditor *currentTextEditor = this->getCurrentEditorAsTextEditor()){
+        currentTextEditor->scrollDown(lineCount);
+        return;
+    }
+
+    if(ImageEditor *currentImageEditor = this->getCurrentEditorAsImageEditor()){
+        currentImageEditor->zoomOut(lineCount);
+        return;
+    }
 }
 
 void AdeptIDE::scrollUp(int lineCount){
-    TextEditor *currentTextEditor = this->getCurrentEditorAsTextEditor();
-    if(currentTextEditor) currentTextEditor->scrollUp(lineCount);
+    if(TextEditor *currentTextEditor = this->getCurrentEditorAsTextEditor()){
+        currentTextEditor->scrollUp(lineCount);
+        return;
+    }
+
+    if(ImageEditor *currentImageEditor = this->getCurrentEditorAsImageEditor()){
+        currentImageEditor->zoomIn(lineCount);
+    }
 }
 
 void AdeptIDE::pageUp(){
@@ -967,7 +1051,7 @@ void key_callback(GLFWwindow *window, int key, int scancode, int action, int mod
             break;
         case GLFW_KEY_N:
             if(mods & GLFW_MOD_SHIFT) open_playground_menu(adeptide);
-            else adeptide->newFile();
+            else adeptide->newFile(FileType::ADEPT);
             adeptide->menubar.loseFocus();
             break;
         case GLFW_KEY_P:
@@ -1064,9 +1148,27 @@ void view_menu(void *data){
     dropdownMenu->isOpen = true;
 }
 
-void new_file_menu(void *data){
+void new_adept_file(void *data){
     AdeptIDE *adeptide = static_cast<AdeptIDE*>(data);
-    adeptide->newFile();
+    adeptide->newFile(FileType::ADEPT);
+    adeptide->menubar.loseFocus();
+}
+
+void new_plain_text_file(void *data){
+    AdeptIDE *adeptide = static_cast<AdeptIDE*>(data);
+    adeptide->newFile(FileType::PLAIN_TEXT);
+    adeptide->menubar.loseFocus();
+}
+
+void new_java_file(void *data){
+    AdeptIDE *adeptide = static_cast<AdeptIDE*>(data);
+    adeptide->newFile(FileType::JAVA);
+    adeptide->menubar.loseFocus();
+}
+
+void new_painting_file(void *data){
+    AdeptIDE *adeptide = static_cast<AdeptIDE*>(data);
+    adeptide->newFile(FileType::PAINTING);
     adeptide->menubar.loseFocus();
 }
 
@@ -1266,54 +1368,6 @@ void build_and_run_adept_project(void *data){
         }
     }
     adeptide->menubar.loseFocus();
-}
-
-Model* makeSquareModel(Texture *texture, float size){
-    std::vector<float> vertices;
-    std::vector<float> textureCoords;
-    std::vector<unsigned int> indices;
-
-    vertices.push_back(  0.0f);
-    vertices.push_back(size);
-    vertices.push_back(  0);
-    vertices.push_back(  0.0f);
-    vertices.push_back(  0.0f);
-    vertices.push_back(  0);
-    vertices.push_back(size);
-    vertices.push_back(  0.0f);
-    vertices.push_back(  0.0f);
-    vertices.push_back(size);
-    vertices.push_back(size);
-    vertices.push_back(  0.0f);
-
-    textureCoords.push_back(0.0f);
-    textureCoords.push_back(1.0f);
-    textureCoords.push_back(0.0f);
-    textureCoords.push_back(0.0f);
-    textureCoords.push_back(1.0f);
-    textureCoords.push_back(0.0f);
-    textureCoords.push_back(1.0f);
-    textureCoords.push_back(1.0f);
-
-    indices.push_back(0);
-    indices.push_back(1);
-    indices.push_back(3);
-    indices.push_back(3);
-    indices.push_back(1);
-    indices.push_back(2);
-
-    VAO *vao = new VAO();
-    vao->bind();
-
-    VBO *verticesVBO = new VBO(VBOContentType::VERTICES, vertices);
-    vao->addVBO(verticesVBO);
-
-    VBO *textureCoordsVBO = new VBO(VBOContentType::TEXTURE_COORDS, textureCoords);
-    vao->addVBO(textureCoordsVBO);
-
-    EBO *ebo = new EBO(indices);
-
-    return new Model(vao, ebo, texture);
 }
 
 double distance(double x1, double y1, double x2, double y2){

@@ -3,7 +3,10 @@
 #define FILETYPE_H
 
 enum FileType {
-    PLAIN_TEXT, ADEPT, JAVA, HTML
+    // Text Formats
+    PLAIN_TEXT, ADEPT, JAVA, HTML,
+
+    PAINTING
 };
 
 #endif // FILETYPE_H

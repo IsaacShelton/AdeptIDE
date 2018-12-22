@@ -37,8 +37,8 @@ public:
     size_t mouseDownCaretPosition;
 
     std::string assetsFolder;
-    Model *emblemModel, *plainTextModel, *adeptModel, *javaModel, *htmlModel;
-    Texture *fontTexture, *emblemTexture, *plainTextTexture, *adeptTexture, *javaTexture, *htmlTexture;
+    Model *emblemModel, *plainTextModel, *adeptModel, *javaModel, *htmlModel, *paintingModel;
+    Texture *fontTexture, *emblemTexture, *plainTextTexture, *adeptTexture, *javaTexture, *htmlTexture, *paintingTexture;
     Shader *shader, *fontShader, *solidShader;
 
     Message *message;
@@ -49,10 +49,12 @@ public:
 
     void openFile();
     void openEditor(const std::string& filename);
-    void newFile();
+    void newFile(FileType fileType);
     GenericEditor* getCurrentEditor();
     TextEditor *getCurrentEditorAsTextEditor();
+    ImageEditor *getCurrentEditorAsImageEditor();
     TextEditor* addTextEditor();
+    ImageEditor* addImageEditor();
     void removeEditor(size_t index);
     void removeCurrentEditor();
     void moveToPreviousEditorTab();
@@ -128,7 +130,11 @@ void view_menu(void *data);
 void selection_menu(void *data);
 void build_menu(void *data);
 
-void new_file_menu(void *data);
+void new_adept_file(void *data);
+void new_plain_text_file(void *data);
+void new_java_file(void *data);
+void new_painting_file(void *data);
+
 void open_playground_menu(void *data);
 void open_file_menu(void *data);
 void save_file_menu(void *data);
@@ -154,7 +160,6 @@ void maximize(void *data);
 void build_adept_project(void *data);
 void build_and_run_adept_project(void *data);
 
-Model* makeSquareModel(Texture *texture, float size);
 double distance(double x1, double y1, double x2, double y2);
 
 #endif // ADEPTIDE_H_INCLUDED

@@ -30,6 +30,11 @@ class TextModel {
     void draw();
 };
 
+Model *makeSquareModel(Texture *texture, float size);
+
+Model *makeRectangleModel(Texture *texture, float w, float h);
+Model *makeRectangleModelCentered(Texture *texture, float w, float h);
+
 void renderModel(Model *model);
 
 #endif // MODEL_H_INCLUDED

@@ -19,6 +19,8 @@ void quicktype(AdeptIDE *adeptide, int key){
         break;
     case HTML:
         break;
+    case PAINTING:
+        break;
     }
 }
 

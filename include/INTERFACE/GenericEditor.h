@@ -4,11 +4,14 @@
 
 #include <string>
 #include "OPENGL/Model.h"
+#include "OPENGL/Shader.h"
+#include "OPENGL/Matrix4f.h"
+#include "INTERFACE/Font.h"
+#include "INTERFACE/FileType.h"
+#include "INTERFACE/Settings.h"
 
-class GenericEditor;
 class TextEditor;
-
-#include "INTERFACE/TextEditor.h"
+class ImageEditor;
 
 class GenericEditor {
 public:
@@ -24,15 +27,26 @@ public:
     std::string displayFilename;
 
 protected:
+    Font *font;
+    Texture *fontTexture;
     TextModel filenameModel;
     bool hasFilenameModel;
 
 public:
+    void load(Settings *settings, Font *font, Texture *fontTexture, float maxWidth, float maxHeight);
+
     virtual ~GenericEditor(){}
     virtual TextEditor *asTextEditor() = 0;
+    virtual ImageEditor *asImageEditor() = 0;
     virtual void free(){}
 
+    virtual FileType getFileType() = 0;
     virtual TextModel *getFilenameModel() = 0;
+
+    virtual void render(Matrix4f &projectionMatrix, Shader *shader, Shader *fontShader, Shader *solidShader) = 0;
 };
+
+#include "INTERFACE/TextEditor.h"
+#include "INTERFACE/ImageEditor.h"
 
 #endif // GENERIC_EDITOR_H_INCLUDED
