@@ -12,7 +12,7 @@ else
 	LINKER=g++
 endif
 
-CFLAGS=-c -Wall -I"include" I"src/INSIGHT/include" -O0 # -fmax-errors=5 -Werror
+CFLAGS=-c -Wall -I"include" -I"src/INSIGHT/include" -O0 # -fmax-errors=5 -Werror
 CXXFLAGS=-c -Wall -I"include" -I"src/INSIGHT/include" -std=c++11 -DGLEW_STATIC -O0 # -fmax-errors=5 -Werror
 CXXDEBUGFLAGS=-g
 LDFLAGS=
@@ -58,20 +58,25 @@ directories:
 else
 EXECUTABLE=bin/AdeptIDE
 DEBUG_EXECUTABLE=bin/AdeptIDE_debug
-DEPENDENCIES=-lglfw -framework Cocoa -framework OpenGL -framework IOKit -framework CoreVideo $(INSIGHT)
+DEPENDENCIES=-lglfw -framework Cocoa -framework OpenGL -framework IOKit -framework CoreVideo -framework Foundation $(INSIGHT)
+MAC_DIALOG_MM=$(SRCDIR)/UTIL/macdialog.mm
+MAC_DIALOG_O=obj/UTIL/macdialog.o
 
-develop: directories $(SOURCES) $(C_SOURCES) $(EXECUTABLE)
+develop: directories $(SOURCES) $(C_SOURCES) $(MAC_DIALOG_MM) $(EXECUTABLE)
 
 release: develop
 
 debug: CFLAGS += -g
 debug: directories $(SOURCES) $(C_SOURCES) $(DEBUG_EXECUTABLE)
 
-$(EXECUTABLE): $(INSIGHT) $(OBJECTS) $(C_OBJECTS)
-	$(LINKER) $(LDFLAGS) $(OBJECTS) $(C_OBJECTS) $(DEPENDENCIES) -o $@
+$(EXECUTABLE): $(INSIGHT)  $(OBJECTS) $(C_OBJECTS) $(MAC_DIALOG_O)
+	$(LINKER) $(LDFLAGS) $(OBJECTS) $(C_OBJECTS) $(MAC_DIALOG_O) $(DEPENDENCIES) -o $@
 
-$(DEBUG_EXECUTABLE): $(INSIGHT) $(DEBUG_OBJECTS) $(C_OBJECTS) $(WIN_ICON)
-	$(LINKER) $(LDFLAGS) $(DEBUG_OBJECTS) $(C_OBJECTS) $(WIN_ICON) $(DEPENDENCIES) -o $@
+$(DEBUG_EXECUTABLE): $(INSIGHT) $(DEBUG_OBJECTS) $(C_OBJECTS) $(MAC_DIALOG_O)
+	$(LINKER) $(LDFLAGS) $(DEBUG_OBJECTS) $(C_OBJECTS) $(MAC_DIALOG_O) $(DEPENDENCIES) -o $@
+
+$(MAC_DIALOG_O): $(MAC_DIALOG_MM)
+	$(CC) $(CFLAGS) $(MAC_DIALOG_MM) -o $(MAC_DIALOG_O)
 
 directories:
 	@mkdir -p bin

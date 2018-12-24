@@ -150,10 +150,6 @@ bool saveFileDialog(GLFWwindow* window, std::string& output){
     // We should never get here
     return false;
 }
-#else
-
-bool openFileDialog(GLFWwindow *window, std::string &output) { return false; }
-bool openMultipleFileDialog(GLFWwindow *window, std::vector<std::string> &output) { return false; }
-bool saveFileDialog(GLFWwindow *window, std::string &output) { return false; }
-
+#elif !defined(__APPLE__)
+// Non-apple dialog
 #endif

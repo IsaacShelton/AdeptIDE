@@ -1,5 +1,5 @@
 {
-    "ide.default.maximized": true,
+    "ide.default.maximized": false,
     "ide.default.width": 960,
     "ide.default.height": 480,
     "ide.default.fps": 60,

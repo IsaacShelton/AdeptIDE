@@ -432,6 +432,8 @@ hard_break:
 }
 
 void RichText::highlightAffectedLines(size_t lineBeginning){
+    if(this->fileType == FileType::PLAIN_TEXT) return;
+
     size_t line = getLineNumber(this->text, lineBeginning);
     size_t nextLineBeginning = highlightLine(lineBeginning, line);
 

@@ -1,9 +1,11 @@
 
 #include <math.h>
 #include <ctype.h>
+#include <iostream>
 
 #include "UTIL/lexical.h"
 #include "UTIL/document.h"
+#include "UTIL/animationMath.h"
 #include "INTERFACE/Caret.h"
 
 Caret::Caret(){
@@ -40,7 +42,6 @@ void Caret::draw(){
     if(this->caretModel) this->caretModel->draw();
 }
 
-#include <iostream>
 
 void Caret::getTransformationMatrix(const std::string& text, float xOffset, float yOffset, Matrix4f *matrix){
     float targetX, targetY;
@@ -53,11 +54,11 @@ void Caret::getTransformationMatrix(const std::string& text, float xOffset, floa
         // relativeDistanceChange = delta / 2
 
         if(fabs(this->x - targetX) > 0.01f){
-            this->x += (targetX > this->x ? 1 : -1) * fabs(this->x - targetX) * (this->settings->hidden.delta / 2);
+            this->x += (targetX > this->x ? 1 : -1) * fabs(this->x - targetX) * clampedHalfDelta(this->settings->hidden.delta);
         } else this->x = targetX;
 
         if(fabs(this->y - targetY) > 0.01f){
-            this->y += (targetY > this->y ? 1 : -1) * fabs(this->y - targetY) * (this->settings->hidden.delta / 2);
+            this->y += (targetY > this->y ? 1 : -1) * fabs(this->y - targetY) * clampedHalfDelta(this->settings->hidden.delta);
         } else this->y = targetY;
     } else {
         this->x = targetX;

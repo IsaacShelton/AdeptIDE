@@ -3,6 +3,8 @@
 #define TEXT_EDITOR_H_INCLUDED
 
 #include <string>
+#include <thread>
+#include <mutex>
 
 #include "OPENGL/Shader.h"
 #include "INTERFACE/Font.h"
@@ -38,10 +40,12 @@ class TextEditor : public GenericEditor {
     int scroll;
     float textXOffset;
 
+    std::mutex astMutex;
     ast_t ast;
     tokenlist_t preserveTokenlist;
     char *preserveBuffer;
     bool hasAst;
+    std::thread astCreationThread;
 
     RichText richText;
     SuggestionBox suggestionBox;

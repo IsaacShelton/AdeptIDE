@@ -411,7 +411,6 @@ void AdeptIDE::renderEditorFilenames(){
             this->shader->giveMatrix4f("projection_matrix", this->projectionMatrix);
             this->shader->giveMatrix4f("transformation_matrix", this->transformationMatrix);
 
-
             switch(editor->getFileType()){
             case PLAIN_TEXT: renderModel(this->plainTextModel); break;
             case ADEPT:      renderModel(this->adeptModel);     break;
@@ -446,10 +445,15 @@ void AdeptIDE::loadSettings(){
 
 void AdeptIDE::openFile(){
     std::vector<std::string> filenames;
-    if(!openMultipleFileDialog(this->window, filenames)) return;
+    if(!openMultipleFileDialog(this->window, filenames)){
+        glfwSetTime(glfwGetTime());
+        return;
+    }
 
     for(const std::string& filename : filenames)
         this->openEditor(filename);
+    glfwSetTime(glfwGetTime());
+    this->settings.hidden.delta = 0;
 }
 
 void AdeptIDE::openEditor(const std::string& filename){
@@ -458,9 +462,7 @@ void AdeptIDE::openEditor(const std::string& filename){
     newEditor->filename = filename;
     newEditor->updateFilenameModel();
     newEditor->loadTextFromFile(filename);
-
     this->updateTitle();
-    this->setCurrentEditor(this->editors.size() - 1);
 }
 
 void AdeptIDE::newFile(FileType fileType){
@@ -518,6 +520,7 @@ ImageEditor* AdeptIDE::addImageEditor(){
 void AdeptIDE::removeEditor(size_t index){
     if(index < 0 || index > this->editors.size() - 1) return;
 
+    this->editors[index]->free();
     delete this->editors[index];
     this->editors.erase(this->editors.begin() + index);
     if(index < this->currentEditorIndex || this->currentEditorIndex == this->editors.size()){

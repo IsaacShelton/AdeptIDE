@@ -4,9 +4,11 @@
 #include <fstream>
 #include <sstream>
 #include <algorithm>
+#include <iostream>
 
 #include "UTIL/strings.h"
 #include "UTIL/lexical.h"
+#include "UTIL/animationMath.h"
 #include "OPENGL/Vector3f.h"
 #include "INTERFACE/TextEditor.h"
 #include "INTERFACE/SymbolWeight.h"
@@ -37,6 +39,8 @@ TextEditor::~TextEditor(){
         tokenlist_free(&this->preserveTokenlist);
         ::free(this->preserveBuffer);
     }
+
+    if(this->astCreationThread.joinable()) this->astCreationThread.join();
 }
 
 void TextEditor::load(Settings *settings, Font *font, Texture *fontTexture, float maxWidth, float maxHeight){
@@ -74,11 +78,11 @@ void TextEditor::render(Matrix4f& projectionMatrix, Shader *shader, Shader *font
     this->targetScrollYOffset = this->calculateScrollOffset();
 
     if(fabs(this->scrollXOffset - this->targetScrollXOffset) > 0.01f){
-        this->scrollXOffset += (this->targetScrollXOffset > this->scrollXOffset ? 1 : -1) * fabs(this->scrollXOffset - this->targetScrollXOffset) * (this->settings->hidden.delta / 2);
+        this->scrollXOffset += (this->targetScrollXOffset > this->scrollXOffset ? 1 : -1) * fabs(this->scrollXOffset - this->targetScrollXOffset) * clampedHalfDelta(this->settings->hidden.delta);
     } else this->scrollXOffset = this->targetScrollXOffset;
 
     if(fabs(this->scrollYOffset - this->targetScrollYOffset) > 0.01f){
-        this->scrollYOffset += (this->targetScrollYOffset > this->scrollYOffset ? 1 : -1) * fabs(this->scrollYOffset - this->targetScrollYOffset) * (this->settings->hidden.delta / 2);
+        this->scrollYOffset += (this->targetScrollYOffset > this->scrollYOffset ? 1 : -1) * fabs(this->scrollYOffset - this->targetScrollYOffset) * clampedHalfDelta(this->settings->hidden.delta);
     } else this->scrollYOffset = this->targetScrollYOffset;
 
     if(this->selection != NULL){
@@ -238,6 +242,7 @@ void TextEditor::type(char character){
     if(this->settings->ide_suggestions && this->richText.fileType == FileType::ADEPT && isIdentifier(character)){
         this->showSuggestionBox = true;
 
+        this->astMutex.lock();
         if(this->hasAst){
             size_t end = this->getCaretPosition();
             if(end != 0){
@@ -303,6 +308,7 @@ void TextEditor::type(char character){
                 if(lines == 0) this->showSuggestionBox = false;
             }
         }
+        this->astMutex.unlock();
     } else {
         this->showSuggestionBox = false;
         this->symbolWeights.clear();
@@ -1022,38 +1028,46 @@ void TextEditor::generateLineNumbersText(){
 
 void TextEditor::makeAst(){
     if(this->richText.fileType == FileType::ADEPT){
-        insight_buffer_index = 0;
-        insight_buffer[0] = '\0';
-        compiler_t compiler;
-        compiler_init(&compiler);
-        object_t *object = compiler_new_object(&compiler);
-        object->filename = strclone(this->filename.c_str());
-        object->full_filename = filename_absolute(object->filename);
-        compiler.root = strclone(this->settings->adept_root.c_str());
-        if(lex(&compiler, object)){
-            puts("Failed to lex");
+        if(this->astCreationThread.joinable()) this->astCreationThread.join();
+
+        this->astCreationThread = std::thread([this] (std::string filename, std::string adept_root) {
+            this->astMutex.lock();
+            insight_buffer_index = 0;
+            insight_buffer[0] = '\0';
+            compiler_t compiler;
+            compiler_init(&compiler);
+            object_t *object = compiler_new_object(&compiler);
+            object->filename = strclone(filename.c_str());
+            object->full_filename = filename_absolute(object->filename);
+            compiler.root = strclone(adept_root.c_str());
+            if(lex(&compiler, object)){
+                puts("Failed to lex");
+                compiler_free(&compiler);
+                this->astMutex.unlock();
+                return;
+            }
+
+            if(parse(&compiler, object)){
+                puts("Failed to parse");
+                compiler_free(&compiler);
+                this->astMutex.unlock();
+                return;
+            }
+
+            if(this->hasAst){
+                ast_free(&this->ast);
+                tokenlist_free(&this->preserveTokenlist);
+                ::free(this->preserveBuffer);
+            }
+
+            this->ast = object->ast;
+            object->compilation_stage = COMPILATION_STAGE_FILENAME;
+            this->preserveTokenlist = object->tokenlist;
+            this->preserveBuffer = object->buffer;
+            this->hasAst = true;
             compiler_free(&compiler);
-            return;
-        }
-
-        if(parse(&compiler, object)){
-            puts("Failed to parse");
-            compiler_free(&compiler);
-            return;
-        }
-
-        if(this->hasAst){
-            ast_free(&this->ast);
-            tokenlist_free(&this->preserveTokenlist);
-            ::free(this->preserveBuffer);
-        }
-
-        this->ast = object->ast;
-        object->compilation_stage = COMPILATION_STAGE_FILENAME;
-        this->preserveTokenlist = object->tokenlist;
-        this->preserveBuffer = object->buffer;
-        this->hasAst = true;
-        compiler_free(&compiler);
+            this->astMutex.unlock();
+        }, this->filename, this->settings->adept_root);
     }
 }
 

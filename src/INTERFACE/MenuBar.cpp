@@ -4,6 +4,7 @@
 
 #include "OPENGL/Vector4f.h"
 #include "INTERFACE/MenuBar.h"
+#include "UTIL/animationMath.h"
 
 Menu::Menu(const std::string& label, Font *font, MenuAction action, void *data){
     this->model = font->generatePlainTextModel(label, 0.17f);
@@ -24,7 +25,7 @@ void Menu::update(double delta){
     float targetFontWidthValue = this->targetFontWidth == FontWidthTarget::REGULAR ? 0.43f : 0.525f;
 
     if(fabs(this->fontWidth - targetFontWidthValue) > 0.0001f){
-        this->fontWidth += (targetFontWidthValue > this->fontWidth ? 1 : -1) * fabs(this->fontWidth - targetFontWidthValue) * (delta / 2);
+        this->fontWidth += (targetFontWidthValue > this->fontWidth ? 1 : -1) * fabs(this->fontWidth - targetFontWidthValue) * clampedHalfDelta(delta);
     } else this->fontWidth = targetFontWidthValue;
 }
 
@@ -56,7 +57,7 @@ void DropdownMenu::update(double delta){
     float targetHeight = isOpen ? this->getBottom() : 0;
 
     if(fabs(this->height - targetHeight) > 0.01f){
-        this->height += (targetHeight > this->height ? 1 : -1) * fabs(this->height - targetHeight) * (delta / 2);
+        this->height += (targetHeight > this->height ? 1 : -1) * fabs(this->height - targetHeight) * clampedHalfDelta(delta);
     } else this->height = targetHeight;
 
     for(Menu *menu : this->menus){
@@ -205,11 +206,11 @@ void MenuBar::addMenu(const std::string& label, MenuAction action, void *data){
 
 void MenuBar::update(){
     if(fabs(this->tabUnderlineBeginX - this->targetTabUnderlineBeginX) > 0.01f){
-        this->tabUnderlineBeginX += (this->targetTabUnderlineBeginX > this->tabUnderlineBeginX ? 1 : -1) * fabs(this->tabUnderlineBeginX - this->targetTabUnderlineBeginX) * (this->settings->hidden.delta / 2);
+        this->tabUnderlineBeginX += (this->targetTabUnderlineBeginX > this->tabUnderlineBeginX ? 1 : -1) * fabs(this->tabUnderlineBeginX - this->targetTabUnderlineBeginX) * clampedHalfDelta(this->settings->hidden.delta);
     } else this->tabUnderlineBeginX = this->targetTabUnderlineBeginX;
 
     if(fabs(this->tabUnderlineEndX - this->targetTabUnderlineEndX) > 0.01f){
-        this->tabUnderlineEndX += (this->targetTabUnderlineEndX > this->tabUnderlineEndX ? 1 : -1) * fabs(this->tabUnderlineEndX - this->targetTabUnderlineEndX) * (this->settings->hidden.delta / 2);
+        this->tabUnderlineEndX += (this->targetTabUnderlineEndX > this->tabUnderlineEndX ? 1 : -1) * fabs(this->tabUnderlineEndX - this->targetTabUnderlineEndX) * clampedHalfDelta(this->settings->hidden.delta);
     } else this->tabUnderlineEndX = this->targetTabUnderlineEndX;
 
     for(Menu *menu : this->menus){

@@ -1,5 +1,6 @@
 
 #include <math.h>
+#include "UTIL/animationMath.h"
 #include "INTERFACE/Message.h"
 
 Message::Message(const std::string& message, Font *font, double seconds, int windowWidth, int windowHeight){
@@ -38,7 +39,7 @@ void Message::update(int windowWidth, double delta){
     float targetX = (glfwGetTime() > exitTime) ? windowWidth : windowWidth - containerWidth;
 
     if(fabs(this->x - targetX) > 0.01f){
-        this->x += (targetX > this->x ? 1 : -1) * fabs(this->x - targetX) * (delta / 2);
+        this->x += (targetX > this->x ? 1 : -1) * fabs(this->x - targetX) * clampedHalfDelta(delta);
     } else this->x = targetX;
 }
 
