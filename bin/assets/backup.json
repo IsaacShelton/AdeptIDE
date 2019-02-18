@@ -1,0 +1,11 @@
+{
+    "ide.default.maximized": true,
+    "ide.default.width": 1024,
+    "ide.default.height": 720,
+    "editor.default.theme": "visual studio",
+    "editor.default.language": "adept",
+    "editor.default.text": "",
+    "editor.default.position": 0,
+    "editor.icons": true,
+    "editor.caret.animation": true
+}
