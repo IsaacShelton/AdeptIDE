@@ -2,7 +2,7 @@
 ifeq ($(OS), Windows_NT)
 	CC=x86_64-w64-mingw32-gcc
 	CXX=x86_64-w64-mingw32-g++
-	RES_C=C:/.storage/MinGW64/bin/windres
+	RES_C=C:/Users/isaac/Projects/mingw64/bin/windres
 	WIN_ICON=obj/icon.res
 	WIN_ICON_SRC=resource/icon.rc
 	LINKER=x86_64-w64-mingw32-g++

@@ -5,6 +5,7 @@
 #include <GL/glew.h>
 #include <GLFW/glfw3.h>
 #include <iostream>
+#include <string.h>
 
 #include "UTIL/strings.h"
 #include "INTERFACE/Font.h"
