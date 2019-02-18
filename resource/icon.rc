@@ -1,0 +1,8 @@
+
+#ifndef _resource_rc
+#define _resource_rc
+
+MAINICON ICON "favicon.ico"
+GLFW_ICON ICON "favicon.ico"
+
+#endif
