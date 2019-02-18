@@ -7,9 +7,9 @@
 #include "UTIL/animationMath.h"
 
 Menu::Menu(const std::string& label, Font *font, MenuAction action, void *data){
-    this->model = font->generatePlainTextModel(label, 0.17f);
+    this->model = font->generatePlainTextModel(label, FONT_SCALE);
     this->action = action;
-    this->textWidth = (font->mono_character_width * 0.17f) * label.length();
+    this->textWidth = (font->mono_character_width * FONT_SCALE) * label.length();
     this->targetPlainFontWidth();
     this->fontWidth = 0.43f;
     this->data = data;
@@ -43,9 +43,9 @@ DropdownMenu::DropdownMenu(Font *font, float popupX, float popupY, int max_chara
     this->isOpen = false;
     this->popupX = popupX;
     this->popupY = popupY;
-    this->menuHeights = font->line_height * 0.17f;
+    this->menuHeights = font->line_height * FONT_SCALE;
     if(max_characters == 0) this->width = 256.0f;
-    else this->width = font->mono_character_width * 0.17f * (float) max_characters + 40.0f;
+    else this->width = font->mono_character_width * FONT_SCALE * (float) max_characters + 40.0f;
     this->containerModel = NULL;
 }
 
@@ -178,6 +178,8 @@ MenuBar::MenuBar(){
     this->targetTabUnderlineBeginX = 0.0f;
     this->tabUnderlineEndX = 0.0f;
     this->targetTabUnderlineEndX = 0.0f;
+    this->filenamesOffsetX = 0.0f;
+    this->targetFilenamesOffsetX = 0.0f;
 }
 
 MenuBar::~MenuBar(){
@@ -186,25 +188,30 @@ MenuBar::~MenuBar(){
     delete this->underlineBaseModel;
 }
 
-void MenuBar::load(Settings *settings, Font *font, Texture *fontTexture, std::vector<GenericEditor*> *editors){
+void MenuBar::load(Settings *settings, Font *font, Texture *fontTexture, std::vector<GenericEditor*> *editors, bool explorerExpanded){
     this->settings = settings;
     this->font = font;
     this->fontTexture = fontTexture;
     this->xOffset = 0.0f;
     this->yOffset = 0.0f;
     this->editors = editors;
+
     this->tabUnderlineBeginX = 0.0f;
     this->targetTabUnderlineBeginX = 0.0f;
     this->tabUnderlineEndX = 0.0f;
     this->targetTabUnderlineEndX = 0.0f;
     this->underlineBaseModel = createSolidModel(1.0f, 1.0f);
+    this->filenamesOffsetX = explorerExpanded ? 256.0f : 96.0f;
+    this->targetFilenamesOffsetX = this->filenamesOffsetX;
 }
 
 void MenuBar::addMenu(const std::string& label, MenuAction action, void *data){
     this->menus.push_back(new Menu(label, this->font, action, data));
 }
 
-void MenuBar::update(){
+void MenuBar::update(bool explorerExpanded){
+    this->targetFilenamesOffsetX = explorerExpanded ? 250.0f : 96.0f;
+    
     if(fabs(this->tabUnderlineBeginX - this->targetTabUnderlineBeginX) > 0.01f){
         this->tabUnderlineBeginX += (this->targetTabUnderlineBeginX > this->tabUnderlineBeginX ? 1 : -1) * fabs(this->tabUnderlineBeginX - this->targetTabUnderlineBeginX) * clampedHalfDelta(this->settings->hidden.delta);
     } else this->tabUnderlineBeginX = this->targetTabUnderlineBeginX;
@@ -212,6 +219,10 @@ void MenuBar::update(){
     if(fabs(this->tabUnderlineEndX - this->targetTabUnderlineEndX) > 0.01f){
         this->tabUnderlineEndX += (this->targetTabUnderlineEndX > this->tabUnderlineEndX ? 1 : -1) * fabs(this->tabUnderlineEndX - this->targetTabUnderlineEndX) * clampedHalfDelta(this->settings->hidden.delta);
     } else this->tabUnderlineEndX = this->targetTabUnderlineEndX;
+
+    if(fabs(this->filenamesOffsetX - this->targetFilenamesOffsetX) > 0.01f){
+        this->filenamesOffsetX += (this->targetFilenamesOffsetX > this->filenamesOffsetX ? 1 : -1) * fabs(this->filenamesOffsetX - this->targetFilenamesOffsetX) * clampedHalfDelta(this->settings->hidden.delta);
+    } else this->filenamesOffsetX = this->targetFilenamesOffsetX;
 
     for(Menu *menu : this->menus){
         menu->update(this->settings->hidden.delta);
@@ -240,7 +251,7 @@ void MenuBar::render(Matrix4f& projectionMatrix, Shader *fontShader, Shader *sol
     this->barModel->draw();
 
     if(this->tabUnderlineBeginX != this->tabUnderlineEndX){
-        transformationMatrix.translateFromIdentity(this->tabUnderlineBeginX, 45.5f, 0.71f);
+        transformationMatrix.translateFromIdentity(this->filenamesOffsetX + this->tabUnderlineBeginX, 45.5f, 0.71f);
         transformationMatrix.scale(this->tabUnderlineEndX - this->tabUnderlineBeginX, 2.0f, 1.0f);
         solidShader->giveMatrix4f("transformation_matrix", transformationMatrix);
         solidShader->giveVector4f("color", Vector4f(0.83, 0.83, 0.83, 1.0f));
@@ -310,12 +321,12 @@ bool MenuBar::leftClick(double xpos, double ypos, size_t *outCurrentEditorIndex)
 
     // Try for tab selection
     if(ypos >= this->yOffset + 20.0f && ypos <= this->yOffset + 20.0f + 32.0f){
-        const float padding = 8.0f;
+        const float padding = this->filenamesOffsetX + 8.0f;
         const float spacing = this->settings->editor_icons ? 24.0f : 0.0f;
         float displayNameX = this->xOffset + padding;
 
         for(size_t i = 0; i != this->editors->size(); i++){
-            float advance = ((*this->editors)[i]->displayFilename.length() * (0.17f * this->font->mono_character_width)) + 16.0f;
+            float advance = ((*this->editors)[i]->displayFilename.length() * (FONT_SCALE * this->font->mono_character_width)) + 16.0f;
 
             if(xpos >= displayNameX && xpos <= displayNameX + advance){
                 *outCurrentEditorIndex = i;
@@ -355,10 +366,10 @@ void MenuBar::underlineTab(size_t tab){
     float startX = padding;
 
     for(size_t i = 0; i != tab; i++){
-        float advance = ((*this->editors)[i]->displayFilename.length() * (0.17f * this->font->mono_character_width)) + 2 * padding;
+        float advance = ((*this->editors)[i]->displayFilename.length() * (FONT_SCALE * this->font->mono_character_width)) + 16.0f;
         startX += advance + spacing;
     }
 
     this->targetTabUnderlineBeginX = startX;
-    this->targetTabUnderlineEndX = startX + ((*this->editors)[tab]->displayFilename.length() * (0.17f * this->font->mono_character_width)) + spacing;
+    this->targetTabUnderlineEndX = startX + ((*this->editors)[tab]->displayFilename.length() * (FONT_SCALE * this->font->mono_character_width)) + spacing;
 }

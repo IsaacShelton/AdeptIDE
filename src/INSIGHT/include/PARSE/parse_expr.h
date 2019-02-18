@@ -2,13 +2,13 @@
 #ifndef PARSE_EXPR_H
 #define PARSE_EXPR_H
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 #include "UTIL/ground.h"
 #include "AST/ast_expr.h"
 #include "PARSE/parse_ctx.h"
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 // ------------------ parse_expr ------------------
 // Parses an expression into an AST.
@@ -88,6 +88,10 @@ errorcode_t parse_expr_static(parse_ctx_t *ctx, ast_expr_t **out_expr);
 // ------------------ parse_expr_def ------------------
 // Parses a 'def' expression
 errorcode_t parse_expr_def(parse_ctx_t *ctx, ast_expr_t **out_expr);
+
+// ------------------ parse_expr_typeinfo ------------------
+// Parses a 'typeinfo' expression
+errorcode_t parse_expr_typeinfo(parse_ctx_t *ctx, ast_expr_t **out_expr);
 
 // ------------------ parse_get_precedence ------------------
 // Returns the precedence of the expression that will

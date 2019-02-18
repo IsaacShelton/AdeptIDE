@@ -24,14 +24,15 @@ extern "C" {
 #define terminal_set_color(a) terminal_set_color_win32(a)
 void terminal_set_color_win32(char color);
 #else
-#define terminal_set_color(a) ((void) 0)
+#define terminal_set_color(a) terminal_set_color_posix(a)
+void terminal_set_color_posix(char color);
 #endif
 
+#ifdef ADEPT_INSIGHT_BUILD
 #define redprintf(...) ((void) 0)
 #define yellowprintf(...) ((void) 0)
 #define whiteprintf(...) ((void) 0)
-
-/*
+#else
 // ---------------- redprintf(...) ----------------
 // Temporarily sets to red for a call to printf
 #define redprintf(...) { \
@@ -54,10 +55,6 @@ void terminal_set_color_win32(char color);
     terminal_set_color(TERMINAL_COLOR_WHITE); \
     printf(__VA_ARGS__); \
     terminal_set_color(TERMINAL_COLOR_DEFAULT); \
-}
-*/
-
-#ifdef __cplusplus
 }
 #endif
 

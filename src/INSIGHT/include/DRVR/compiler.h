@@ -131,8 +131,10 @@ void compiler_warnf(compiler_t *compiler, source_t source, const char *format, .
 
 // ---------------- compiler_undeclared_function ----------------
 // Prints an error message for an undeclared function
-//void compiler_undeclared_function(compiler_t *compiler, ir_module_t *ir_module, source_t source,
-//    const char *name, ast_type_t *types, length_t arity);
+#ifndef ADEPT_INSIGHT_BUILD
+void compiler_undeclared_function(compiler_t *compiler, ir_module_t *ir_module, source_t source,
+    const char *name, ast_type_t *types, length_t arity);
+#endif
 
 // ---------------- make_args_string ----------------
 // Helper function for generating a string for function arguments

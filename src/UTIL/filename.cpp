@@ -2,6 +2,8 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "UTIL/filename.h"
+
 #ifdef _WIN32
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
@@ -46,4 +48,13 @@ char* filename_absolute(const char *filename){
     #endif
 
     return NULL;
+}
+
+std::string filename_get_extension(const std::string& text){
+    for(int i = text.length() - 1; i >= 0; i--){
+        if(text[i] == '.'){
+            return text.substr(i + 1, text.length()-i-1);
+        }
+    }
+    return "";
 }

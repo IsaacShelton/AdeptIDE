@@ -5,7 +5,7 @@
 
 Message::Message(const std::string& message, Font *font, double seconds, int windowWidth, int windowHeight){
     exitTime = glfwGetTime() + seconds;
-    this->model = font->generatePlainTextModel(message, 0.17f);
+    this->model = font->generatePlainTextModel(message, FONT_SCALE);
 
     // Calculate Text Width
     int widthInCharacters = 0;
@@ -21,8 +21,8 @@ Message::Message(const std::string& message, Font *font, double seconds, int win
         }
     }
     if(lineWidthInCharacters > widthInCharacters) widthInCharacters = lineWidthInCharacters;
-    textWidth = widthInCharacters * (font->mono_character_width * 0.17f);
-    textHeight = (newlines + 1) * (font->line_height * 0.17f);
+    textWidth = widthInCharacters * (font->mono_character_width * FONT_SCALE);
+    textHeight = (newlines + 1) * (font->line_height * FONT_SCALE);
     containerWidth = textWidth + 20.0f;
     containerHeight = textHeight + 20.0f;
     container = createSolidModel(containerWidth, containerHeight);

@@ -56,7 +56,7 @@ errorcode_t pkg_write(const char *filename, tokenlist_t *tokenlist){
 
             fwrite(&id, sizeof(tokenid_t), 1, file);
             fwrite(tokens[t].data, extra_data_length + 1, 1, file);
-        } else if(tokens[t].id == TOKEN_STRING){
+        } else if(tokens[t].id == TOKEN_CSTRING){
             token_string_data_t *string_data = (token_string_data_t*) tokens[t].data;
 
             fwrite(&id, sizeof(tokenid_t), 1, file);
@@ -132,6 +132,7 @@ errorcode_t pkg_read(compiler_t *compiler, object_t *object){
     for(length_t s = 0; s != sources_length; s++){
         // sources[s].index is never used
         sources[s].object_index = target_object_index;
+        // sources[s].stride is never used
     }
 
     char buildup[1024];
@@ -166,7 +167,7 @@ errorcode_t pkg_read(compiler_t *compiler, object_t *object){
             fread(&length, sizeof(length_t), 1, file);
 
             tokenlist->tokens[t].data = malloc(sizeof(token_string_data_t));
-            ((token_string_data_t*) tokenlist->tokens[t].data)->array = malloc(length + 1);
+            ((token_string_data_t*) tokenlist->tokens[t].data)->array = malloc(buildup_length + 1);
             fread(((token_string_data_t*) tokenlist->tokens[t].data)->array, sizeof(char), length, file);
             ((token_string_data_t*) tokenlist->tokens[t].data)->array[length] = '\0'; // For lazy conversion to c-string
         }

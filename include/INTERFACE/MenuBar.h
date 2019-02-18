@@ -92,14 +92,18 @@ private:
 public:
     Font *font;
     std::vector<Menu*> menus;
+
+    // Offset for filenames list
+    float filenamesOffsetX;
+    float targetFilenamesOffsetX;
     
     MenuBar();
     ~MenuBar();
 
-    void load(Settings *settings, Font *font, Texture *fontTexture, std::vector<GenericEditor*> *editors);
+    void load(Settings *settings, Font *font, Texture *fontTexture, std::vector<GenericEditor*> *editors, bool explorerExpanded);
     void addMenu(const std::string& label, MenuAction action, void *data);
 
-    void update();
+    void update(bool explorerExpanded);
     void render(Matrix4f& projectionMatrix, Shader *fontShader, Shader *solidShader, float windowWidth);
 
     bool leftClick(double xpos, double ypos, size_t *outCurrentEditorIndex);

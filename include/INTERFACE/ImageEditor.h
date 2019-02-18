@@ -21,7 +21,7 @@ class ImageEditor : public GenericEditor {
 public:
     ~ImageEditor();
     void load(Settings *settings, Font *font, Texture *fontTexture, float maxWidth, float maxHeight);
-    void render(Matrix4f &projectionMatrix, Shader *shader, Shader *fontShader, Shader *solidShader);
+    void render(Matrix4f &projectionMatrix, Shader *shader, Shader *fontShader, Shader *solidShader, AdeptIDEAssets *assets);
     void loadImageFromFile(const std::string& filename);
 
     TextEditor *asTextEditor();
@@ -36,6 +36,8 @@ public:
     bool isDragging();
     void zoomIn(int lineCount);
     void zoomOut(int lineCount);
+
+    void setOffset(float xOffset, float yOffset);
 };
 
 #endif // IMAGE_EDITOR_H_INCLUDED

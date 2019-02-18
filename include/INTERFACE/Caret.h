@@ -39,6 +39,7 @@ public:
     void moveOutside(const std::string& text);
     void moveTo(const std::string& text, int row, int column);
     void snapToTargetPosition(const std::string& text, float xOffset, float yOffset);
+    void snapToPosition(float x, float y);
 
     void generate(Settings *settings, Font *font);
     void draw();

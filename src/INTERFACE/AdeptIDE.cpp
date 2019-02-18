@@ -21,7 +21,7 @@
 #include <mach-o/dyld.h>
 #endif
 
-AdeptIDE::AdeptIDE(){
+AdeptIDE::AdeptIDE() : AdeptIDEAssets() {
     this->fontTexture = NULL;
 
     this->window = NULL;
@@ -30,38 +30,13 @@ AdeptIDE::AdeptIDE(){
     this->mouseDownY = 0.0f;
     this->currentEditorIndex = 0;
 
-    this->emblemModel       = NULL;
-    this->plainTextModel    = NULL;
-    this->adeptModel        = NULL;
-    this->javaModel         = NULL;
-    this->htmlModel         = NULL;
-    this->paintingModel     = NULL;
-    this->fontTexture       = NULL;
-    this->emblemTexture     = NULL;
-    this->plainTextTexture  = NULL;
-    this->adeptTexture      = NULL;
-    this->javaTexture       = NULL;
-    this->htmlTexture       = NULL;
-    this->paintingTexture   = NULL;
-    this->shader            = NULL;
-    this->fontShader        = NULL;
-    this->solidShader       = NULL;
+    this->shader                = NULL;
+    this->fontShader            = NULL;
+    this->solidShader           = NULL;
 }
 
 AdeptIDE::~AdeptIDE(){
-    delete this->emblemModel;
-    delete this->plainTextModel;
-    delete this->adeptModel;
-    delete this->javaModel;
-    delete this->htmlModel;
-    delete this->paintingModel;
-    delete this->fontTexture;
-    delete this->emblemTexture;
-    delete this->plainTextTexture;
-    delete this->adeptTexture;
-    delete this->javaTexture;
-    delete this->htmlTexture;
-    delete this->paintingTexture;
+    delete fontTexture;
     delete this->shader;
     delete this->fontShader;
     delete this->solidShader;
@@ -70,6 +45,10 @@ AdeptIDE::~AdeptIDE(){
         editor->free();
         delete editor;
     }
+
+    delete this->message;
+    delete this->explorer;
+    delete this->terminal;
 }
 
 int AdeptIDE::main(int argc, const char **argv){
@@ -132,7 +111,7 @@ int AdeptIDE::main(int argc, const char **argv){
         this->width = this->settings.ide_default_width;
         this->height = this->settings.ide_default_height;
         this->window = glfwCreateWindow(this->width, this->height, "AdeptIDE", NULL, NULL);
-    }    
+    }
 
     glfwMakeContextCurrent(this->window);
     glfwSwapInterval(this->settings.ide_default_fps <= 0 ? 0 : 60 / this->settings.ide_default_fps);
@@ -159,25 +138,14 @@ int AdeptIDE::main(int argc, const char **argv){
     glfwSetDropCallback(window, &drop_callback);
 
     // Load assets
-    this->font.load(this->assetsFolder + "inconsolatago.fnt");
-    this->fontTexture       = new Texture(this->assetsFolder + "inconsolatago.png", TextureLoadOptions::ALPHA_BLEND);
-    this->emblemTexture     = new Texture(this->assetsFolder + "emblem.png", TextureLoadOptions::ALPHA);
-    this->plainTextTexture  = new Texture(this->assetsFolder + "plaintext.png", TextureLoadOptions::ALPHA);
-    this->adeptTexture      = new Texture(this->assetsFolder + "adept.png", TextureLoadOptions::ALPHA);
-    this->javaTexture       = new Texture(this->assetsFolder + "java.png", TextureLoadOptions::ALPHA);
-    this->htmlTexture       = new Texture(this->assetsFolder + "html.png", TextureLoadOptions::ALPHA);
-    this->paintingTexture  = new Texture(this->assetsFolder + "painting.png", TextureLoadOptions::ALPHA);
-    this->emblemModel       = makeSquareModel(this->emblemTexture, 256);
-    this->plainTextModel    = makeSquareModel(this->plainTextTexture, 16);
-    this->adeptModel        = makeSquareModel(this->adeptTexture, 16);
-    this->javaModel         = makeSquareModel(this->javaTexture, 16);
-    this->htmlModel         = makeSquareModel(this->htmlTexture, 16);
-    this->paintingModel     = makeSquareModel(this->paintingTexture, 16);
-    this->shader            = new Shader(this->assetsFolder + "vertex.glsl",       this->assetsFolder + "fragment.glsl",       {"position", "uvs"});
-    this->fontShader        = new Shader(this->assetsFolder + "font_vertex.glsl",  this->assetsFolder + "font_fragment.glsl",  {"position", "uvs"});
-    this->solidShader       = new Shader(this->assetsFolder + "solid_vertex.glsl", this->assetsFolder + "solid_fragment.glsl", {"position"});
+    this->font.load(this->assetsFolder + FONT_NAME + ".fnt");
+    this->fontTexture           = new Texture(this->assetsFolder + FONT_NAME + ".png", TextureLoadOptions::ALPHA_BLEND);
+    this->shader                = new Shader(this->assetsFolder + "vertex.glsl",       this->assetsFolder + "fragment.glsl",       {"position", "uvs"});
+    this->fontShader            = new Shader(this->assetsFolder + "font_vertex.glsl",  this->assetsFolder + "font_fragment.glsl",  {"position", "uvs"});
+    this->solidShader           = new Shader(this->assetsFolder + "solid_vertex.glsl", this->assetsFolder + "solid_fragment.glsl", {"position"});
+    this->loadAdeptIDEAssets(this->assetsFolder);
 
-    this->menubar.load(&this->settings, &this->font, this->fontTexture, &this->editors);
+    this->menubar.load(&this->settings, &this->font, this->fontTexture, &this->editors, !this->settings.explorer_default_collapse);
 
     this->menubar.addMenu("FILE",      &file_menu,      NULL);
     this->menubar.addMenu("EDIT",      NULL,            NULL);
@@ -199,13 +167,21 @@ int AdeptIDE::main(int argc, const char **argv){
     this->menubar.menus[0]->data = this->menubar.menus[0]->dropdownMenu;
     this->menubar.menus[0]->dropdownMenu->menus.push_back(newFileMenu);
     this->menubar.menus[0]->dropdownMenu->menus.push_back(new Menu("Open File                 Ctrl+O", this->menubar.font, &open_file_menu, this));
+    this->menubar.menus[0]->dropdownMenu->menus.push_back(new Menu("Open Folder         Ctrl+Shift+O", this->menubar.font, &open_folder_menu, this));
     this->menubar.menus[0]->dropdownMenu->menus.push_back(new Menu("Open Playground     Ctrl+Shift+N", this->menubar.font, &open_playground_menu, this));
     this->menubar.menus[0]->dropdownMenu->menus.push_back(new Menu("Save File                 Ctrl+S", this->menubar.font, &save_file_menu, this));
     this->menubar.menus[0]->dropdownMenu->menus.push_back(new Menu("Save File As        Ctrl+Shift+S", this->menubar.font, NULL, this));
     this->menubar.menus[0]->dropdownMenu->menus.push_back(new Menu("Save all                  Ctrl+T", this->menubar.font, NULL, this));
     this->menubar.menus[0]->dropdownMenu->menus.push_back(new Menu("Close File                Ctrl+W", this->menubar.font, &close_file_menu, this));
     this->menubar.menus[0]->dropdownMenu->menus.push_back(new Menu("Settings              Ctrl+Comma", this->menubar.font, &settings_menu, this));
-    this->menubar.menus[0]->dropdownMenu->menus.push_back(new Menu("Quit                      Alt+F4", this->menubar.font, &quit_menu, this->window));
+
+    #ifdef __APPLE__
+    std::string quitString = "Quit                       Cmd+Q";
+    #else
+    std::string quitString = "Quit                      Alt+F4";
+    #endif
+
+    this->menubar.menus[0]->dropdownMenu->menus.push_back(new Menu(quitString, this->menubar.font, &quit_menu, this->window));
 
     float selectionDropDownX;
 
@@ -247,11 +223,22 @@ int AdeptIDE::main(int argc, const char **argv){
     this->menubar.menus[4]->dropdownMenu->menus.push_back(new Menu("Build                     Ctrl+B", this->menubar.font, build_adept_project, this));
     this->menubar.menus[4]->dropdownMenu->menus.push_back(new Menu("Build & Run         Ctrl+Shift+B", this->menubar.font, build_and_run_adept_project, this));
 
-    message = NULL;
+    this->message = NULL;
+    this->explorer = new Explorer();
+    this->explorer->load(&this->settings, &this->font, this->fontTexture, 256, this->height);
+
+    this->terminal = new Terminal();
+    this->terminal->load(&this->settings, &this->font, this->fontTexture, this->width, 256);
+
     double previousTime = glfwGetTime();
     int frameCount = 0;
 
     if(argc > 1) for(int i = 1; i != argc; i++){
+        #ifdef __APPLE__
+        // Ignore launch signal
+        if(strncmp(argv[i], "-psn", 4) == 0) continue;
+        #endif // __APPLE__
+        
         this->openEditor(std::string(argv[i]));
     }
 
@@ -266,8 +253,13 @@ int AdeptIDE::main(int argc, const char **argv){
         double currentTime = glfwGetTime();
         frameCount++;
 
-        this->settings.hidden.delta = (currentTime - lastFrameTime) * 60.0;
-        
+        if(this->settings.hidden.fastForward){
+            this->settings.hidden.delta = 1.0;
+            this->settings.hidden.fastForward = false;
+        } else {
+            this->settings.hidden.delta = (currentTime - lastFrameTime) * 60.0;
+        }
+
         if (currentTime - previousTime >= 1.0){
             // Display the frame count here any way you want.
             if(this->settings.ide_debug_fps)
@@ -284,6 +276,30 @@ int AdeptIDE::main(int argc, const char **argv){
 
         GenericEditor *currentEditor = this->getCurrentEditor();
 
+        if(TextEditor *textEditor = this->getCurrentEditorAsTextEditor()){
+            if(textEditor->astMutex.try_lock()){
+
+                switch(textEditor->astCreationResult){
+                case AstCreationResultNothingNew:
+                    break;
+                case AstCreationResultFailure:
+                    this->createMessage("Failed to update insight due to syntax error(s)", 3.0);
+                    textEditor->astCreationResult = AstCreationResultNothingNew;
+                    break;
+                case AstCreationResultSuccess:
+                    this->createMessage("Successfully updated insight", 2.0);
+                    textEditor->astCreationResult = AstCreationResultNothingNew;
+                    break;
+                case AstCreationResultNotAdept:
+                    this->createMessage("Can't gain insight into non-Adept source code", 3.0);
+                    textEditor->astCreationResult = AstCreationResultNothingNew;
+                    break;
+                }
+
+                textEditor->astMutex.unlock();
+            }
+        }
+
         // Prepare render
         glClearColor(0.07, 0.09, 0.1, 1.0f);
         //glClearColor(1.0, 1.0, 1.0, 1.0f);
@@ -291,6 +307,9 @@ int AdeptIDE::main(int argc, const char **argv){
         glfwGetFramebufferSize(this->window, &this->width, &this->height);
         glViewport(0, 0, this->width, this->height);
         this->projectionMatrix.ortho(0.0f, this->width, this->height, 0.0f, -1.0f, 1.0f);
+
+        if(this->explorer) this->explorer->resize(this->height);
+        if(this->terminal) this->terminal->resize(this->width);
 
         // Resize editors to new window size
         for(GenericEditor *editor : this->editors){
@@ -304,12 +323,20 @@ int AdeptIDE::main(int argc, const char **argv){
         // Render filenames and current editor
         if(currentEditor){
             this->renderEditorFilenames();
-            currentEditor->render(this->projectionMatrix, this->shader, this->fontShader, this->solidShader);
+
+            float offsetByExplorer = this->explorer ? this->explorer->containerX + 256.0f : 0.0f;
+            float xOffset = offsetByExplorer + 4.0f;
+            float yOffset = 20.0f + 32.0f + 4.0f;
+
+            currentEditor->setOffset(xOffset, yOffset);
+            currentEditor->render(this->projectionMatrix, this->shader, this->fontShader, this->solidShader, (AdeptIDEAssets*) this);
         } else if(this->settings.ide_emblem){
             // Render emblem
             this->shader->bind();
             this->shader->giveMatrix4f("projection_matrix", this->projectionMatrix);
-            this->transformationMatrix.translateFromIdentity(this->width / 2 - 128.0f, this->height / 2 - 128.0f, 0.0f);
+
+            float offsetByExplorer = this->explorer ? this->explorer->containerX + 256.0f : 0.0f;
+            this->transformationMatrix.translateFromIdentity((this->width - offsetByExplorer) / 2 - 128.0f + offsetByExplorer, this->height / 2 - 128.0f, -0.99f);
             this->shader->giveMatrix4f("transformation_matrix", this->transformationMatrix);
             renderModel(this->emblemModel);
         }
@@ -324,11 +351,29 @@ int AdeptIDE::main(int argc, const char **argv){
         
         if(this->rootWatcher.changeOccured()){
             this->loadSettings();
+        }
 
-            // Update stuff that might've been changed
-            if(this->editors.size() != 0){
-                this->menubar.underlineTab(this->currentEditorIndex);
-            }
+        if(this->explorer){
+            this->shader->bind();
+            this->shader->giveMatrix4f("projection_matrix", this->projectionMatrix);
+            this->transformationMatrix.translateFromIdentity(8.0f, 24.0f + 4.0f, 0.71f);
+            this->shader->giveMatrix4f("transformation_matrix", this->transformationMatrix);
+            renderModel(this->explorerToggleModel);
+
+            this->transformationMatrix.translate(32.0f, 0.0f, 0.0f);
+            this->shader->giveMatrix4f("transformation_matrix", this->transformationMatrix);
+            renderModel(this->openFolderModel);
+
+            this->transformationMatrix.translate(32.0f, 0.0f, 0.0f);
+            this->shader->giveMatrix4f("transformation_matrix", this->transformationMatrix);
+            renderModel(this->treeModel);
+
+            this->explorer->render(projectionMatrix, shader, fontShader, solidShader, (AdeptIDEAssets*) this);
+        }
+
+        if(this->terminal){
+            this->terminal->containerX = (this->explorer ? this->explorer->containerX : 0) + 256;
+            this->terminal->render(projectionMatrix, shader, fontShader, solidShader, this->height, (AdeptIDEAssets*) this);
         }
 
         if(this->message){
@@ -342,8 +387,6 @@ int AdeptIDE::main(int argc, const char **argv){
         glfwSwapBuffers(window);
         glfwPollEvents();
     }
-
-    delete message;
 
     global_background_input.should_close.store(true);
     global_background_thread->join();
@@ -374,18 +417,15 @@ void AdeptIDE::handleInput(){
     }
 
     if(ImageEditor *currentImageEditor = this->getCurrentEditorAsImageEditor()){
-        double x, y;
-        glfwGetCursorPos(this->window, &x, &y);
-        
         if(currentImageEditor->isDragging()){
             if(glfwGetMouseButton(this->window, GLFW_MOUSE_BUTTON_LEFT)){
-                currentImageEditor->updateDrag(x, y);
+                currentImageEditor->updateDrag(mouseX, mouseY);
             } else {
-                currentImageEditor->endDrag(x, y);
+                currentImageEditor->endDrag(mouseX, mouseY);
             }
         } else {
             if(glfwGetMouseButton(this->window, GLFW_MOUSE_BUTTON_LEFT)){
-                currentImageEditor->startDrag(x, y);
+                currentImageEditor->startDrag(mouseX, mouseY);
             }
         }
 
@@ -397,12 +437,12 @@ void AdeptIDE::handleInput(){
 }
 
 void AdeptIDE::update(){
-    this->menubar.update();
+    this->menubar.update(this->explorer->isVisible());
     if(this->message) this->message->update(this->width, this->settings.hidden.delta);
 }
 
 void AdeptIDE::renderEditorFilenames(){
-    this->transformationMatrix.translateFromIdentity(8.0f, 26.0f, 0.9);
+    this->transformationMatrix.translateFromIdentity(this->menubar.filenamesOffsetX + 8.0f, 26.0f, 0.9);
 
     size_t index = 0;
     for(GenericEditor *editor : this->editors){
@@ -433,7 +473,7 @@ void AdeptIDE::renderEditorFilenames(){
         TextModel *editorFilenameTextModel = editor->getFilenameModel();
         if(editorFilenameTextModel) editorFilenameTextModel->draw();
         
-        float advance = (editor->displayFilename.length() * (0.17f * this->font.mono_character_width)) + 16.0f;
+        float advance = (editor->displayFilename.length() * (FONT_SCALE * this->font.mono_character_width)) + 16.0f;
         this->transformationMatrix.translate(advance, 0.0f, 0.0f);
         index++;
     }
@@ -441,12 +481,21 @@ void AdeptIDE::renderEditorFilenames(){
 
 void AdeptIDE::loadSettings(){
     this->settings.loadFromFile(this->root + "settings.json");
+
+    // Update stuff that might've been changed
+    if(this->editors.size() != 0){
+        this->menubar.underlineTab(this->currentEditorIndex);
+    }
+
+    // Refresh explorer
+    if(this->explorer) this->explorer->refreshNodes();
 }
 
 void AdeptIDE::openFile(){
+    this->settings.hidden.fastForward = true;
+
     std::vector<std::string> filenames;
     if(!openMultipleFileDialog(this->window, filenames)){
-        glfwSetTime(glfwGetTime());
         return;
     }
 
@@ -456,6 +505,19 @@ void AdeptIDE::openFile(){
     this->settings.hidden.delta = 0;
 }
 
+void AdeptIDE::openFolder(){
+    this->settings.hidden.fastForward = true;
+
+    if(this->explorer){
+        std::string folder;
+
+        if(openFolderDialog(this->window, folder))
+            this->explorer->setRootFolder(folder);
+        
+        this->explorer->setVisibility(true);
+    }
+}
+
 void AdeptIDE::openEditor(const std::string& filename){
     TextEditor *newEditor = this->addTextEditor();
 
@@ -463,6 +525,12 @@ void AdeptIDE::openEditor(const std::string& filename){
     newEditor->updateFilenameModel();
     newEditor->loadTextFromFile(filename);
     this->updateTitle();
+
+    // Re-underline the tab because we changed the filename model
+    if(this->editors.size() != 0)
+        this->menubar.underlineTab(this->currentEditorIndex);
+
+    this->settings.hidden.fastForward = true;
 }
 
 void AdeptIDE::newFile(FileType fileType){
@@ -499,9 +567,13 @@ ImageEditor* AdeptIDE::getCurrentEditorAsImageEditor(){
 }
 
 TextEditor* AdeptIDE::addTextEditor(){
+    float xOffset = this->explorer && this->explorer->isVisible() ? 256.0f + 4.0f : 4.0f;
+    float yOffset = 20.0f + 32.0f + 4.0f;
+
     TextEditor *editor = new TextEditor();
     editor->load(&this->settings, &this->font, this->fontTexture, this->width, this->height);
-    editor->setOffset(4.0f, 20.0f + 32.0f + 4.0f);
+    editor->snapCaretToPosition(xOffset, 0.0f);
+    editor->setOffset(xOffset, yOffset);
     editor->setFileType(this->settings.editor_default_language);
     editor->setSyntaxColorPalette(this->settings.editor_default_theme);
     this->editors.push_back(editor);
@@ -584,7 +656,29 @@ void AdeptIDE::setCurrentEditor(size_t index){
     this->currentEditorIndex = index;
 }
 
+void AdeptIDE::updateInsight(){
+    if(TextEditor *textEditor = this->getCurrentEditorAsTextEditor())
+        textEditor->makeAst(true, true);
+}
+
 void AdeptIDE::scrollDown(int lineCount){
+    if(this->explorer){
+        double x, y;
+        glfwGetCursorPos(window, &x, &y);
+
+        if(this->explorer->scrollDownIfHovering(x, y, lineCount)) return;
+    }
+
+    if(this->terminal){
+        double x, y;
+        glfwGetCursorPos(window, &x, &y);
+
+        int w, h;
+        glfwGetFramebufferSize(this->window, &w, &h);
+        
+        if(this->terminal->scrollDownIfHovering(x, y, h, lineCount)) return;
+    }
+
     if(TextEditor *currentTextEditor = this->getCurrentEditorAsTextEditor()){
         currentTextEditor->scrollDown(lineCount);
         return;
@@ -597,6 +691,23 @@ void AdeptIDE::scrollDown(int lineCount){
 }
 
 void AdeptIDE::scrollUp(int lineCount){
+    if(this->explorer){
+        double x, y;
+        glfwGetCursorPos(window, &x, &y);
+        
+        if(this->explorer->scrollUpIfHovering(x, y, lineCount)) return;
+    }
+
+    if(this->terminal){
+        double x, y;
+        glfwGetCursorPos(window, &x, &y);
+        
+        int w, h;
+        glfwGetFramebufferSize(this->window, &w, &h);
+        
+        if(this->terminal->scrollUpIfHovering(x, y, h, lineCount)) return;
+    }
+
     if(TextEditor *currentTextEditor = this->getCurrentEditorAsTextEditor()){
         currentTextEditor->scrollUp(lineCount);
         return;
@@ -638,11 +749,15 @@ void AdeptIDE::duplicateCaretDown(){
 }
 
 void AdeptIDE::type(const std::string& text){
+    if(this->terminal && this->terminal->type(text)) return;
+
     TextEditor *currentTextEditor = this->getCurrentEditorAsTextEditor();
     if(currentTextEditor) currentTextEditor->type(text);
 }
 
 void AdeptIDE::type(char character){
+    if(this->terminal && this->terminal->type(character)) return;
+
     TextEditor *currentTextEditor = this->getCurrentEditorAsTextEditor();
     if(currentTextEditor) currentTextEditor->type(character);
 }
@@ -673,6 +788,11 @@ void AdeptIDE::typeCString(){
 }
 
 void AdeptIDE::backspace(){
+    if(this->terminal && this->terminal->isVisible()){
+        this->terminal->backspace();
+        return;
+    }
+
     TextEditor *currentTextEditor = this->getCurrentEditorAsTextEditor();
     if(currentTextEditor) currentTextEditor->backspace();
 }
@@ -828,6 +948,16 @@ void AdeptIDE::saveFile(){
             this->setCurrentEditor(this->currentEditorIndex);
         }
         currentTextEditor->saveFile();
+
+        #ifdef __APPLE__
+        // HACK: kevent doesn't catch when we write to the file but it does capture when others
+        // write to it for some reason. Because of that, we'll just reload the settings when
+        // we save settings.json - Isaac, Dec 27 2018
+        // TODO: Fix whatevers not right with kevent usage in FolderWatcher
+        if(currentTextEditor->filename == this->root + "settings.json"){
+            this->loadSettings();
+        }
+        #endif
     }
 }
 
@@ -839,10 +969,12 @@ void AdeptIDE::createMessage(const std::string& message, double seconds){
 void scroll_callback(GLFWwindow *window, double xOffset, double yOffset){
     AdeptIDE *adeptide = static_cast<AdeptIDE*>(glfwGetWindowUserPointer(window));
 
+    double amount = adeptide->settings.ide_scroll_fixed ? 8.0 : fabs(yOffset);
+
     if(yOffset < -0.9){
-        adeptide->scrollDown(8);
+        adeptide->scrollDown(amount * adeptide->settings.ide_scroll_multiplier);
     } else if(yOffset > 0.9){
-        adeptide->scrollUp(8);
+        adeptide->scrollUp(amount * adeptide->settings.ide_scroll_multiplier);
     }
 }
 
@@ -858,12 +990,19 @@ void key_callback(GLFWwindow *window, int key, int scancode, int action, int mod
 
     #ifdef __APPLE__
     #define QUICKTYPE_KEY GLFW_KEY_LEFT_SUPER
+    #define CMDCTRL_MOD(a) (a & GLFW_MOD_SUPER || a & GLFW_MOD_CONTROL)
     #else
     #define QUICKTYPE_KEY GLFW_KEY_RIGHT_ALT
+    #define CMDCTRL_MOD(a) (a & GLFW_MOD_CONTROL)
     #endif
 
-    if (glfwGetKey(window, QUICKTYPE_KEY) == GLFW_PRESS && input){
-        if(glfwGetKey(window, GLFW_KEY_SPACE)){
+    if(key == GLFW_KEY_COMMA && input && CMDCTRL_MOD(mods)){
+        settings_menu(adeptide);
+        return;
+    }
+
+    if(adeptide->settings.ide_quicktype && glfwGetKey(window, QUICKTYPE_KEY) == GLFW_PRESS && input){
+        if(glfwGetKey(window, GLFW_KEY_ENTER) == GLFW_PRESS){
             adeptide->finishSuggestion();
             return;
         }
@@ -872,12 +1011,26 @@ void key_callback(GLFWwindow *window, int key, int scancode, int action, int mod
         return;
     }
 
-    if(key == GLFW_KEY_COMMA && input && mods & GLFW_MOD_CONTROL){
-        settings_menu(adeptide);
+    #ifdef __APPLE__
+    if(key == GLFW_KEY_SLASH && input && mods & GLFW_MOD_SUPER){
+    #else
+    if(key == GLFW_KEY_SLASH && input && mods & GLFW_MOD_CONTROL){
+    #endif
+        if(adeptide->explorer)
+            adeptide->explorer->toggleVisibility();
+    }
+
+    #ifdef __APPLE__
+    if(key == GLFW_KEY_MINUS && input && (mods & GLFW_MOD_SUPER)){
+    #else
+    if(key == GLFW_KEY_GRAVE_ACCENT && input && mods & GLFW_MOD_CONTROL){
+    #endif
+        if(adeptide->terminal)
+            adeptide->terminal->toggleVisibility();
     }
     
     if(key == GLFW_KEY_BACKSPACE && input){
-        if(mods & GLFW_MOD_CONTROL && mods & GLFW_MOD_SHIFT)
+        if(CMDCTRL_MOD(mods) && mods & GLFW_MOD_SHIFT)
             adeptide->smartBackspace();
         else if(mods & GLFW_MOD_SHIFT)
             adeptide->backspaceLine();
@@ -887,7 +1040,7 @@ void key_callback(GLFWwindow *window, int key, int scancode, int action, int mod
     }
 
     if(key == GLFW_KEY_DELETE && input){
-        if(mods & GLFW_MOD_CONTROL && mods & GLFW_MOD_SHIFT)
+        if(CMDCTRL_MOD(mods) && mods & GLFW_MOD_SHIFT)
             adeptide->smartDel();
         else if(mods & GLFW_MOD_SHIFT)
             adeptide->delLine();
@@ -899,7 +1052,7 @@ void key_callback(GLFWwindow *window, int key, int scancode, int action, int mod
     if(key == GLFW_KEY_ENTER && input){
         if(mods & GLFW_MOD_SHIFT)
             adeptide->nextLine();
-        else if(mods & GLFW_MOD_CONTROL)
+        else if(CMDCTRL_MOD(mods))
             adeptide->nextPrecedingLine();
         else
             adeptide->type('\n');
@@ -916,17 +1069,45 @@ void key_callback(GLFWwindow *window, int key, int scancode, int action, int mod
     }
 
     if(key == GLFW_KEY_ESCAPE && action == GLFW_PRESS){
-        TextEditor *editor = adeptide->getCurrentEditorAsTextEditor();
-
-        if(editor){
+        if(TextEditor *editor = adeptide->getCurrentEditorAsTextEditor()){
             if(editor->hasSelection()){
                 adeptide->destroySelection();
             } else {
                 editor->deleteAdditionalCarets();
             }
+
+            editor->showSuggestionBox = false;
         }
 
         adeptide->menubar.loseFocus();
+    }
+
+    #ifdef __APPLE__
+    if((key == GLFW_KEY_HOME || (key == GLFW_KEY_LEFT && mods & GLFW_MOD_SUPER)) && input){
+    #else
+    if(key == GLFW_KEY_HOME && input){
+    #endif
+        if(glfwGetKey(window, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS)
+            adeptide->startSelection();
+
+        adeptide->moveCaretBeginningOfLine();
+
+        adeptide->menubar.loseFocus();
+        return;
+    }
+
+    #ifdef __APPLE__
+    if((key == GLFW_KEY_END || (key == GLFW_KEY_RIGHT && mods & GLFW_MOD_SUPER)) && input){
+    #else
+    if(key == GLFW_KEY_END && input){
+    #endif
+        if(glfwGetKey(window, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS)
+            adeptide->startSelection();
+
+        adeptide->moveCaretEndOfLine();
+
+        adeptide->menubar.loseFocus();
+        return;
     }
 
     if(key == GLFW_KEY_LEFT && input){
@@ -954,7 +1135,7 @@ void key_callback(GLFWwindow *window, int key, int scancode, int action, int mod
     if(key == GLFW_KEY_UP && input){
         if(glfwGetKey(window, GLFW_KEY_LEFT_ALT) == GLFW_PRESS && glfwGetKey(window, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS){
             adeptide->scrollUp(8);
-        } else if (glfwGetKey(window, GLFW_KEY_LEFT_ALT) == GLFW_PRESS && glfwGetKey(window, GLFW_KEY_LEFT_CONTROL) == GLFW_PRESS){
+        } else if(mods & GLFW_MOD_ALT && CMDCTRL_MOD(mods)){
             adeptide->duplicateCaretUp();
         } else {
             if(glfwGetKey(window, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS)
@@ -969,7 +1150,7 @@ void key_callback(GLFWwindow *window, int key, int scancode, int action, int mod
     if(key == GLFW_KEY_DOWN && input){
         if(glfwGetKey(window, GLFW_KEY_LEFT_ALT) == GLFW_PRESS && glfwGetKey(window, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS){
             adeptide->scrollDown(8);
-        } else if (glfwGetKey(window, GLFW_KEY_LEFT_ALT) == GLFW_PRESS && glfwGetKey(window, GLFW_KEY_LEFT_CONTROL) == GLFW_PRESS){
+        } else if(mods & GLFW_MOD_ALT && CMDCTRL_MOD(mods)){
             adeptide->duplicateCaretDown();
         } else {
             if(glfwGetKey(window, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS)
@@ -979,24 +1160,6 @@ void key_callback(GLFWwindow *window, int key, int scancode, int action, int mod
 
             adeptide->menubar.loseFocus();
         }
-    }
-
-    if(key == GLFW_KEY_HOME && input){
-        if(glfwGetKey(window, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS)
-            adeptide->startSelection();
-
-        adeptide->moveCaretBeginningOfLine();
-
-        adeptide->menubar.loseFocus();
-    }
-
-    if(key == GLFW_KEY_END && input){
-        if(glfwGetKey(window, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS)
-            adeptide->startSelection();
-
-        adeptide->moveCaretEndOfLine();
-
-        adeptide->menubar.loseFocus();
     }
 
     if(key == GLFW_KEY_PAGE_UP && input){
@@ -1023,7 +1186,7 @@ void key_callback(GLFWwindow *window, int key, int scancode, int action, int mod
         adeptide->menubar.loseFocus();
     }
 
-    if(mods & GLFW_MOD_CONTROL && input){
+    if(CMDCTRL_MOD(mods) && input){
         switch(key){
         case GLFW_KEY_1:
             if(mods & GLFW_MOD_SHIFT) theme_visual_studio(adeptide);
@@ -1049,12 +1212,17 @@ void key_callback(GLFWwindow *window, int key, int scancode, int action, int mod
             adeptide->menubar.loseFocus();
             break;
         case GLFW_KEY_O:
-            adeptide->openFile();
+            if(mods & GLFW_MOD_SHIFT) adeptide->openFolder();
+            else adeptide->openFile();
             adeptide->menubar.loseFocus();
             break;
         case GLFW_KEY_N:
             if(mods & GLFW_MOD_SHIFT) open_playground_menu(adeptide);
             else adeptide->newFile(FileType::ADEPT);
+            adeptide->menubar.loseFocus();
+            break;
+        case GLFW_KEY_I:
+            adeptide->updateInsight();
             adeptide->menubar.loseFocus();
             break;
         case GLFW_KEY_P:
@@ -1120,6 +1288,17 @@ void mouse_button_callback(GLFWwindow* window, int button, int action, int mods)
 void handle_left_click(AdeptIDE *adeptide, double xpos, double ypos){
     if(adeptide->menubar.leftClick(xpos, ypos, &adeptide->currentEditorIndex)){
         // Click menu
+    } else if(xpos >= 0.0f && xpos <= 32.0f && ypos >= 24.0f && ypos <= 24.0f + 32.0f){
+        // Toggle Explorer Button
+        if(adeptide->explorer) adeptide->explorer->toggleVisibility();
+    } else if(xpos >= 32.0f && xpos <= 64.0f && ypos >= 24.0f && ypos <= 24.0f + 32.0f){
+        // Open Folder Button
+        adeptide->openFolder();
+    } else if(xpos >= 64.0f && xpos <= 96.0f && ypos >= 24.0f && ypos <= 24.0f + 32.0f){
+        // Update Insight Tree Button
+        adeptide->updateInsight();
+    } else if(adeptide->explorer && adeptide->explorer->leftClick(adeptide, xpos, ypos)){
+        // Click explorer
     } else {
         adeptide->menubar.loseFocus();
 
@@ -1184,6 +1363,12 @@ void open_playground_menu(void *data){
 void open_file_menu(void *data){
     AdeptIDE *adeptide = static_cast<AdeptIDE*>(data);
     adeptide->openFile();
+    adeptide->menubar.loseFocus();
+}
+
+void open_folder_menu(void *data){
+    AdeptIDE *adeptide = static_cast<AdeptIDE*>(data);
+    adeptide->openFolder();
     adeptide->menubar.loseFocus();
 }
 
@@ -1299,6 +1484,7 @@ void theme_one_dark(void *data){
 void maximize(void *data){
     AdeptIDE *adeptide = static_cast<AdeptIDE *>(data);
     glfwMaximizeWindow(adeptide->window);
+    adeptide->menubar.loseFocus();
 }
 
 
@@ -1317,7 +1503,7 @@ void build_adept_project(void *data){
     TextEditor *editor = adeptide->getCurrentEditorAsTextEditor();
     if(editor){
         if(editor->filename == ""){
-            adeptide->createMessage("File must be saved in order to compile", 2.0);
+            adeptide->createMessage("File must be saved in order to build", 2.0);
         }
         else if (system((adeptide->settings.adept_compiler + " \"" + editor->filename + "\" > \"" + adeptide->root + "adept.log\" 2>&1").c_str()))
         {
@@ -1348,7 +1534,7 @@ void build_and_run_adept_project(void *data){
     TextEditor *editor = adeptide->getCurrentEditorAsTextEditor();
     if(editor){
         if(editor->filename == ""){
-            adeptide->createMessage("File must be saved in order to compile", 2.0);
+            adeptide->createMessage("File must be saved in order to build", 2.0);
         }
         else if(system( (adeptide->settings.adept_compiler + " -e \"" + editor->filename + "\"").c_str() )){
             std::ifstream stream(adeptide->root + "adept.log");

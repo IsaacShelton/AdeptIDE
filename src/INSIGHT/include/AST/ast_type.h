@@ -6,8 +6,6 @@
 extern "C" {
 #endif
 
-#include "UTIL/ground.h"
-#include "UTIL/trait.h"
 
 /*
     =============================== ast_type.h ===============================
@@ -18,6 +16,9 @@ extern "C" {
     as [PTR] [PTR] [BASE] in the ast_type_t elements array
     ---------------------------------------------------------------------------
 */
+
+#include "UTIL/trait.h"
+#include "UTIL/ground.h"
 
 // Possible AST type elements
 #define AST_ELEM_NONE          0x00
@@ -55,7 +56,7 @@ typedef struct {
 typedef struct {
     unsigned int id;
     source_t source;
-    char *base;
+    strong_cstr_t base;
 } ast_elem_base_t;
 
 // ---------------- ast_elem_pointer_t ----------------

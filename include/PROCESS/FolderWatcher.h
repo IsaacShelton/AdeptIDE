@@ -7,6 +7,8 @@
 #include <windows.h>
 #elif defined(__APPLE__)
 #include <sys/event.h>
+#include <atomic>
+#include <thread>
 #endif
 
 #include <string>
@@ -19,6 +21,9 @@ private:
     #elif defined(__APPLE__)
     int kq, dirfd;
     struct kevent direvent, sigevent;
+    std::thread thread;
+    std::atomic_bool shouldStopWatching;
+    std::atomic_bool changed;
     #endif
 
   public:

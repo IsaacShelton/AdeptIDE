@@ -155,14 +155,14 @@ void RichText::insertCharacterData(size_t index, char character){
         this->uvs[index * 8 + 4] = 0.0f; this->uvs[index * 8 + 5] = 0.0f;
         this->uvs[index * 8 + 6] = 0.0f; this->uvs[index * 8 + 7] = 0.0f;
     } else {
-        this->vertices[index * 8    ] = x + fontCharacter->x_offset * 0.17f;
-        this->vertices[index * 8 + 1] = y + fontCharacter->y_offset * 0.17f;
-        this->vertices[index * 8 + 2] = x + fontCharacter->x_offset * 0.17f;
-        this->vertices[index * 8 + 3] = y + fontCharacter->size_y * 0.17f + fontCharacter->y_offset * 0.17f;
-        this->vertices[index * 8 + 4] = x + fontCharacter->size_x * 0.17f + fontCharacter->x_offset * 0.17f;
-        this->vertices[index * 8 + 5] = y + fontCharacter->size_y * 0.17f + fontCharacter->y_offset * 0.17f;
-        this->vertices[index * 8 + 6] = x + fontCharacter->size_x * 0.17f + fontCharacter->x_offset * 0.17f;
-        this->vertices[index * 8 + 7] = y + fontCharacter->y_offset * 0.17f;
+        this->vertices[index * 8    ] = x + fontCharacter->x_offset * FONT_SCALE;
+        this->vertices[index * 8 + 1] = y + fontCharacter->y_offset * FONT_SCALE;
+        this->vertices[index * 8 + 2] = x + fontCharacter->x_offset * FONT_SCALE;
+        this->vertices[index * 8 + 3] = y + fontCharacter->size_y * FONT_SCALE + fontCharacter->y_offset * FONT_SCALE;
+        this->vertices[index * 8 + 4] = x + fontCharacter->size_x * FONT_SCALE + fontCharacter->x_offset * FONT_SCALE;
+        this->vertices[index * 8 + 5] = y + fontCharacter->size_y * FONT_SCALE + fontCharacter->y_offset * FONT_SCALE;
+        this->vertices[index * 8 + 6] = x + fontCharacter->size_x * FONT_SCALE + fontCharacter->x_offset * FONT_SCALE;
+        this->vertices[index * 8 + 7] = y + fontCharacter->y_offset * FONT_SCALE;
 
         this->uvs[index * 8    ] = fontCharacter->u;     this->uvs[index * 8 + 1] = fontCharacter->v;
         this->uvs[index * 8 + 2] = fontCharacter->u;     this->uvs[index * 8 + 3] = fontCharacter->v_max;
@@ -190,26 +190,26 @@ void RichText::insertCharacterData(size_t index, char character){
 
         // Move everything after down a line
         for(size_t i = index + 1; i != this->text.length(); i++){
-            this->vertices[i * 8 + 1] += font->line_height * 0.17;
-            this->vertices[i * 8 + 3] += font->line_height * 0.17;
-            this->vertices[i * 8 + 5] += font->line_height * 0.17;
-            this->vertices[i * 8 + 7] += font->line_height * 0.17;
+            this->vertices[i * 8 + 1] += font->line_height * FONT_SCALE;
+            this->vertices[i * 8 + 3] += font->line_height * FONT_SCALE;
+            this->vertices[i * 8 + 5] += font->line_height * FONT_SCALE;
+            this->vertices[i * 8 + 7] += font->line_height * FONT_SCALE;
         }
 
         // Move existing text in newly created line back to start of line
         for(size_t i = index + 1; i != this->text.length() && this->text[i] != '\n'; i++){
-            this->vertices[i * 8 + 0] -= lineBeginningLength * font->mono_character_width * 0.17;
-            this->vertices[i * 8 + 2] -= lineBeginningLength * font->mono_character_width * 0.17;
-            this->vertices[i * 8 + 4] -= lineBeginningLength * font->mono_character_width * 0.17;
-            this->vertices[i * 8 + 6] -= lineBeginningLength * font->mono_character_width * 0.17;
+            this->vertices[i * 8 + 0] -= lineBeginningLength * font->mono_character_width * FONT_SCALE;
+            this->vertices[i * 8 + 2] -= lineBeginningLength * font->mono_character_width * FONT_SCALE;
+            this->vertices[i * 8 + 4] -= lineBeginningLength * font->mono_character_width * FONT_SCALE;
+            this->vertices[i * 8 + 6] -= lineBeginningLength * font->mono_character_width * FONT_SCALE;
         }
     } else {
         // Move all characters within the line that are after the new character, forward a character
         for(size_t i = index + 1; i != this->text.length() && this->text[i] != '\n'; i++){
-            this->vertices[i * 8 + 0] += font->mono_character_width * 0.17;
-            this->vertices[i * 8 + 2] += font->mono_character_width * 0.17;
-            this->vertices[i * 8 + 4] += font->mono_character_width * 0.17;
-            this->vertices[i * 8 + 6] += font->mono_character_width * 0.17;
+            this->vertices[i * 8 + 0] += font->mono_character_width * FONT_SCALE;
+            this->vertices[i * 8 + 2] += font->mono_character_width * FONT_SCALE;
+            this->vertices[i * 8 + 4] += font->mono_character_width * FONT_SCALE;
+            this->vertices[i * 8 + 6] += font->mono_character_width * FONT_SCALE;
         }
 
         this->highlightAffectedLines(getLineBeginning(this->text, index));
@@ -237,28 +237,28 @@ void RichText::removeCharacterData(size_t index){
     if(is_newline){
         // Move line up
         for(size_t i = index; i != this->text.length(); i++){
-            this->vertices[i * 8 + 1] -= font->line_height * 0.17;
-            this->vertices[i * 8 + 3] -= font->line_height * 0.17;
-            this->vertices[i * 8 + 5] -= font->line_height * 0.17;
-            this->vertices[i * 8 + 7] -= font->line_height * 0.17;
+            this->vertices[i * 8 + 1] -= font->line_height * FONT_SCALE;
+            this->vertices[i * 8 + 3] -= font->line_height * FONT_SCALE;
+            this->vertices[i * 8 + 5] -= font->line_height * FONT_SCALE;
+            this->vertices[i * 8 + 7] -= font->line_height * FONT_SCALE;
         }
 
         // Move segment to end of line
         size_t segment_length = getLineLength(this->text, index);
         size_t existing_length = getCurrentLineLength(this->text, index) - segment_length;
         for(size_t i = index; i < index + segment_length; i++){
-            this->vertices[i * 8 + 0] += existing_length * font->mono_character_width * 0.17;
-            this->vertices[i * 8 + 2] += existing_length * font->mono_character_width * 0.17;
-            this->vertices[i * 8 + 4] += existing_length * font->mono_character_width * 0.17;
-            this->vertices[i * 8 + 6] += existing_length * font->mono_character_width * 0.17;
+            this->vertices[i * 8 + 0] += existing_length * font->mono_character_width * FONT_SCALE;
+            this->vertices[i * 8 + 2] += existing_length * font->mono_character_width * FONT_SCALE;
+            this->vertices[i * 8 + 4] += existing_length * font->mono_character_width * FONT_SCALE;
+            this->vertices[i * 8 + 6] += existing_length * font->mono_character_width * FONT_SCALE;
         }
     } else {
         // Move all characters within the line after the new character, back a character
         for(size_t i = index; i != this->text.length() && this->text[i] != '\n'; i++){
-            this->vertices[i * 8 + 0] -= font->mono_character_width * 0.17;
-            this->vertices[i * 8 + 2] -= font->mono_character_width * 0.17;
-            this->vertices[i * 8 + 4] -= font->mono_character_width * 0.17;
-            this->vertices[i * 8 + 6] -= font->mono_character_width * 0.17;
+            this->vertices[i * 8 + 0] -= font->mono_character_width * FONT_SCALE;
+            this->vertices[i * 8 + 2] -= font->mono_character_width * FONT_SCALE;
+            this->vertices[i * 8 + 4] -= font->mono_character_width * FONT_SCALE;
+            this->vertices[i * 8 + 6] -= font->mono_character_width * FONT_SCALE;
         }
 
         this->highlightAffectedLines(getLineBeginning(this->text, index));
@@ -323,9 +323,9 @@ size_t RichText::highlightLine(size_t lineBeginning, size_t line){
                     continue;
                 }
 
-                if(this->fileType == JAVA && ascii == '@'){
+                if((this->fileType == JAVA && ascii == '@') || (this->fileType == ADEPT && ascii == '#')){
                     size_t scan_i = i + 1;
-                    while(scan_i < this->text.length() && charIsIdentifier(this->text[scan_i])) scan_i++;
+                    while(scan_i < this->text.length() && (charIsIdentifier(this->text[scan_i]) || charIsNumeric(this->text[scan_i]))) scan_i++;
                     this->setStringColor(i, scan_i - i, palette.compile_time);
                     i = scan_i - 1;
                     continue;
@@ -523,15 +523,19 @@ size_t RichText::tryHighlightKeyword(size_t index){
             {"stdcall", WHITESPACE_OR_OPERATOR, WHITESPACE, &palette.keyword},
             {"constant", WHITESPACE, WHITESPACE, &palette.keyword},
             {"continue", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.keyword},
+            {"external", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.keyword},
+            {"typeinfo", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.keyword},
             {"__types__", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.number},
             {"dangerous", WHITESPACE, WHITESPACE, &palette.keyword},
             {"AnyPtrType", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.type},
             {"successful", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.type},
             {"AnyTypeKind", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.type},    
             {"AnyStructType", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.type},
+            {"__type_kinds__", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.number},
             {"AnyFuncPtrType", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.type},
             {"__types_length__", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.number},
             {"AnyFixedArrayType", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.type},
+            {"__type_kinds_length__", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.number},
         };
 
         specials = adeptSpecials;

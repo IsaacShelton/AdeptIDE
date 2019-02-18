@@ -14,7 +14,7 @@ void ImageEditor::updateFilenameModel(){
 
     this->displayFilename = (this->filename == "") ? "Untitled" : filename_name(this->filename);
 
-    this->filenameModel = this->font->generatePlainTextModel(this->displayFilename, 0.17f);
+    this->filenameModel = this->font->generatePlainTextModel(this->displayFilename, FONT_SCALE);
     this->hasFilenameModel = true;
 }
 
@@ -35,7 +35,7 @@ void ImageEditor::load(Settings *settings, Font *font, Texture *fontTexture, flo
     this->loadImageFromFile("/Users/isaac/Downloads/test.png");
 }
 
-void ImageEditor::render(Matrix4f &projectionMatrix, Shader *shader, Shader *fontShader, Shader *solidShader){
+void ImageEditor::render(Matrix4f &projectionMatrix, Shader *shader, Shader *fontShader, Shader *solidShader, AdeptIDEAssets *assets){
     this->transformationMatrix.translateFromIdentity(0.0f, 0.0f, 0.0f);
 
     Vector4f color(1.0, 0.14, 0.15, 1.0f);
@@ -119,6 +119,11 @@ void ImageEditor::zoomIn(int lineCount){
 
 void ImageEditor::zoomOut(int lineCount){
     this->scale -= 0.01 * lineCount;
+}
+
+void ImageEditor::setOffset(float xOffset, float yOffset){
+    this->xOffset = xOffset;
+    this->yOffset = yOffset;
 }
 
 TextEditor *ImageEditor::asTextEditor(){

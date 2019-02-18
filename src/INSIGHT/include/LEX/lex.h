@@ -23,6 +23,7 @@ typedef struct {
     char *buildup;
     length_t buildup_length;
     length_t buildup_capacity;
+    length_t buildup_inner_stride;
     bool is_hexadecimal;
 } lex_state_t;
 
@@ -50,13 +51,14 @@ typedef struct {
 #define LEX_STATE_UBERAND      0x00000012
 #define LEX_STATE_UBEROR       0x00000013
 #define LEX_STATE_COLON        0x00000014
+#define LEX_STATE_META         0x00000015
 
 // ---------------- lex ----------------
 // Entry point for lexical analysis
 errorcode_t lex(compiler_t *compiler, object_t *object);
 
 // ---------------- lex_buffer ----------------
-// Perform lexical analysis on an object's buffer
+// Lex the text buffer attached to the given object
 errorcode_t lex_buffer(compiler_t *compiler, object_t *object);
 
 // ---------------- lex_state_init ----------------

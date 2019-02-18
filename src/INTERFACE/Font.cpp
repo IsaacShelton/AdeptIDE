@@ -149,9 +149,13 @@ void Font::generateCharacters(){
             float char_v_max = char_v + char_size_y / height;
             float char_advance = to_float(xadvance->value) * 0.7f;
 
-            if(char_id == '.') char_x_offset += 10.0f;
+            if(char_id == '.'){
+                char_x_offset += 10.0f;
 
-            if(this->mono_character_width == 0) mono_character_width = to_double(xadvance->value) * 0.7;
+                // Take advance for space from advance for period
+                if(this->mono_character_width == 0)
+                    mono_character_width = char_advance;
+            }
 
             characters.push_back( FontCharacter(char_id, char_u, char_v, char_u_max, char_v_max, char_x_offset, char_y_offset, char_size_x, char_size_y, char_advance) );
         }
@@ -182,20 +186,11 @@ TextModel Font::generatePlainTextModel(const std::string& text, float scale, Vec
             cursor_x = 0.0f;
             cursor_y += line_height * scale;
             continue;
-        }
-        if(ascii == '\t'){
-            // Find space character
-            character = NULL;
-            for(FontCharacter& font_char : characters){
-                if(font_char.id == ' '){
-                    character = &font_char;
-                    break;
-                }
-            }
-
-            if(character == NULL) continue;
-
-            cursor_x += character->advance * 4;
+        } else if (ascii == ' '){
+            cursor_x += this->mono_character_width * scale;
+            continue;
+        } else if(ascii == '\t'){
+            cursor_x += this->mono_character_width * scale * 4;
             continue;
         }
 

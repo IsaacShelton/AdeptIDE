@@ -1,8 +1,0 @@
-
-pragma no_type_info
-
-import 'sys/cstdio.adept'
-
-func main {
-    printf('Hello World!')
-}

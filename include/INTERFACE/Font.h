@@ -8,6 +8,14 @@
 #include "OPENGL/Vector3f.h"
 #include "INTERFACE/SyntaxColorPalette.h"
 
+// For InconsolataGo
+#define FONT_NAME "inconsolatago"
+#define FONT_SCALE 0.17
+
+// For Courier New
+//#define FONT_NAME "courier-new"
+//#define FONT_SCALE 0.20
+
 class FontCharacter {
     // MEMORY: Using doubles here might be a bit overkill (No pun in ten did)
 

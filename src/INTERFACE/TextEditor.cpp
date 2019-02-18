@@ -72,9 +72,10 @@ void TextEditor::load(Settings *settings, Font *font, Texture *fontTexture, floa
     this->showSuggestionBox = false;
 
     this->hasAst = false;
+    this->astCreationResult = AstCreationResultNothingNew;
 }
 
-void TextEditor::render(Matrix4f& projectionMatrix, Shader *shader, Shader *fontShader, Shader *solidShader){
+void TextEditor::render(Matrix4f& projectionMatrix, Shader *shader, Shader *fontShader, Shader *solidShader, AdeptIDEAssets *assets){
     this->targetScrollYOffset = this->calculateScrollOffset();
 
     if(fabs(this->scrollXOffset - this->targetScrollXOffset) > 0.01f){
@@ -111,7 +112,7 @@ void TextEditor::render(Matrix4f& projectionMatrix, Shader *shader, Shader *font
     if(this->lineNumbersUpdated){
         if(this->hasLineNumbersModel) this->lineNumbersModel.free();
         this->generateLineNumbersText();
-        this->lineNumbersModel = this->font->generatePlainTextModel(this->lineNumbersText, 0.17f, Vector3f(0.5, 0.5, 0.5));
+        this->lineNumbersModel = this->font->generatePlainTextModel(this->lineNumbersText, FONT_SCALE, Vector3f(0.5, 0.5, 0.5));
         this->hasLineNumbersModel = true;
         this->lineNumbersUpdated = false;
     }
@@ -149,7 +150,7 @@ void TextEditor::render(Matrix4f& projectionMatrix, Shader *shader, Shader *font
     }    
 
     if(this->showSuggestionBox){
-        this->suggestionBox.render(projectionMatrix, fontShader, solidShader, this->caret.getX(), this->caret.getY() + this->font->line_height * 0.17f);
+        this->suggestionBox.render(projectionMatrix, shader, fontShader, solidShader, assets, this->caret.getX(), this->caret.getY() + this->font->line_height * FONT_SCALE);
     }
 }
 
@@ -165,6 +166,10 @@ FileType TextEditor::getFileType(){
 void TextEditor::resize(float width, float height){
     this->maxWidth = width;
     this->maxHeight = height;
+}
+
+void TextEditor::snapCaretToPosition(float x, float y){
+    this->caret.snapToPosition(x, y);
 }
 
 void TextEditor::setFileType(const FileType& type){
@@ -192,7 +197,7 @@ void TextEditor::updateFilenameModel(){
         this->richText.fileType = FileType::ADEPT;
     }
     
-    this->filenameModel = this->font->generatePlainTextModel(this->displayFilename, 0.17f);
+    this->filenameModel = this->font->generatePlainTextModel(this->displayFilename, FONT_SCALE);
     this->hasFilenameModel = true;
 }
 
@@ -241,77 +246,10 @@ void TextEditor::type(char character){
 
     if(this->settings->ide_suggestions && this->richText.fileType == FileType::ADEPT && isIdentifier(character)){
         this->showSuggestionBox = true;
-
-        this->astMutex.lock();
-        if(this->hasAst){
-            size_t end = this->getCaretPosition();
-            if(end != 0){
-                size_t beginning = end - 1;
-
-                while(true){
-                    if(!isIdentifier(this->richText.text[beginning])){
-                        beginning++;
-                        break;
-                    }
-
-                    if(beginning == 0) break;
-                    beginning--;
-                }
-
-                std::string last = this->richText.text.substr(beginning, end - beginning);
-
-                this->symbolWeights.clear();
-
-                std::string list;
-                for(size_t i = 0; i != this->ast.funcs_length; i++){
-                    const char *name = this->ast.funcs[i].name;
-                    if(strlen(name) < last.length() || strncmp(name, last.c_str(), last.length()) != 0) continue;
-
-                    std::string args;
-
-                    for(size_t j = 0; j != this->ast.funcs[i].arity; j++){
-                        char *a = ast_type_str(&this->ast.funcs[i].arg_types[j]);
-                        args += std::string(a);
-                        ::free(a);
-                        if(j + 1 != this->ast.funcs[i].arity) args += ", ";
-                    }
-
-                    if(this->ast.funcs[i].traits & AST_FUNC_VARARG) args += ", ...";
-
-                    char *r = ast_type_str(&this->ast.funcs[i].return_type);
-                    std::string label = "f " + std::string(name) + "(" + args + ") " + r;
-                    ::free(r);
-
-                    this->symbolWeights.push_back(SymbolWeight(name, label, levenshtein(last.c_str(), name),  true));
-                }
-                for(size_t i = 0; i != this->ast.structs_length; i++){
-                    const char *name = this->ast.structs[i].name;
-                    if(strlen(name) < last.length() || strncmp(name, last.c_str(), last.length()) != 0) continue;
-                    this->symbolWeights.push_back(SymbolWeight(name, "s " + std::string(name), levenshtein(last.c_str(), name), false));
-                }
-                for(size_t i = 0; i != this->ast.globals_length; i++){
-                    //const char *name = this->ast.globals[i].name;
-                    //if(strlen(name) < last.length() || strncmp(name, last.c_str(), last.length()) != 0) continue;
-                    //weights.push_back(StringWeightPair(name, "g " + std::string(name), levenshtein(last.c_str(), name)));
-                }
-                std::sort(this->symbolWeights.begin(), this->symbolWeights.end());
-
-                size_t lines = 0;
-                size_t longest = 0;
-                for(size_t i = 0; i != 5 && i != this->symbolWeights.size(); i++){
-                    list += this->symbolWeights[i].label + "\n";
-                    if(this->symbolWeights[i].label.length() > longest) longest = this->symbolWeights[i].label.length();
-                    lines++;
-                }
-                
-                this->suggestionBox.generate(list, lines, longest);
-                if(lines == 0) this->showSuggestionBox = false;
-            }
-        }
-        this->astMutex.unlock();
-    } else {
+        this->generateSuggestions();
+    } else if(character == '\n'){
         this->showSuggestionBox = false;
-        this->symbolWeights.clear();
+        this->suggestionBox.symbolWeights.clear();
     }
 
     this->adjustViewForCaret();
@@ -615,9 +553,9 @@ void TextEditor::nextPrecedingLine(){
 }
 
 void TextEditor::finishSuggestion(){
-    if(this->symbolWeights.size() == 0) return;
+    if(this->suggestionBox.symbolWeights.size() == 0) return;
 
-    const std::string& target = this->symbolWeights[0].name;
+    const std::string& target = this->suggestionBox.symbolWeights[0].name;
 
     size_t end = this->getCaretPosition();
     size_t beginning = end;
@@ -639,7 +577,7 @@ void TextEditor::finishSuggestion(){
         this->type(target[i]);
     }
 
-    if(this->symbolWeights[0].isFunction){
+    if(this->suggestionBox.symbolWeights[0].kind == SymbolWeight::Kind::FUNCTION){
         this->type("()");
         this->moveCaretLeft();
     }
@@ -986,11 +924,11 @@ void TextEditor::saveFile(){
 }
 
 void TextEditor::getRowAndColumnAt(double xpos, double ypos, int *out_row, int *out_column){
-    xpos -= this->xOffset - (this->font->mono_character_width * 0.17f * 0.5f) + this->textXOffset;
+    xpos -= this->xOffset - (this->font->mono_character_width * FONT_SCALE * 0.5f) + this->textXOffset;
     ypos -= this->yOffset - this->calculateScrollOffset();
 
-    *out_row = floor(ypos / (this->font->line_height * 0.17f)) + 1;
-    *out_column = floor(xpos / (this->font->mono_character_width * 0.17f)) + 1;
+    *out_row = floor(ypos / (this->font->line_height * FONT_SCALE)) + 1;
+    *out_column = floor(xpos / (this->font->mono_character_width * FONT_SCALE)) + 1;
 }
 
 void TextEditor::handleSelection(){
@@ -1006,7 +944,7 @@ float TextEditor::calculateScrollOffset(){
 }
 
 float TextEditor::calculateScrollOffset(size_t line){
-    return (this->font->line_height * 0.17f) * line;
+    return (this->font->line_height * FONT_SCALE) * line;
 }
 
 void TextEditor::generateLineNumbersText(){
@@ -1026,48 +964,219 @@ void TextEditor::generateLineNumbersText(){
     }
 }
 
-void TextEditor::makeAst(){
+void TextEditor::generateSuggestions(){
+    size_t end = this->getCaretPosition();
+
+    this->astMutex.lock();
+
+    if(!this->hasAst || end == 0){
+        this->astMutex.unlock();
+        return;
+    }
+
+    // Find beginning of word being typed
+    size_t beginning = end - 1;
+    while(true){
+        if(!isIdentifier(this->richText.text[beginning])){
+            beginning++;
+            break;
+        }
+
+        if(beginning == 0) break;
+        beginning--;
+    }
+
+    // Store last word
+    std::string last = this->richText.text.substr(beginning, end - beginning);
+
+    // Symbol weights that may or may not replace our current symbol weights
+    std::vector<SymbolWeight> possibleNewSymbolWeights;
+
+    // Generate possible new list of symbol weights
+    std::string list;
+    for(size_t i = 0; i != this->ast.funcs_length; i++){
+        const char *name = this->ast.funcs[i].name;
+        if(strlen(name) < last.length() || strncmp(name, last.c_str(), last.length()) != 0) continue;
+
+        std::string args;
+
+        for(size_t j = 0; j != this->ast.funcs[i].arity; j++){
+            if (this->ast.funcs[i].arg_names)
+                args += std::string(this->ast.funcs[i].arg_names[j]) + " ";
+
+            char *a = ast_type_str(&this->ast.funcs[i].arg_types[j]);
+            args += std::string(a);
+            ::free(a);
+            if(j + 1 != this->ast.funcs[i].arity) args += ", ";
+        }
+
+        if(this->ast.funcs[i].traits & AST_FUNC_VARARG) args += ", ...";
+
+        char *r = ast_type_str(&this->ast.funcs[i].return_type);
+        // Is a function
+        std::string label = std::string(name) + "(" + args + ") " + r;
+        ::free(r);
+
+        possibleNewSymbolWeights.push_back(SymbolWeight(name, label, levenshtein(last.c_str(), name), SymbolWeight::Kind::FUNCTION));
+    }
+    for(size_t i = 0; i != this->ast.structs_length; i++){
+        const char *name = this->ast.structs[i].name;
+        if(strlen(name) < last.length() || strncmp(name, last.c_str(), last.length()) != 0) continue;
+        // Is a struct
+        possibleNewSymbolWeights.push_back(SymbolWeight(name, name, levenshtein(last.c_str(), name), SymbolWeight::Kind::STRUCT));
+    }
+    for(size_t i = 0; i != this->ast.globals_length; i++){
+        //const char *name = this->ast.globals[i].name;
+        //if(strlen(name) < last.length() || strncmp(name, last.c_str(), last.length()) != 0) continue;
+        //weights.push_back(StringWeightPair(name, "g " + std::string(name), levenshtein(last.c_str(), name)));
+    }
+
+    // Sort the possible new symbol weights by weight
+    std::sort(possibleNewSymbolWeights.begin(), possibleNewSymbolWeights.end());
+
+    // Grab our best suggestions into a single string and record the longest length
+    size_t lines = 0;
+    size_t longest = 0;
+    for(size_t i = 0; i != 5 && i != possibleNewSymbolWeights.size(); i++){
+        list += possibleNewSymbolWeights[i].label + "\n";
+        if(possibleNewSymbolWeights[i].label.length() > longest) longest = possibleNewSymbolWeights[i].label.length();
+        lines++;
+    }
+    
+    // Update Symbol Weights
+    if(lines != 0){
+        this->suggestionBox.symbolWeights = possibleNewSymbolWeights;
+        this->suggestionBox.generate(list, lines, longest);
+    }
+
+    this->astMutex.unlock();
+}
+
+void TextEditor::makeAst(bool storeCreationResult, bool fromMemory){
     if(this->richText.fileType == FileType::ADEPT){
         if(this->astCreationThread.joinable()) this->astCreationThread.join();
 
-        this->astCreationThread = std::thread([this] (std::string filename, std::string adept_root) {
-            this->astMutex.lock();
-            insight_buffer_index = 0;
-            insight_buffer[0] = '\0';
-            compiler_t compiler;
-            compiler_init(&compiler);
-            object_t *object = compiler_new_object(&compiler);
-            object->filename = strclone(filename.c_str());
-            object->full_filename = filename_absolute(object->filename);
-            compiler.root = strclone(adept_root.c_str());
-            if(lex(&compiler, object)){
-                puts("Failed to lex");
+        if(fromMemory){
+            char *astFromMemoryBuffer = new char[this->richText.text.length() + 2];
+            memcpy(astFromMemoryBuffer, this->richText.text.data(), this->richText.text.length());
+            astFromMemoryBuffer[this->richText.text.length()] = '\n';
+            astFromMemoryBuffer[this->richText.text.length() + 1] = '\0';
+
+            this->astCreationThread = std::thread([this] (std::string filename, std::string adept_root, bool storeCreationResult, char *buffer) {
+                this->astMutex.lock();
+                insight_buffer_index = 0;
+                insight_buffer[0] = '\0';
+                compiler_t compiler;
+                compiler_init(&compiler);
+                compiler_new_object(&compiler);
+                compiler.objects[0]->filename = strclone(filename.c_str());
+                compiler.objects[0]->full_filename = filename_absolute(compiler.objects[0]->filename);
+                
+                if(compiler.objects[0]->full_filename == NULL)
+                    compiler.objects[0]->full_filename = strclone("");
+                
+                compiler.root = strclone(adept_root.c_str());
+
+                // NOTE: We must use 'compiler.objects[0]' because the compiler infrastructure is allowed
+                // to modify where objects are stored in memory
+                // Therefore we refer to it by id 0
+                compiler.objects[0]->buffer = buffer; // Pass ownership to object instance
+
+                if(lex_buffer(&compiler, compiler.objects[0])){
+                    puts("Failed to lex");
+                    compiler_free(&compiler);
+
+                    if(storeCreationResult)
+                        this->astCreationResult = AstCreationResultFailure;
+                    
+                    this->astMutex.unlock();
+                    return;
+                }
+
+                if(parse(&compiler, compiler.objects[0])){
+                    puts("Failed to parse");
+
+                    if(storeCreationResult)
+                        this->astCreationResult = compiler.result_flags & COMPILER_RESULT_SUCCESS ? AstCreationResultSuccess : AstCreationResultFailure;
+
+                    compiler_free(&compiler);
+                    this->astMutex.unlock();
+                    return;
+                }
+
+                if(this->hasAst){
+                    ast_free(&this->ast);
+                    tokenlist_free(&this->preserveTokenlist);
+                    ::free(this->preserveBuffer);
+                }
+
+                this->ast = compiler.objects[0]->ast;
+                compiler.objects[0]->compilation_stage = COMPILATION_STAGE_FILENAME;
+                this->preserveTokenlist = compiler.objects[0]->tokenlist;
+                this->preserveBuffer = compiler.objects[0]->buffer;
+                this->hasAst = true;
                 compiler_free(&compiler);
-                this->astMutex.unlock();
-                return;
-            }
 
-            if(parse(&compiler, object)){
-                puts("Failed to parse");
+                if(storeCreationResult)
+                    this->astCreationResult = AstCreationResultSuccess;
+                
+                this->astMutex.unlock();
+            }, this->filename, this->settings->adept_root, storeCreationResult, astFromMemoryBuffer);
+        } else {
+            this->astCreationThread = std::thread([this] (std::string filename, std::string adept_root, bool storeCreationResult) {
+                this->astMutex.lock();
+                insight_buffer_index = 0;
+                insight_buffer[0] = '\0';
+                compiler_t compiler;
+                compiler_init(&compiler);
+                object_t *object = compiler_new_object(&compiler);
+                object->filename = strclone(filename.c_str());
+                object->full_filename = filename_absolute(object->filename);
+                compiler.root = strclone(adept_root.c_str());
+
+                if(lex(&compiler, object)){
+                    puts("Failed to lex");
+                    compiler_free(&compiler);
+
+                    if(storeCreationResult)
+                        this->astCreationResult = AstCreationResultFailure;
+                    
+                    this->astMutex.unlock();
+                    return;
+                }
+
+                if(parse(&compiler, object)){
+                    puts("Failed to parse");
+
+                    if(storeCreationResult)
+                        this->astCreationResult = compiler.result_flags & COMPILER_RESULT_SUCCESS ? AstCreationResultSuccess : AstCreationResultFailure;
+
+                    compiler_free(&compiler);
+                    this->astMutex.unlock();
+                    return;
+                }
+
+                if(this->hasAst){
+                    ast_free(&this->ast);
+                    tokenlist_free(&this->preserveTokenlist);
+                    ::free(this->preserveBuffer);
+                }
+
+                this->ast = object->ast;
+                object->compilation_stage = COMPILATION_STAGE_FILENAME;
+                this->preserveTokenlist = object->tokenlist;
+                this->preserveBuffer = object->buffer;
+                this->hasAst = true;
                 compiler_free(&compiler);
+
+                if(storeCreationResult)
+                    this->astCreationResult = AstCreationResultSuccess;
+                
                 this->astMutex.unlock();
-                return;
-            }
-
-            if(this->hasAst){
-                ast_free(&this->ast);
-                tokenlist_free(&this->preserveTokenlist);
-                ::free(this->preserveBuffer);
-            }
-
-            this->ast = object->ast;
-            object->compilation_stage = COMPILATION_STAGE_FILENAME;
-            this->preserveTokenlist = object->tokenlist;
-            this->preserveBuffer = object->buffer;
-            this->hasAst = true;
-            compiler_free(&compiler);
-            this->astMutex.unlock();
-        }, this->filename, this->settings->adept_root);
+            }, this->filename, this->settings->adept_root, storeCreationResult);
+        }
+    } else if(storeCreationResult){
+        this->astCreationResult = AstCreationResultNotAdept;
     }
 }
 

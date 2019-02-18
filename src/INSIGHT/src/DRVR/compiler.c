@@ -8,19 +8,22 @@
 
 #include <stdarg.h>
 
-//#include "IR/ir.h"
 #include "LEX/lex.h"
 #include "LEX/pkg.h"
 #include "UTIL/util.h"
 #include "UTIL/color.h"
 #include "UTIL/filename.h"
-//#include "DRVR/debug.h"
 #include "DRVR/compiler.h"
 #include "PARSE/parse.h"
-//#include "INFER/infer.h"
-//#include "IRGEN/ir_gen.h"
-//#include "IRGEN/ir_gen_find.h"
-//#include "BKEND/backend.h"
+
+#ifndef ADEPT_INSIGHT_BUILD
+#include "IR/ir.h"
+#include "DRVR/debug.h"
+#include "INFER/infer.h"
+#include "IRGEN/ir_gen.h"
+#include "IRGEN/ir_gen_find.h"
+#include "BKEND/backend.h"
+#endif
 
 errorcode_t compiler_run(compiler_t *compiler, int argc, char **argv){
     // A wrapper function around 'compiler_execute'
@@ -31,7 +34,6 @@ errorcode_t compiler_run(compiler_t *compiler, int argc, char **argv){
 void compiler_invoke(compiler_t *compiler, int argc, char **argv){
     object_t *object = compiler_new_object(compiler);
     compiler->result_flags = TRAIT_NONE;
-    compiler->location = malloc(512);
 
     #ifdef _WIN32
 	char *module_location = malloc(1024);
@@ -42,7 +44,7 @@ void compiler_invoke(compiler_t *compiler, int argc, char **argv){
     #elif defined(__APPLE__)
     {
         char path[1024];
-        int32_t size = sizeof(path);
+        uint32_t size = sizeof(path);
         if (_NSGetExecutablePath(path, &size) == 0){
             compiler->location = filename_absolute(path);
         } else {
@@ -59,19 +61,23 @@ void compiler_invoke(compiler_t *compiler, int argc, char **argv){
 	compiler->location = filename_absolute(argv[0]);
     #endif
 
-    char *absolute_compiler_filename = filename_absolute(compiler->location);
-    compiler->root = filename_path(absolute_compiler_filename);
-    free(absolute_compiler_filename);
+    compiler->root = filename_path(compiler->location);
 
     if(parse_arguments(compiler, object, argc, argv)) return;
-    //debug_signal(compiler, DEBUG_SIGNAL_AT_STAGE_ARGS_AND_LEX, NULL);
+
+    #ifndef ADEPT_INSIGHT_BUILD
+    debug_signal(compiler, DEBUG_SIGNAL_AT_STAGE_ARGS_AND_LEX, NULL);
+    #endif
 
     // Compile / Package the code
     if(compiler_read_file(compiler, object)) return;
 
     if(compiler->traits & COMPILER_INFLATE_PACKAGE){
         // Inflate the package and exit
-        //debug_signal(compiler, DEBUG_SIGNAL_AT_STAGE_PARSE, NULL);
+        #ifndef ADEPT_INSIGHT_BUILD
+        debug_signal(compiler, DEBUG_SIGNAL_AT_STAGE_PARSE, NULL);
+        #endif
+
         if(parse(compiler, object)) return;
         char *inflated_filename = filename_ext(object->filename, "idep");
         ast_dump(&object->ast, inflated_filename);
@@ -80,20 +86,28 @@ void compiler_invoke(compiler_t *compiler, int argc, char **argv){
         return;
     }
 
-    //debug_signal(compiler, DEBUG_SIGNAL_AT_STAGE_PARSE, NULL);
+    #ifndef ADEPT_INSIGHT_BUILD
+    debug_signal(compiler, DEBUG_SIGNAL_AT_STAGE_PARSE, NULL);
+    #endif
+
     if(parse(compiler, object)) return;
 
-    //debug_signal(compiler, DEBUG_SIGNAL_AT_AST_DUMP, &object->ast);
-    //debug_signal(compiler, DEBUG_SIGNAL_AT_INFERENCE, NULL);
-    //if(infer(compiler, object)) return;
+    #ifndef ADEPT_INSIGHT_BUILD
+    debug_signal(compiler, DEBUG_SIGNAL_AT_AST_DUMP, &object->ast);
+    debug_signal(compiler, DEBUG_SIGNAL_AT_INFERENCE, NULL);
 
-    //debug_signal(compiler, DEBUG_SIGNAL_AT_INFER_DUMP, &object->ast);
-    //debug_signal(compiler, DEBUG_SIGNAL_AT_ASSEMBLY, NULL);
-    //if(ir_gen(compiler, object)) return;
+    if(infer(compiler, object)) return;
 
-    //debug_signal(compiler, DEBUG_SIGNAL_AT_IR_MODULE_DUMP, &object->ir_module);
-    //debug_signal(compiler, DEBUG_SIGNAL_AT_EXPORT, NULL);
-    //if(ir_export(compiler, object, BACKEND_LLVM)) return;
+    debug_signal(compiler, DEBUG_SIGNAL_AT_INFER_DUMP, &object->ast);
+    debug_signal(compiler, DEBUG_SIGNAL_AT_ASSEMBLY, NULL);
+
+    if(ir_gen(compiler, object)) return;
+
+    debug_signal(compiler, DEBUG_SIGNAL_AT_IR_MODULE_DUMP, &object->ir_module);
+    debug_signal(compiler, DEBUG_SIGNAL_AT_EXPORT, NULL);
+    
+    if(ir_export(compiler, object, BACKEND_LLVM)) return;
+    #endif
 
     compiler->result_flags |= COMPILER_RESULT_SUCCESS;
 }
@@ -151,7 +165,10 @@ void compiler_free(compiler_t *compiler){
             free(object->buffer);
             tokenlist_free(&object->tokenlist);
             ast_free(&object->ast);
-            //ir_module_free(&object->ir_module);
+            
+            #ifndef ADEPT_INSIGHT_BUILD
+            ir_module_free(&object->ir_module);
+            #endif
             break;
         default:
             printf("INTERNAL ERROR: Failed to delete object that has an invalid compilation stage\n");
@@ -269,10 +286,18 @@ errorcode_t parse_arguments(compiler_t *compiler, object_t *object, int argc, ch
                 }
             }
 
+            if(access(object->filename, F_OK) == -1){
+                object->compilation_stage = COMPILATION_STAGE_NONE;
+                redprintf("Can't find file '%s'\n", object->filename);
+                free(object->filename);
+                return FAILURE;
+            }
+
             // Calculate the absolute path of the filename
             object->full_filename = filename_absolute(object->filename);
 
             if(object->full_filename == NULL){
+                object->compilation_stage = COMPILATION_STAGE_NONE;
                 redprintf("INTERNAL ERROR: Failed to get absolute path of filename '%s'\n", object->filename);
                 free(object->filename);
                 return FAILURE;
@@ -290,13 +315,13 @@ errorcode_t parse_arguments(compiler_t *compiler, object_t *object, int argc, ch
             // If no file was specified and the file 'main.adept' exists,
             // then assume we want to compile 'main.adept'
             object->compilation_stage = COMPILATION_STAGE_FILENAME;
-            object->filename = malloc(11);
-            memcpy(object->filename, "main.adept", 11);
+            object->filename = strclone("main.adept");
 
             // Calculate the absolute path of the filename
             object->full_filename = filename_absolute(object->filename);
 
             if(object->full_filename == NULL){
+                object->compilation_stage = COMPILATION_STAGE_NONE;
                 redprintf("INTERNAL ERROR: Failed to get absolute path of filename '%s'\n", object->filename);
                 free(object->filename);
                 return FAILURE;
@@ -384,7 +409,7 @@ void break_into_arguments(const char *s, int *out_argc, char ***out_argv){
 }
 
 void show_help(){
-    printf("The Adept Compiler v2.1 - (c) 2016-2018 Isaac Shelton\n\n");
+    printf("The Adept Compiler v2.1 - (c) 2016-2019 Isaac Shelton\n\n");
     printf("Usage: adept [options] <filename>\n\n");
     printf("Options:\n");
     printf("    -h, --help        Display this message\n");
@@ -474,11 +499,14 @@ void compiler_print_source(compiler_t *compiler, int line, int column, source_t 
 
     for(length_t i = 0; i != prefix_length; i++) printf(" ");
     for(length_t i = line_index; i != source.index; i++) printf(object->buffer[i] != '\t' ? " " : "    ");
-    printf("^\n");
+
+    for(length_t i = 0; i != source.stride; i++)
+        printf("^");
+    printf("\n");
 }
 
 void compiler_panic(compiler_t *compiler, source_t source, const char *message){
-    /*
+    #ifndef ADEPT_INSIGHT_BUILD
     object_t *object = compiler->objects[source.object_index];
     int line, column;
 
@@ -489,11 +517,11 @@ void compiler_panic(compiler_t *compiler, source_t source, const char *message){
         redprintf("%s:%d:%d: %s!\n", filename_name_const(object->filename), line, column, message);
         compiler_print_source(compiler, line, column, source);
     }
-    */
+    #endif
 }
 
 void compiler_panicf(compiler_t *compiler, source_t source, const char *format, ...){
-    /*
+    #ifndef ADEPT_INSIGHT_BUILD
     object_t *object = compiler->objects[source.object_index];
     int line, column;
     va_list args;
@@ -502,6 +530,8 @@ void compiler_panicf(compiler_t *compiler, source_t source, const char *format, 
     terminal_set_color(TERMINAL_COLOR_RED);
 
     if(object->traits & OBJECT_PACKAGE){
+        line = 1;
+        column = 1;
         printf("%s: ", filename_name_const(object->filename));
     } else {
         lex_get_location(object->buffer, source.index, &line, &column);
@@ -514,7 +544,7 @@ void compiler_panicf(compiler_t *compiler, source_t source, const char *format, 
 
     va_end(args);
     compiler_print_source(compiler, line, column, source);
-    */
+    #endif
 }
 
 void compiler_warn(compiler_t *compiler, source_t source, const char *message){
@@ -547,7 +577,7 @@ void compiler_warnf(compiler_t *compiler, source_t source, const char *format, .
     terminal_set_color(TERMINAL_COLOR_DEFAULT);
 }
 
-/*
+#ifndef ADEPT_INSIGHT_BUILD
 void compiler_undeclared_function(compiler_t *compiler, ir_module_t *ir_module, source_t source,
         const char *name, ast_type_t *types, length_t arity){
 
@@ -585,7 +615,7 @@ void compiler_undeclared_function(compiler_t *compiler, ir_module_t *ir_module, 
         free(return_type_string);
     } while(++index != ir_module->funcs_length);
 }
-*/
+#endif
 
 strong_cstr_t make_args_string(ast_type_t *types, length_t arity){
     char *args_string = NULL;

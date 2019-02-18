@@ -8,14 +8,21 @@ extern "C" {
 
 #include "UTIL/ground.h"
 #include "AST/ast_type.h"
-//#include "IR/ir_type.h"
+
+#ifndef ADEPT_INSIGHT_BUILD
+#include "IR/ir_type.h"
+#endif
 
 // ---------------- type_table_record_t ----------------
 // A single record within a bridging type table
 typedef struct {
     strong_cstr_t name;
     ast_type_t ast_type;
-    //ir_type_t *ir_type;
+
+    #ifndef ADEPT_INSIGHT_BUILD
+    ir_type_t *ir_type;
+    #endif
+    
     bool is_alias;
 } type_table_record_t;
 

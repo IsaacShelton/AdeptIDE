@@ -12,9 +12,12 @@ extern "C" {
     ---------------------------------------------------------------------------
 */
 
-//#include "IR/ir.h"
 #include "AST/ast.h"
 #include "LEX/token.h"
+
+#ifndef ADEPT_INSIGHT_BUILD
+#include "IR/ir.h"
+#endif
 
 // Possible compilation stages a file can be in.
 // Used to determine what information to free on destruction.
@@ -33,7 +36,11 @@ typedef struct {
     strong_cstr_t buffer;        // Text buffer
     tokenlist_t tokenlist;       // Token list
     ast_t ast;                   // Abstract syntax tree
-    //ir_module_t ir_module;     // Intermediate-Representation module
+
+    #ifndef ADEPT_INSIGHT_BUILD
+    ir_module_t ir_module;       // Intermediate-Representation module
+    #endif
+
     int compilation_stage;       // Compilation stage
     length_t index;              // Index in object array (in compiler_t)
     trait_t traits;              // Object traits

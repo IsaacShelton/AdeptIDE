@@ -32,9 +32,9 @@ void Caret::decrease(size_t amount){
 
 void Caret::generate(Settings *settings, Font *font){
     this->settings = settings;
-    this->caretModel = new TextModel(font->generatePlainTextModel("|", 0.17f));
-    this->characterWidth = font->mono_character_width * 0.17f;
-    this->lineHeight = font->line_height * 0.17f;
+    this->caretModel = new TextModel(font->generatePlainTextModel("|", FONT_SCALE));
+    this->characterWidth = font->mono_character_width * FONT_SCALE;
+    this->lineHeight = font->line_height * FONT_SCALE;
     this->font = font;
 }
 
@@ -74,8 +74,8 @@ void Caret::getTargetCoords(size_t position, const std::string& text, Font& font
     size_t lineCount = 1;
     size_t beforeCount = 0;
 
-    float characterWidth = font.mono_character_width * 0.17f;
-    float lineHeight = font.line_height * 0.17f;
+    float characterWidth = font.mono_character_width * FONT_SCALE;
+    float lineHeight = font.line_height * FONT_SCALE;
 
     for(size_t i = 0; i != position; i++){
         if(text[i] == '\n'){
@@ -203,6 +203,11 @@ void Caret::snapToTargetPosition(const std::string& text, float xOffset, float y
     this->getTargetCoords(this->caretPosition, text, *this->font, xOffset, yOffset, &targetX, &targetY);
     this->x = targetX;
     this->y = targetY;
+}
+
+void Caret::snapToPosition(float x, float y){
+    this->x = x;
+    this->y = y;
 }
 
 size_t Caret::getPositionInLine(const std::string& text){

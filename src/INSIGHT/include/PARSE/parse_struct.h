@@ -1,4 +1,4 @@
- 
+
 #ifndef PARSE_STRUCT_H
 #define PARSE_STRUCT_H
 

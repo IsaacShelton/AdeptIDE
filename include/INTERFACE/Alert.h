@@ -2,8 +2,6 @@
 #ifndef ALERT_H_INCLUDED
 #define ALERT_H_INCLUDED
 
-
-
 #ifdef _WIN32
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>

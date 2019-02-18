@@ -5,7 +5,6 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
-
 /*
     ================================= pragma.h =================================
     Module for handling 'pragma' directives sent from code being compiled

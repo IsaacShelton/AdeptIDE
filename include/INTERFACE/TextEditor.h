@@ -19,6 +19,12 @@
 
 #include "INSIGHT/insight.h"
 
+typedef char AstCreationResult;
+#define AstCreationResultNothingNew 0
+#define AstCreationResultSuccess 1
+#define AstCreationResultFailure 2
+#define AstCreationResultNotAdept 3
+
 class TextEditor : public GenericEditor {
     SyntaxColorPalette palette;
     
@@ -40,7 +46,7 @@ class TextEditor : public GenericEditor {
     int scroll;
     float textXOffset;
 
-    std::mutex astMutex;
+    // Fields in this grouping are controled by the mutex 'astMutex'
     ast_t ast;
     tokenlist_t preserveTokenlist;
     char *preserveBuffer;
@@ -49,28 +55,35 @@ class TextEditor : public GenericEditor {
 
     RichText richText;
     SuggestionBox suggestionBox;
-    bool showSuggestionBox;
-    std::vector<SymbolWeight> symbolWeights;
 
     void handleSelection();
     float calculateScrollOffset();
     float calculateScrollOffset(size_t line);
     void generateLineNumbersText();
-    void makeAst();
+    void generateSuggestions();
 
 public:
+    bool showSuggestionBox;
+    
+    void makeAst(bool storeCreationResult = false, bool fromMemory = false);
+
+    // Fields in this grouping are controled by the mutex 'astMutex'
+    std::mutex astMutex;
+    AstCreationResult astCreationResult;
+
     ~TextEditor();
     void load(Settings *settings, Font *font, Texture *fontTexture, float maxWidth, float maxHeight);
-    void render(Matrix4f &projectionMatrix, Shader *shader, Shader *fontShader, Shader *solidShader);
-    TextModel* getFilenameModel();
+    void render(Matrix4f &projectionMatrix, Shader *shader, Shader *fontShader, Shader *solidShader, AdeptIDEAssets *assets);
+    TextModel *getFilenameModel();
     void updateFilenameModel();
     FileType getFileType();
-    void setFileType(const FileType& type);
-    void setSyntaxColorPalette(const SyntaxColorPalette& palette);
-    void setSyntaxColorPalette(const SyntaxColorPalette::Defaults& presetPalette);
+    void setFileType(const FileType &type);
+    void setSyntaxColorPalette(const SyntaxColorPalette &palette);
+    void setSyntaxColorPalette(const SyntaxColorPalette::Defaults &presetPalette);
     void resize(float width, float height);
+    void snapCaretToPosition(float x, float y);
 
-    void type(const std::string& characters);
+    void type(const std::string &characters);
     void type(char character);
     void typeBlock();
     void typeExpression();
@@ -132,7 +145,7 @@ public:
     float getNetXOffset();
     float getNetYOffset();
 
-    void loadTextFromFile(const std::string& filename);
+    void loadTextFromFile(const std::string &filename);
     void saveFile();
 
     void getRowAndColumnAt(double xpos, double ypos, int *out_row, int *out_column);

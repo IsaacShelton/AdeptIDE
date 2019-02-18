@@ -2,6 +2,10 @@
 #ifndef __INSIGHT_OVERLOADS_H
 #define __INSIGHT_OVERLOADS_H
 
+#if !defined(ADEPT_INSIGHT_BUILD) && !defined(ADEPT_INSIGHT_BUILD_IGNORE_UNDEFINED)
+#error "This file can only be used in the Adept Insight API"
+#endif
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>

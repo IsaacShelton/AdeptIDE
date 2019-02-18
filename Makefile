@@ -13,7 +13,7 @@ else
 endif
 
 CFLAGS=-c -Wall -I"include" -I"src/INSIGHT/include" -O0 # -fmax-errors=5 -Werror
-CXXFLAGS=-c -Wall -I"include" -I"src/INSIGHT/include" -std=c++11 -DGLEW_STATIC -O0 # -fmax-errors=5 -Werror
+CXXFLAGS=-c -Wall -I"include" -I"src/INSIGHT/include" -std=c++11 -DGLEW_STATIC -DADEPT_INSIGHT_BUILD -O0 # -fmax-errors=5 -Werror
 CXXDEBUGFLAGS=-g
 LDFLAGS=
 SRCDIR=src
@@ -58,6 +58,7 @@ directories:
 else
 EXECUTABLE=bin/AdeptIDE
 DEBUG_EXECUTABLE=bin/AdeptIDE_debug
+MACOS_APP_EXECUTABLE_LOCATION=bin/AdeptIDE.app/Contents/MacOS/AdeptIDE
 DEPENDENCIES=-lglfw -framework Cocoa -framework OpenGL -framework IOKit -framework CoreVideo -framework Foundation $(INSIGHT)
 MAC_DIALOG_MM=$(SRCDIR)/UTIL/macdialog.mm
 MAC_DIALOG_O=obj/UTIL/macdialog.o

@@ -5,12 +5,15 @@
 #include <vector>
 
 #include "INTERFACE/TextEditor.h"
+#include "INTERFACE/Assets.h"
 #include "INTERFACE/MenuBar.h"
 #include "INTERFACE/Message.h"
 #include "INTERFACE/Settings.h"
+#include "INTERFACE/Explorer.h"
+#include "INTERFACE/Terminal.h"
 #include "PROCESS/FolderWatcher.h"
 
-class AdeptIDE {
+class AdeptIDE : public AdeptIDEAssets { // Inheritance not symbolic
 private:
     Font font;
     FolderWatcher rootWatcher;
@@ -37,17 +40,18 @@ public:
     size_t mouseDownCaretPosition;
 
     std::string assetsFolder;
-    Model *emblemModel, *plainTextModel, *adeptModel, *javaModel, *htmlModel, *paintingModel;
-    Texture *fontTexture, *emblemTexture, *plainTextTexture, *adeptTexture, *javaTexture, *htmlTexture, *paintingTexture;
     Shader *shader, *fontShader, *solidShader;
 
     Message *message;
+    Explorer *explorer;
+    Terminal *terminal;
 
     AdeptIDE();
     ~AdeptIDE();
     int main(int argc, const char **argv);
 
     void openFile();
+    void openFolder();
     void openEditor(const std::string& filename);
     void newFile(FileType fileType);
     GenericEditor* getCurrentEditor();
@@ -61,6 +65,7 @@ public:
     void moveToNextEditorTab();
     void updateTitle();
     void setCurrentEditor(size_t index);
+    void updateInsight();
 
     void type(const std::string& text);
     void type(char character);
@@ -137,6 +142,7 @@ void new_painting_file(void *data);
 
 void open_playground_menu(void *data);
 void open_file_menu(void *data);
+void open_folder_menu(void *data);
 void save_file_menu(void *data);
 void close_file_menu(void *data);
 void settings_menu(void *data);

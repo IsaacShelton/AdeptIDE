@@ -9,6 +9,7 @@
 #include <vector>
 
 bool openFileDialog(GLFWwindow* window, std::string& output);
+bool openFolderDialog(GLFWwindow* window, std::string& output);
 bool openMultipleFileDialog(GLFWwindow* window, std::vector<std::string>& output);
 bool saveFileDialog(GLFWwindow* window, std::string& output);
 

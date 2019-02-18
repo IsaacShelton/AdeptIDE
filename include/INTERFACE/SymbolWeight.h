@@ -5,12 +5,16 @@
 #include <string>
 
 struct SymbolWeight {
+    enum Kind {
+        FUNCTION, STRUCT
+    };
+
     std::string name;
     std::string label;
     int weight;
-    bool isFunction;
+    Kind kind;
 
-    SymbolWeight(const std::string& name, const std::string& label, int weight, bool isFunction);
+    SymbolWeight(const std::string& name, const std::string& label, int weight, Kind kind);
     bool operator<(const SymbolWeight& other) const;
 };
 

@@ -53,8 +53,8 @@ void Selection::generateModel(const std::string& text, Font& font){
 
     if(end < beginning) std::swap(beginning, end);
 
-    float characterWidth = font.mono_character_width * 0.17f;
-    float lineHeight = font.line_height * 0.17f;
+    float characterWidth = font.mono_character_width * FONT_SCALE;
+    float lineHeight = font.line_height * FONT_SCALE;
     size_t i = beginning;
     float lineStartX, lineStartY, lineEndX, lineEndY;
 

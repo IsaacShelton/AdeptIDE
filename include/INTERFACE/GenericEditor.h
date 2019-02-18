@@ -7,6 +7,7 @@
 #include "OPENGL/Shader.h"
 #include "OPENGL/Matrix4f.h"
 #include "INTERFACE/Font.h"
+#include "INTERFACE/Assets.h"
 #include "INTERFACE/FileType.h"
 #include "INTERFACE/Settings.h"
 
@@ -43,7 +44,9 @@ public:
     virtual FileType getFileType() = 0;
     virtual TextModel *getFilenameModel() = 0;
 
-    virtual void render(Matrix4f &projectionMatrix, Shader *shader, Shader *fontShader, Shader *solidShader) = 0;
+    virtual void render(Matrix4f &projectionMatrix, Shader *shader, Shader *fontShader, Shader *solidShader, AdeptIDEAssets *assets) = 0;
+
+    virtual void setOffset(float xOffset, float yOffset) = 0;
 };
 
 #include "INTERFACE/TextEditor.h"
