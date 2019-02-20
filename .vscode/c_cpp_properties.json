@@ -1,0 +1,60 @@
+{
+    "configurations": [
+        {
+            "name": "Win32",
+            "includePath": [
+                "${workspaceFolder}/**"
+            ],
+            "defines": [
+                "_DEBUG",
+                "UNICODE",
+                "_UNICODE"
+            ],
+            "compilerPath": "C:/Program Files (x86)/Microsoft Visual Studio/2017/Community/VC/Tools/MSVC/14.13.26128/bin/Hostx64/x64/cl.exe",
+            "cStandard": "c11",
+            "cppStandard": "c++17",
+            "intelliSenseMode": "msvc-x64"
+        },
+        {
+            "name": "MinGW",
+            "intelliSenseMode": "clang-x64",
+            "compilerPath": "C:/Users/isaac/Projects/mingw64/bin/gcc.exe",
+            "includePath": [
+                "${workspaceFolder}",
+                "${workspaceFolder}\\**",
+                "C:\\Users\\isaac\\Projects\\mingw64\\include",
+                "C:\\Users\\isaac\\Projects\\mingw64\\x86_64-w64-mingw32\\include",
+                "C:\\Users\\isaac\\Projects\\mingw64\\lib\\gcc\\mingw32\\4.8.1\\include\\c++"
+            ],
+            "defines": ["__MINGW32__", "GLEW_STATIC"],
+            "browse": {
+                "path": [
+                    "${workspaceFolder}",
+                    "${workspaceFolder}/**",
+                    "C:/Users/isaac/Projects/mingw64/include",
+                    "C:/Users/isaac/Projects/mingw64/x86_64-w64-mingw32/include",
+                    "C:/Users/isaac/Projects/mingw64/lib/gcc/mingw32/4.8.1/include/c++"
+                ],
+                "limitSymbolsToIncludedHeaders": true,
+                "databaseFilename": ""
+            },
+            "cStandard": "c11",
+            "cppStandard": "c++17"
+        },
+        {
+            "name": "Mac",
+            "includePath": [
+                "${workspaceFolder}/**"
+            ],
+            "defines": [],
+            "macFrameworkPath": [
+                "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.14.sdk/System/Library/Frameworks"
+            ],
+            "compilerPath": "/usr/bin/clang",
+            "cStandard": "c11",
+            "cppStandard": "c++17",
+            "intelliSenseMode": "clang-x64"
+        }
+    ],
+    "version": 4
+}
