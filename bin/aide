@@ -1,0 +1,2 @@
+#!/bin/bash
+/Users/isaac/Projects/AdeptIDE/bin/AdeptIDE $@
