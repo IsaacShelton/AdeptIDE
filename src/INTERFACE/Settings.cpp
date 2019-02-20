@@ -215,7 +215,7 @@ void Settings::loadFromFile(const std::string& filename){
                 if(setting(it, "ide.default.width", &this->ide_default_width)) continue;
                 if(setting(it, "ide.default.height", &this->ide_default_height)) continue;
                 if(setting(it, "ide.default.fps", &this->ide_default_fps)){
-                    glfwSwapInterval(this->ide_default_fps <= 0 ? 0 : 60 / this->ide_default_fps);
+                    //glfwSwapInterval(this->ide_default_fps <= 0 ? 0 : 60 / this->ide_default_fps);
                     continue;
                 }
                 if(setting(it, "ide.quicktype", &this->ide_quicktype)) continue;

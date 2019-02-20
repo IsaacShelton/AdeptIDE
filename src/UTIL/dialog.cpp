@@ -54,6 +54,13 @@ bool openFileDialog(GLFWwindow* window, std::string& output){
     return false;
 }
 
+#include "INTERFACE/Alert.h"
+
+bool openFolderDialog(GLFWwindow* window, std::string& output){
+    alertError("Unimplemented", "openFolderDialog not implemented for windows!");
+    return false;
+}
+
 bool openMultipleFileDialog(GLFWwindow* window, std::vector<std::string>& output){
     char filename[1024];
 

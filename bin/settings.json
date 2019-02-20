@@ -4,7 +4,7 @@
     "ide.default.height": 480,
     "ide.default.fps": 60,
     "ide.suggestions": true,
-    "ide.debug.fps": false,
+    "ide.debug.fps": true,
     "editor.default.theme": "visual studio",
     "editor.default.language": "adept",
     "editor.default.text": "",

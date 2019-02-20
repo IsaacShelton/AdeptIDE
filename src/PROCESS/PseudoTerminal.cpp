@@ -8,9 +8,13 @@
 #include <errno.h>
 #include <unistd.h>
 #include <stdio.h>
+
+#ifndef _WIN32
 #include <termios.h>
 #include <sys/select.h>
 #include <sys/ioctl.h>
+#endif
+
 #include <string.h>
 
 #include "PROCESS/PseudoTerminal.h"
@@ -32,11 +36,7 @@ PseudoTerminal::PseudoTerminal(const std::string& shell, const std::vector<std::
     this->shouldStop.store(false);
     this->term = term;
 
-    #ifdef _WIN32
-    // Not supported on windows yet
-    return;
-    #endif
-
+    #ifndef _WIN32
     this->thread = std::thread([this]() -> void {
         this->mutex.lock();
         int res;
@@ -184,6 +184,12 @@ PseudoTerminal::PseudoTerminal(const std::string& shell, const std::vector<std::
             return;
         }
     });
+    #else
+    // _WIN32
+    this->thread = std::thread([this]() -> void {
+        // Pseudo terminal unimplemented for windows
+    });
+    #endif
 }
 
 PseudoTerminal::~PseudoTerminal(){

@@ -33,6 +33,10 @@ AdeptIDE::AdeptIDE() : AdeptIDEAssets() {
     this->shader                = NULL;
     this->fontShader            = NULL;
     this->solidShader           = NULL;
+
+    this->message = NULL;
+    this->explorer = NULL;
+    this->terminal = NULL;
 }
 
 AdeptIDE::~AdeptIDE(){
@@ -114,7 +118,8 @@ int AdeptIDE::main(int argc, const char **argv){
     }
 
     glfwMakeContextCurrent(this->window);
-    glfwSwapInterval(this->settings.ide_default_fps <= 0 ? 0 : 60 / this->settings.ide_default_fps);
+    glfwSwapInterval(0);
+    //glfwSwapInterval(this->settings.ide_default_fps <= 0 ? 0 : 60 / this->settings.ide_default_fps);
 
     if(glewInit() != GLEW_OK){
         std::cerr << "Failed to initialize GLEW" << std::endl;
