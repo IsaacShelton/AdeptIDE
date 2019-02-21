@@ -25,6 +25,25 @@ bool openFileDialog(GLFWwindow *window, std::string &output){
     return false;
 }
 
+bool openFolderDialog(GLFWwindow *window, std::string &output){
+     NSWindow *keyWindow = [[NSApplication sharedApplication] keyWindow];
+
+      NSOpenPanel* openDlg = [NSOpenPanel openPanel];
+     [openDlg setCanChooseFiles:NO];
+     [openDlg setCanChooseDirectories:YES];
+
+      if([openDlg runModal] == NSModalResponseOK){
+         NSURL* url = [openDlg URL];
+         output = std::string([[url path] UTF8String]);
+
+          [keyWindow makeKeyAndOrderFront:nil];
+         return true;
+     }
+
+      [keyWindow makeKeyAndOrderFront:nil];
+     return false;
+ }
+
 bool openMultipleFileDialog(GLFWwindow *window, std::vector<std::string> &output){
     NSWindow *keyWindow = [[NSApplication sharedApplication] keyWindow];
 

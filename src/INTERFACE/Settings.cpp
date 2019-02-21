@@ -100,8 +100,6 @@ bool setting(nlohmann::json::iterator it, const std::string& name, size_t *out){
 }
 
 bool setting(nlohmann::json::iterator it, const std::string& name, std::vector<std::string> *out){
-    out->clear();
-
     // Returns whether or not key was found
     if(it.key() != name) return false;
 
@@ -110,6 +108,8 @@ bool setting(nlohmann::json::iterator it, const std::string& name, std::vector<s
         return false;
     }
 
+    out->clear();
+    
     for(size_t i = 0; i != it.value().size(); i++){
        if(it.value()[i].is_string()){
            out->push_back(it.value()[i].get<std::string>());
@@ -193,6 +193,94 @@ void Settings::defaults(){
     this->hidden.defaults();
 }
 
+bool objectIntoSettings(Settings *settings, nlohmann::json object){
+    if(!object.is_object()) return false;
+
+    std::string tmp;
+
+    for(auto it = object.begin(); it != object.end(); it++){
+        if(setting(it, "ide.default.maximized", &settings->ide_default_maximized)) continue;
+        if(setting(it, "ide.default.width", &settings->ide_default_width)) continue;
+        if(setting(it, "ide.default.height", &settings->ide_default_height)) continue;
+        if(setting(it, "ide.default.fps", &settings->ide_default_fps)){
+            //glfwSwapInterval(settings->ide_default_fps <= 0 ? 0 : 60 / settings->ide_default_fps);
+            continue;
+        }
+        if(setting(it, "ide.quicktype", &settings->ide_quicktype)) continue;
+        if(setting(it, "ide.suggestions", &settings->ide_suggestions)) continue;
+        if(setting(it, "ide.debug.fps", &settings->ide_debug_fps)) continue;
+        if(setting(it, "ide.emblem", &settings->ide_emblem)) continue;
+        if(setting(it, "ide.scroll.fixed", &settings->ide_scroll_fixed)) continue;
+        if(setting(it, "ide.scroll.multiplier", &settings->ide_scroll_multiplier)) continue;
+
+        if(setting(it, "editor.default.theme", &tmp)){
+            settings->editor_default_theme = themeFromString(tmp);
+            continue;
+        }
+
+        if(setting(it, "editor.default.language", &tmp)){
+            settings->editor_default_language = languageFromString(tmp);
+            continue;
+        }
+
+        if(setting(it, "editor.default.text", &settings->editor_default_text)) continue;
+        if(setting(it, "editor.default.position", &settings->editor_default_position)) continue;
+        if(setting(it, "editor.icons", &settings->editor_icons)) continue;
+        if(setting(it, "editor.caret.animation", &settings->editor_caret_animation)) continue;
+
+        if(setting(it, "adept.root", &settings->adept_root)) continue;
+        if(setting(it, "adept.compiler", &settings->adept_compiler)) continue;
+
+        if(setting(it, "explorer.default.show", &settings->explorer_default_show)) continue;
+        if(setting(it, "explorer.default.collapse", &settings->explorer_default_collapse)) continue;
+        if(setting(it, "explorer.default.folder", &settings->explorer_default_folder)) continue;
+        if(setting(it, "explorer.show.hidden", &settings->explorer_show_hidden)) continue;
+        if(setting(it, "explorer.show.icons", &settings->explorer_show_icons)) continue;
+        if(setting(it, "explorer.show.folders", &settings->explorer_show_folders)) continue;
+        if(setting(it, "explorer.show.files", &settings->explorer_show_files)) continue;
+        if(setting(it, "explorer.prefer.folders", &settings->explorer_prefer_folders)) continue;
+        if(setting(it, "explorer.prefer.code", &settings->explorer_prefer_code)) continue;
+
+        if(setting(it, "terminal.show", &settings->terminal_show)) continue;
+        if(setting(it, "terminal.transparent", &settings->terminal_transparent)) continue;
+        if(setting(it, "terminal.shell", &settings->terminal_shell)) continue;
+        if(setting(it, "terminal.shell.arguments", &settings->terminal_shell_arguments)) continue;
+        if(setting(it, "terminal.environment.term", &settings->terminal_environment_term)) continue;
+
+        if(it.key() == "windows"){
+            #ifdef _WIN32
+            objectIntoSettings(settings, it.value());
+            #endif
+            continue;
+        }
+
+        if(it.key() == "macos"){
+            #ifdef __APPLE__
+            objectIntoSettings(settings, it.value());
+            #endif
+            continue;
+        }
+        
+        if(it.key() == "linux"){
+            #ifdef __linux__
+            objectIntoSettings(settings, it.value());
+            #endif
+            continue;
+        }
+
+        if(it.key() == "unix"){
+            #if defined(__unix__) || defined(__unix) || (defined(__APPLE__) && defined(__MACH__))
+            objectIntoSettings(settings, it.value());
+            #endif
+            continue;
+        }
+
+        unknownSetting(it.key());
+    }
+    
+    return true;
+}
+
 void Settings::loadFromFile(const std::string& filename){
     this->defaults();
 
@@ -201,70 +289,13 @@ void Settings::loadFromFile(const std::string& filename){
     buffer << file.rdbuf();
     std::string text = buffer.str();
 
-    if(access(filename.c_str(), 0) != 0){
-        return;
-    }
+    if(access(filename.c_str(), 0) != 0) return;
 
     try {
-        nlohmann::json settings = nlohmann::json::parse(text);
-        std::string tmp;
-
-        if(settings.is_object()){
-            for(auto it = settings.begin(); it != settings.end(); it++){
-                if(setting(it, "ide.default.maximized", &this->ide_default_maximized)) continue;
-                if(setting(it, "ide.default.width", &this->ide_default_width)) continue;
-                if(setting(it, "ide.default.height", &this->ide_default_height)) continue;
-                if(setting(it, "ide.default.fps", &this->ide_default_fps)){
-                    //glfwSwapInterval(this->ide_default_fps <= 0 ? 0 : 60 / this->ide_default_fps);
-                    continue;
-                }
-                if(setting(it, "ide.quicktype", &this->ide_quicktype)) continue;
-                if(setting(it, "ide.suggestions", &this->ide_suggestions)) continue;
-                if(setting(it, "ide.debug.fps", &this->ide_debug_fps)) continue;
-                if(setting(it, "ide.emblem", &this->ide_emblem)) continue;
-                if(setting(it, "ide.scroll.fixed", &this->ide_scroll_fixed)) continue;
-                if(setting(it, "ide.scroll.multiplier", &this->ide_scroll_multiplier)) continue;
-
-                if(setting(it, "editor.default.theme", &tmp)){
-                    this->editor_default_theme = themeFromString(tmp);
-                    continue;
-                }
-
-                if(setting(it, "editor.default.language", &tmp)){
-                    this->editor_default_language = languageFromString(tmp);
-                    continue;
-                }
-
-                if(setting(it, "editor.default.text", &this->editor_default_text)) continue;
-                if(setting(it, "editor.default.position", &this->editor_default_position)) continue;
-                if(setting(it, "editor.icons", &this->editor_icons)) continue;
-                if(setting(it, "editor.caret.animation", &this->editor_caret_animation)) continue;
-
-                if(setting(it, "adept.root", &this->adept_root)) continue;
-                if(setting(it, "adept.compiler", &this->adept_compiler)) continue;
-
-                if(setting(it, "explorer.default.show", &this->explorer_default_show)) continue;
-                if(setting(it, "explorer.default.collapse", &this->explorer_default_collapse)) continue;
-                if(setting(it, "explorer.default.folder", &this->explorer_default_folder)) continue;
-                if(setting(it, "explorer.show.hidden", &this->explorer_show_hidden)) continue;
-                if(setting(it, "explorer.show.icons", &this->explorer_show_icons)) continue;
-                if(setting(it, "explorer.show.folders", &this->explorer_show_folders)) continue;
-                if(setting(it, "explorer.show.files", &this->explorer_show_files)) continue;
-                if(setting(it, "explorer.prefer.folders", &this->explorer_prefer_folders)) continue;
-                if(setting(it, "explorer.prefer.code", &this->explorer_prefer_code)) continue;
-
-                if(setting(it, "terminal.show", &this->terminal_show)) continue;
-                if(setting(it, "terminal.transparent", &this->terminal_transparent)) continue;
-                if(setting(it, "terminal.shell", &this->terminal_shell)) continue;
-                if(setting(it, "terminal.shell.arguments", &this->terminal_shell_arguments)) continue;
-                if(setting(it, "terminal.environment.term", &this->terminal_environment_term)) continue;
-
-                unknownSetting(it.key());
-            }
-        } else {
-            alertError("Expected settings.json to be an object", "Invalid settings.json file");
+        if(!objectIntoSettings(this, nlohmann::json::parse(text))){
+            alertError("Expected settings to be an object", "Invalid settings file");
         }
     } catch(...){
-        alertError("Failed to parse settings.json file", "Invalid settings.json file");
+        alertError("Failed to parse settings.json file", "Invalid settings file");
     }
 }

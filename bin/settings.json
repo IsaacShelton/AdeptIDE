@@ -4,13 +4,41 @@
     "ide.default.height": 480,
     "ide.default.fps": 60,
     "ide.suggestions": true,
-    "ide.debug.fps": true,
+    "ide.debug.fps": false,
+    "ide.emblem": true,
+    "ide.scroll.fixed": false,
+    "ide.scroll.multiplier": 1.0,
     "editor.default.theme": "visual studio",
     "editor.default.language": "adept",
     "editor.default.text": "",
     "editor.default.position": 0,
     "editor.icons": true,
     "editor.caret.animation": true,
-    "adept.root": "/Users/isaac/Projects/Adept/bin/",
-    "adept.compiler": "/Users/isaac/Projects/Adept/bin/adept"
+    "explorer.default.show": false,
+    "explorer.default.collapse": true,
+    "explorer.show.hidden": false,
+    "explorer.show.icons": true,
+    "explorer.show.folders": true,
+    "explorer.show.files": true,
+    "explorer.prefer.folders": true,
+    "explorer.prefer.code": true,
+    "terminal.show": false,
+    "terminal.transparent": false,
+
+    "windows": {
+        "ide.scroll.fixed": true,
+        "terminal.shell": "cmd.exe",
+        "terminal.shell.arguments": [],
+        "adept.root": "C:\\Users\\isaac\\Projects\\Adept\\bin",
+        "adept.compiler": "C:\\Users\\isaac\\Projects\\Adept\\bin\\adept"
+    },
+    
+    "macos": {
+        "ide.scroll.fixed": false,
+        "terminal.shell": "/bin/bash",
+        "terminal.shell.arguments": ["-l"],
+        "adept.root": "/Users/isaac/Projects/Adept/bin/",
+        "adept.compiler": "/Users/isaac/Projects/Adept/bin/adept",
+        "terminal.environment.term": "xterm-256color"
+    }
 }
