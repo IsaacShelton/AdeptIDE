@@ -1028,7 +1028,7 @@ void key_callback(GLFWwindow *window, int key, int scancode, int action, int mod
     #ifdef __APPLE__
     if(key == GLFW_KEY_MINUS && input && (mods & GLFW_MOD_SUPER)){
     #else
-    if(key == GLFW_KEY_GRAVE_ACCENT && input && mods & GLFW_MOD_CONTROL){
+    if(key == GLFW_KEY_MINUS && input && mods & GLFW_MOD_CONTROL){
     #endif
         if(adeptide->terminal)
             adeptide->terminal->toggleVisibility();

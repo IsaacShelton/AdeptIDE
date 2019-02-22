@@ -33,7 +33,7 @@ void Terminal::load(Settings *settings, Font *font, Texture *fontTexture, float 
 
     this->richText.fileType = FileType::PLAIN_TEXT;
     this->richText.setFont(this->font);
-    this->pseudoTerminal = new PseudoTerminal(settings);
+    this->pseudoTerminal = new UnixPTY(settings);
     this->lineCount = 1;
 
     this->editable_buffer = "";
