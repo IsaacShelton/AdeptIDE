@@ -4,7 +4,10 @@
 #include <errno.h>
 #include <stdio.h>
 
-#ifndef _WIN32
+#ifdef _WIN32
+#define WIN32_LEAN_AND_MEAN
+#include <windows.h>
+#else
 #include <termios.h>
 #include <sys/select.h>
 #include <sys/ioctl.h>
@@ -12,11 +15,163 @@
 #endif
 
 #include <string.h>
-
 #include "PROCESS/PseudoTerminal.h"
+
+PseudoTerminal* PseudoTerminal::create(Settings *settings){
+    #if _WIN32
+    return new WindowsCMD(settings);
+    #else
+    return new UnixPTY(settings);
+    #endif
+    return NULL;
+}
 
 PseudoTerminal::PseudoTerminal(){}
 PseudoTerminal::~PseudoTerminal(){}
+
+WindowsCMD::WindowsCMD(Settings* settings) : WindowsCMD(
+        settings->terminal_shell,
+        settings->terminal_shell_arguments
+){}
+
+WindowsCMD::WindowsCMD(const std::string& shell, const std::vector<std::string> arguments){
+    this->shell = shell;
+    this->arguments = arguments;
+    this->input = "";
+    this->output = "";
+    this->failed.store(false);
+    this->shouldStop.store(false);
+    
+    #ifdef _WIN32
+    this->thread = std::thread([this]() -> void {
+        char buf[512];
+
+        STARTUPINFOA si;
+        SECURITY_ATTRIBUTES sa;
+        SECURITY_DESCRIPTOR sd;
+        PROCESS_INFORMATION pi;
+        HANDLE newstdin, newstdout, read_stdout, write_stdin;
+
+        OSVERSIONINFO osv;
+        osv.dwOSVersionInfoSize = sizeof(osv);
+        GetVersionEx(&osv);
+
+        if(osv.dwPlatformId == VER_PLATFORM_WIN32_NT){
+            InitializeSecurityDescriptor(&sd,SECURITY_DESCRIPTOR_REVISION);
+            SetSecurityDescriptorDacl(&sd, true, NULL, false);
+            sa.lpSecurityDescriptor = &sd;
+        } else {
+            sa.lpSecurityDescriptor = NULL;
+        }
+
+        sa.nLength = sizeof(SECURITY_ATTRIBUTES);
+        sa.bInheritHandle = true;
+
+        if(!CreatePipe(&newstdin, &write_stdin, &sa, 0)){
+            this->failed.store(true);
+            return;
+        }
+
+        if(!CreatePipe(&read_stdout, &newstdout, &sa, 0)){
+            this->failed.store(true);
+            CloseHandle(newstdin);
+            CloseHandle(write_stdin);
+            return;
+        }
+
+        GetStartupInfoA(&si);
+        
+        si.dwFlags = STARTF_USESTDHANDLES | STARTF_USESHOWWINDOW;
+        si.wShowWindow = SW_HIDE;
+        si.hStdOutput = newstdout;
+        si.hStdError = newstdout;
+        si.hStdInput = newstdin;
+
+        if(!CreateProcessA(this->shell.c_str(), NULL, NULL, NULL, true, CREATE_NEW_CONSOLE, NULL, NULL, &si, &pi)){
+            this->failed.store(true);
+            CloseHandle(newstdin);
+            CloseHandle(newstdout);
+            CloseHandle(read_stdout);
+            CloseHandle(write_stdin);
+            return;
+        }
+
+        unsigned long exitcode, bytes_read, available;
+        memset(buf, 0, sizeof(buf));
+
+        while(!this->shouldStop.load()){
+            GetExitCodeProcess(pi.hProcess, &exitcode);
+            if(exitcode != STILL_ACTIVE) break;
+
+            PeekNamedPipe(read_stdout, buf, sizeof(buf) - 1, &bytes_read, &available, NULL);
+
+            this->mutex.lock();
+            if(bytes_read != 0){
+                memset(buf, 0, sizeof(buf));
+                if(available > sizeof(buf) - 1){
+                    while(bytes_read >= sizeof(buf) - 1){
+                        ReadFile(read_stdout, buf, sizeof(buf) - 1, &bytes_read, NULL);  //read the stdout pipe
+                        this->output += buf;
+                        memset(buf, 0, sizeof(buf));
+                    }
+                } else {
+                    ReadFile(read_stdout, buf, sizeof(buf) - 1, &bytes_read, NULL);
+                    this->output += buf;
+                }
+            }
+
+            if(this->input != ""){
+                size_t chunk_length = this->input.length() > sizeof(buf) - 1 ? sizeof(buf) - 1 : this->input.length();
+                memcpy(buf, &this->input[0], sizeof(buf) - 1);
+                input[sizeof(buf)] = '\0';
+                WriteFile(write_stdin, buf, chunk_length, &bytes_read, NULL);
+                this->input.erase(0, chunk_length);
+            }
+
+            this->mutex.unlock();
+        }
+
+        CloseHandle(pi.hThread);
+        CloseHandle(pi.hProcess);
+        CloseHandle(newstdin);            //clean stuff up
+        CloseHandle(newstdout);
+        CloseHandle(read_stdout);
+        CloseHandle(write_stdin);
+    });
+    #else
+    // not _WIN32
+    this->thread = std::thread([this]() -> void {
+        // Windows CMD is not available on non-Windows platforms
+    });
+    #endif
+}
+
+WindowsCMD::~WindowsCMD(){
+    // Obtain control
+    this->shouldStop.store(true);
+    this->thread.join();
+    // Clean up
+}
+
+void WindowsCMD::feedInput(const std::string food){
+    this->mutex.lock();
+    this->input += food;
+    this->mutex.unlock();
+}
+
+void WindowsCMD::feedInput(unsigned int codepoint){
+    this->mutex.lock();
+    this->input += codepoint;
+    this->mutex.unlock();
+}
+
+std::string WindowsCMD::readOutput(){
+    this->mutex.lock();
+    std::string output = this->output;
+    this->output = "";
+    this->mutex.unlock();
+    return output;
+}
 
 UnixPTY::UnixPTY(Settings* settings) : UnixPTY(
         settings->terminal_shell,
@@ -72,7 +227,7 @@ UnixPTY::UnixPTY(const std::string& shell, const std::vector<std::string> argume
                 switch(select(this->fdMaster + 1, &fd_in, NULL, NULL, &timeout)){
                 case -1:
                     fprintf(stderr, "Error %d on select()\n", errno);
-                    exit(1);
+                    exitcode(1);
                 default:
                     if (FD_ISSET(this->fdMaster, &fd_in)){
                         res = read(this->fdMaster, input, sizeof(input) - 1);
@@ -81,7 +236,7 @@ UnixPTY::UnixPTY(const std::string& shell, const std::vector<std::string> argume
                             this->output += input;
                         } else if(res < 0){
                             fprintf(stderr, "Error %d on read master PTY\n", errno);
-                            exit(1);
+                            exitcode(1);
                         }
                     }
                 }
