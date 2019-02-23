@@ -15,10 +15,6 @@ Terminal::~Terminal(){
 }
 
 void Terminal::load(Settings *settings, Font *font, Texture *fontTexture, float containerWidth, float containerHeight){
-    #if _WIN32
-    alertError("Terminal Support", "Integrated terminal not supported in Windows yet!");
-    #endif
-
     this->settings = settings;
     this->font = font;
     this->fontTexture = fontTexture;
@@ -33,7 +29,11 @@ void Terminal::load(Settings *settings, Font *font, Texture *fontTexture, float 
 
     this->richText.fileType = FileType::PLAIN_TEXT;
     this->richText.setFont(this->font);
-    this->pseudoTerminal = new UnixPTY(settings);
+
+    if((this->pseudoTerminal = PseudoTerminal::create(settings)) == NULL){
+        alertError("Terminal Unsupported", "Terminal Unsupported");
+    }
+
     this->lineCount = 1;
 
     this->editable_buffer = "";

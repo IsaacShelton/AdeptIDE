@@ -27,7 +27,7 @@
 
     "windows": {
         "ide.scroll.fixed": true,
-        "terminal.shell": "cmd.exe",
+        "terminal.shell": "C:\\Windows\\System32\\cmd.exe",
         "terminal.shell.arguments": [],
         "adept.root": "C:\\Users\\isaac\\Projects\\Adept\\bin",
         "adept.compiler": "C:\\Users\\isaac\\Projects\\Adept\\bin\\adept"
