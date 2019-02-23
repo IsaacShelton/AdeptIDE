@@ -68,12 +68,12 @@ void Explorer::render(Matrix4f &projectionMatrix, Shader *shader, Shader *fontSh
 
     if(this->rootNode){
         for(ExplorerNode *child : this->rootNode->children){
-            child->draw(settings, font, fontTexture, projectionMatrix, shader, fontShader, assets, x, &y);
+            child->draw(settings, font, fontTexture, projectionMatrix, shader, fontShader, assets, x, &y, this->containerX, this->containerWidth);
         }
     }
 }
 
-void ExplorerNode::draw(Settings *settings, Font *font, Texture *fontTexture, Matrix4f &projectionMatrix, Shader *shader, Shader *fontShader, AdeptIDEAssets *assets, float drawOffsetX, float *drawOffsetY){
+void ExplorerNode::draw(Settings *settings, Font *font, Texture *fontTexture, Matrix4f &projectionMatrix, Shader *shader, Shader *fontShader, AdeptIDEAssets *assets, float drawOffsetX, float *drawOffsetY, float containerX, float containerWidth){
     Matrix4f transformationMatrix;
     transformationMatrix.translateFromIdentity(drawOffsetX + 8.0f, 32.0f + 4.0f + *drawOffsetY, 0.0f);
 
@@ -92,12 +92,14 @@ void ExplorerNode::draw(Settings *settings, Font *font, Texture *fontTexture, Ma
     fontShader->giveMatrix4f("transformation_matrix", transformationMatrix);
     fontShader->giveFloat("width", 0.4f);
     fontShader->giveFloat("edge", 0.38f);
+    fontShader->giveFloat("x_right_clip", containerX < 1 - containerWidth ? -containerWidth : containerX + containerWidth);
     this->textModel.draw();
+    fontShader->giveFloat("x_right_clip", 0.0f);
 
     *drawOffsetY += font->line_height * FONT_SCALE * 1.5;
 
     if(!this->isCollapsed) for(ExplorerNode *child : this->children){
-        child->draw(settings, font, fontTexture, projectionMatrix, shader, fontShader, assets, drawOffsetX + 16.0f, drawOffsetY);
+        child->draw(settings, font, fontTexture, projectionMatrix, shader, fontShader, assets, drawOffsetX + 16.0f, drawOffsetY, containerX, containerWidth);
     }
 }
 

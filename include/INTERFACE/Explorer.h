@@ -51,7 +51,7 @@ public:
     void generateAndSortChildren(Settings *settings, Font *font);
     int countDescendants();
 
-    void draw(Settings *settings, Font *font, Texture *fontTexture, Matrix4f &projectionMatrix, Shader *shader, Shader *fontShader, AdeptIDEAssets *assets, float drawOffsetX, float *drawOffsetY);
+    void draw(Settings *settings, Font *font, Texture *fontTexture, Matrix4f &projectionMatrix, Shader *shader, Shader *fontShader, AdeptIDEAssets *assets, float drawOffsetX, float *drawOffsetY, float containerX, float containerWidth);
     bool propagateLeftClick(AdeptIDE *adeptide, Font *font, float clickX, float clickY, float testX, float *testY);
 };
 

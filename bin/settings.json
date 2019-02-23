@@ -32,7 +32,7 @@
         "adept.root": "C:\\Users\\isaac\\Projects\\Adept\\bin",
         "adept.compiler": "C:\\Users\\isaac\\Projects\\Adept\\bin\\adept"
     },
-    
+
     "macos": {
         "ide.scroll.fixed": false,
         "terminal.shell": "/bin/bash",
