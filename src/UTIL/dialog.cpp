@@ -5,6 +5,8 @@
 #include "UTIL/dialog.h"
 
 #ifdef _WIN32
+#include <shlobj.h>
+
 #define GLFW_EXPOSE_NATIVE_WIN32
 #include <GLFW/glfw3native.h>
 
@@ -56,8 +58,37 @@ bool openFileDialog(GLFWwindow* window, std::string& output){
 
 #include "INTERFACE/Alert.h"
 
+int CALLBACK openFolderDialogCallback(HWND hwnd, UINT uMsg, LPARAM lParam, LPARAM lpData){
+    if(uMsg == BFFM_INITIALIZED)
+        SendMessage(hwnd, BFFM_SETSELECTION, TRUE, lpData);
+    return 0;
+}
+
 bool openFolderDialog(GLFWwindow* window, std::string& output){
-    alertError("Unimplemented", "openFolderDialog not implemented for windows!");
+    char path[MAX_PATH];
+    const char *path_param = "C:\\";
+
+    BROWSEINFO bi = {0};
+    bi.lpszTitle = "Browse for folder...";
+    bi.ulFlags = BIF_RETURNONLYFSDIRS | BIF_USENEWUI;
+    bi.lpfn = openFolderDialogCallback;
+    bi.lParam = (LPARAM) path_param;
+
+    LPITEMIDLIST pidl = SHBrowseForFolder(&bi);
+
+    if(pidl != 0){
+        SHGetPathFromIDList(pidl, path);
+
+        IMalloc *imalloc = 0;
+        if(SUCCEEDED(SHGetMalloc(&imalloc))){
+            imalloc->Free( pidl );
+            imalloc->Release( );
+        }
+
+        output = path;
+        return true;
+    }
+
     return false;
 }
 

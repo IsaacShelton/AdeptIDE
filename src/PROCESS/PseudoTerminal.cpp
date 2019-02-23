@@ -8,7 +8,6 @@
 #include <termios.h>
 #include <sys/select.h>
 #include <sys/ioctl.h>
-#else
 #include <unistd.h>
 #endif
 

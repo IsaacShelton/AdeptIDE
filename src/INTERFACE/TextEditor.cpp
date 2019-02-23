@@ -1083,7 +1083,7 @@ void TextEditor::makeAst(bool storeCreationResult, bool fromMemory){
                 compiler.objects[0]->buffer = buffer; // Pass ownership to object instance
 
                 if(lex_buffer(&compiler, compiler.objects[0])){
-                    puts("Failed to lex");
+                    // Failed to lex
                     compiler_free(&compiler);
 
                     if(storeCreationResult)
@@ -1094,7 +1094,7 @@ void TextEditor::makeAst(bool storeCreationResult, bool fromMemory){
                 }
 
                 if(parse(&compiler, compiler.objects[0])){
-                    puts("Failed to parse");
+                    // Failed to parse
 
                     if(storeCreationResult)
                         this->astCreationResult = compiler.result_flags & COMPILER_RESULT_SUCCESS ? AstCreationResultSuccess : AstCreationResultFailure;
@@ -1146,7 +1146,7 @@ void TextEditor::makeAst(bool storeCreationResult, bool fromMemory){
                 }
 
                 if(parse(&compiler, object)){
-                    puts("Failed to parse");
+                    // Failed to parse
 
                     if(storeCreationResult)
                         this->astCreationResult = compiler.result_flags & COMPILER_RESULT_SUCCESS ? AstCreationResultSuccess : AstCreationResultFailure;
