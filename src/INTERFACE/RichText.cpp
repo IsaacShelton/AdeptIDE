@@ -32,16 +32,23 @@ void RichText::loadFromFile(const std::string& filename){
     if(stream.is_open()){
         std::stringstream buffer;
         buffer << stream.rdbuf();
-        
-        if(filename.length() >= 6 && filename.substr(filename.length() - 6, 6) == ".adept"){
-            this->setFileType(ADEPT);
-        } else if(filename.length() >= 5 && filename.substr(filename.length() - 5, 5) == ".java"){
-            this->setFileType(JAVA);
-        } else if(filename.length() >= 5 && filename.substr(filename.length() - 5, 5) == ".html"){
-            this->setFileType(HTML);
-        }
+        everything = buffer.str();
 
-        everything = string_replace_all(buffer.str(), "\t", "    ");
+        if(everything.length() > 100000){
+            this->setFileType(PLAIN_TEXT);
+            everything = "AdeptIDE Error: Failed to open file, file was too large...\n\nSorry about that :\\\n";
+        } else {
+            if(filename.length() >= 6 && filename.substr(filename.length() - 6, 6) == ".adept"){
+                this->setFileType(ADEPT);
+            } else if(filename.length() >= 5 && filename.substr(filename.length() - 5, 5) == ".java"){
+                this->setFileType(JAVA);
+            } else if(filename.length() >= 5 && filename.substr(filename.length() - 5, 5) == ".html"){
+                this->setFileType(HTML);
+            }
+
+            everything = string_replace_all(everything, "\t", "    ");
+        }
+        
     } else {
         this->setFileType(PLAIN_TEXT);
         everything = "AdeptIDE Error: Failed to open file...\n\nSorry about that :\\\n";

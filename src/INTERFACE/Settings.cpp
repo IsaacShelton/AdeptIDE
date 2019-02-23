@@ -151,6 +151,7 @@ void Settings::defaults(){
     this->ide_default_width = 1024;
     this->ide_default_height = 720;
     this->ide_default_fps = 60;
+    this->ide_quicktype = true;
     this->ide_suggestions = true;
     this->ide_debug_fps = false;
     this->ide_emblem = true;
