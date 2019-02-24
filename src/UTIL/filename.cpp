@@ -58,3 +58,11 @@ std::string filename_get_extension(const std::string& text){
     }
     return "";
 }
+
+std::string filename_get_without_extension(const std::string& text){
+    for(int i = text.length() - 1; i >= 0; i--){
+        if(text[i] == '.') return text.substr(0, i);
+        if(text[i] == '/' || text[i] == '\\') return text;
+    }
+    return text;
+}

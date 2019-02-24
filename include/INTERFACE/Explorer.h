@@ -47,8 +47,8 @@ public:
 
     void addChild(ExplorerNode *child);
     void sortChildren(Settings *settings);
-    void generateChildren(Settings *settings, Font *font);
-    void generateAndSortChildren(Settings *settings, Font *font);
+    bool generateChildren(Settings *settings, Font *font, int *nodesAlreadyGenerated);
+    bool generateAndSortChildren(Settings *settings, Font *font, int *nodesAlreadyGenerated);
     int countDescendants();
 
     void draw(Settings *settings, Font *font, Texture *fontTexture, Matrix4f &projectionMatrix, Shader *shader, Shader *fontShader, AdeptIDEAssets *assets, float drawOffsetX, float *drawOffsetY, float containerX, float containerWidth);
@@ -90,9 +90,9 @@ class Explorer {
     void toggleVisibility();
     void setVisibility(bool visibility);
 
-    void setRootFolder(const std::string& path);
-    void generateNodes();
-    void refreshNodes();
+    bool setRootFolder(const std::string& path);
+    bool generateNodes();
+    bool refreshNodes();
 };
 
 #include "INTERFACE/AdeptIDE.h"

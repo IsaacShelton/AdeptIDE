@@ -1,8 +1,6 @@
 
-pragma no_type_info
-
-import 'sys/cstdio.adept'
+import '2.1/basics.adept'
 
 func main {
-    printf('Hello World!')
+    print("Hello World")
 }

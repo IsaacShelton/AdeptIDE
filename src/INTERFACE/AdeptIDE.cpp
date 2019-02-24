@@ -17,8 +17,13 @@
 #ifdef _WIN32
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
-#elif defined(__APPLE__)
+#include <direct.h>
+#define getcwd _getcwd
+#else
+#include <unistd.h>
+#if defined(__APPLE__)
 #include <mach-o/dyld.h>
+#endif
 #endif
 
 AdeptIDE::AdeptIDE() : AdeptIDEAssets() {
@@ -493,7 +498,8 @@ void AdeptIDE::loadSettings(){
     }
 
     // Refresh explorer
-    if(this->explorer) this->explorer->refreshNodes();
+    if(this->explorer && this->explorer->refreshNodes())
+        this->createMessage("Too many files in directory! Some files omitted!", 3.0);
 }
 
 void AdeptIDE::openFile(){
@@ -516,8 +522,8 @@ void AdeptIDE::openFolder(){
     if(this->explorer){
         std::string folder;
 
-        if(openFolderDialog(this->window, folder))
-            this->explorer->setRootFolder(folder);
+        if(openFolderDialog(this->window, folder) && this->explorer->setRootFolder(folder))
+            this->createMessage("Too many files in directory! Some files omitted!", 3.0);
         
         this->explorer->setVisibility(true);
     }
@@ -966,6 +972,31 @@ void AdeptIDE::saveFile(){
     }
 }
 
+void AdeptIDE::runFile(){
+    TextEditor *editor = this->getCurrentEditorAsTextEditor();
+    if(editor == NULL) return;
+
+    std::string target = filename_get_without_extension(editor->filename)
+    #if _WIN32
+    + ".exe";
+    #else
+    ;
+    #endif // _WIN32
+
+    if(access(target.c_str(), F_OK) == -1){
+        // File doesn't exist
+        this->createMessage("Couldn't find default executable:\n'" + target + "'", 3.0);
+        return;
+    }
+
+    char cwd[512];
+    getcwd(cwd, 512);
+
+    chdir(filename_path(target).c_str());
+    system(("\"" + target + "\"").c_str());
+    chdir(cwd);
+}
+
 void AdeptIDE::createMessage(const std::string& message, double seconds){
     delete this->message;
     this->message = new Message(message, &font, seconds, width, height);
@@ -1262,6 +1293,9 @@ void key_callback(GLFWwindow *window, int key, int scancode, int action, int mod
             if(mods & GLFW_MOD_SHIFT) build_and_run_adept_project(adeptide);
             else                      build_adept_project(adeptide);
             break;
+        case GLFW_KEY_R:
+            adeptide->runFile();
+            break;
         case GLFW_KEY_LEFT_BRACKET:
             if(mods & GLFW_MOD_SHIFT) adeptide->typeBlock();
             else                      adeptide->typeArrayAccess();
@@ -1297,6 +1331,7 @@ void mouse_button_callback(GLFWwindow* window, int button, int action, int mods)
 void handle_left_click(AdeptIDE *adeptide, double xpos, double ypos){
     if(adeptide->menubar.leftClick(xpos, ypos, &adeptide->currentEditorIndex)){
         // Click menu
+        adeptide->updateTitle();
     } else if(xpos >= 0.0f && xpos <= 32.0f && ypos >= 24.0f && ypos <= 24.0f + 32.0f){
         // Toggle Explorer Button
         if(adeptide->explorer) adeptide->explorer->toggleVisibility();

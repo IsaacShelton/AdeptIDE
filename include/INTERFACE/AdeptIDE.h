@@ -115,6 +115,7 @@ public:
     void duplicateCaretDown();
 
     void saveFile();
+    void runFile();
 
     void createMessage(const std::string& message, double seconds);
 };

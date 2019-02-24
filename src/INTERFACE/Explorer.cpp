@@ -200,34 +200,46 @@ void Explorer::setVisibility(bool visibility){
     this->visible = visibility;
 }
 
-void Explorer::setRootFolder(const std::string& path){
+bool Explorer::setRootFolder(const std::string& path){
     delete this->rootNode;
 
     if(path == ""){
         this->rootNode = NULL;
-        return;
+        return false;
     }
 
     this->rootNode = new ExplorerNode(path, ExplorerNode::Kind::FOLDER, this->font);
     this->rootNode->parent = NULL;
-    this->generateNodes();
     this->scroll = 0;
+    return this->generateNodes();
 }
 
-void Explorer::generateNodes(){
+bool Explorer::generateNodes(){
+    // Returns whether too many nodes
+
     if(this->rootNode){
-        this->rootNode->generateAndSortChildren(this->settings, this->font);
+        int nodesGenerated = 0;
+
+        if(this->rootNode->generateAndSortChildren(this->settings, this->font, &nodesGenerated)){
+            maxScroll = this->rootNode->countDescendants();
+            return true; // Too many nodes
+        }
+
         maxScroll = this->rootNode->countDescendants();
     }
+
+    return false;
 }
 
-void Explorer::refreshNodes(){
-    if(!this->rootNode) return;
+bool Explorer::refreshNodes(){
+    // Returns whether too many nodes
+
+    if(!this->rootNode) return false;
 
     for(ExplorerNode *child : this->rootNode->children)
         delete child;
     this->rootNode->children.resize(0);
-    this->generateNodes();
+    return this->generateNodes();
 }
 
 float Explorer::calculateScrollOffset(){
@@ -337,7 +349,11 @@ void ExplorerNode::sortChildren(Settings *settings){
     qsort(children.data(), children.size(), sizeof(ExplorerNode*), comparison);
 }
 
-void ExplorerNode::generateChildren(Settings *settings, Font *font){
+bool ExplorerNode::generateChildren(Settings *settings, Font *font, int *nodesAlreadyGenerated){
+    // Returns whether too many nodes
+
+    #define MAX_EXPLORER_NODES_GENERATED 500
+
     cf_dir_t dir;
     cf_dir_open(&dir, this->getFilename().c_str());
 
@@ -350,9 +366,10 @@ void ExplorerNode::generateChildren(Settings *settings, Font *font){
                 ExplorerNode *child = new ExplorerNode(file.name, file.is_dir ? ExplorerNode::Kind::FOLDER : ExplorerNode::Kind::FILE, font);
                 
                 this->addChild(child);
-
-                if(file.is_dir)
-                    child->generateAndSortChildren(settings, font);
+                
+                if( ((*nodesAlreadyGenerated)++ == MAX_EXPLORER_NODES_GENERATED)
+                ||  (file.is_dir && child->generateAndSortChildren(settings, font, nodesAlreadyGenerated)))
+                    return true; // Too many nodes
             }
         }
 
@@ -363,11 +380,15 @@ void ExplorerNode::generateChildren(Settings *settings, Font *font){
     this->sortChildren(settings);
 
     this->isCollapsed = settings->explorer_default_collapse;
+    return false;
 }
 
-void ExplorerNode::generateAndSortChildren(Settings *settings, Font *font){
-    this->generateChildren(settings, font);
+bool ExplorerNode::generateAndSortChildren(Settings *settings, Font *font, int *nodesAlreadyGenerated){
+    // Returns whether too many nodes
+
+    bool tooManyNodes = this->generateChildren(settings, font, nodesAlreadyGenerated);
     this->sortChildren(settings);
+    return tooManyNodes;
 }
 
 int ExplorerNode::countDescendants(){
