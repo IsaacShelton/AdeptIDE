@@ -4,6 +4,7 @@
 
 class AdeptIDE;
 
+#include <vector>
 #include "INTERFACE/Settings.h"
 #include "OPENGL/Model.h"
 #include "OPENGL/SolidModel.h"
@@ -37,6 +38,9 @@ class Terminal {
     std::string editable_buffer;
     bool richTextNotUpdatedSinceInput;
 
+    std::vector<std::string> history;
+    int history_index = 0;
+
     float calculateScrollOffset();
     float calculateScrollOffset(size_t line);
 
@@ -61,6 +65,9 @@ public:
     bool scrollDownIfHovering(double x, double y, double windowHeight, int lineCount);
     bool scrollUpIfHovering(double x, double y, double windowHeight, int lineCount);
     bool isBeingHovered(double x, double y, double windowHeight);
+
+    void up();
+    void down();
 };
 
 #include "INTERFACE/AdeptIDE.h"

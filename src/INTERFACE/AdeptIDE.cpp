@@ -1138,7 +1138,9 @@ void key_callback(GLFWwindow *window, int key, int scancode, int action, int mod
     }
 
     if(key == GLFW_KEY_UP && input){
-        if(glfwGetKey(window, GLFW_KEY_LEFT_ALT) == GLFW_PRESS && glfwGetKey(window, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS){
+        if(adeptide->terminal && adeptide->terminal->isVisible()){
+            adeptide->terminal->up();
+        } else if(glfwGetKey(window, GLFW_KEY_LEFT_ALT) == GLFW_PRESS && glfwGetKey(window, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS){
             adeptide->scrollUp(8);
         } else if(mods & GLFW_MOD_ALT && CMDCTRL_MOD(mods)){
             adeptide->duplicateCaretUp();
@@ -1153,7 +1155,9 @@ void key_callback(GLFWwindow *window, int key, int scancode, int action, int mod
     }
 
     if(key == GLFW_KEY_DOWN && input){
-        if(glfwGetKey(window, GLFW_KEY_LEFT_ALT) == GLFW_PRESS && glfwGetKey(window, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS){
+        if(adeptide->terminal && adeptide->terminal->isVisible()){
+            adeptide->terminal->down();
+        } else if(glfwGetKey(window, GLFW_KEY_LEFT_ALT) == GLFW_PRESS && glfwGetKey(window, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS){
             adeptide->scrollDown(8);
         } else if(mods & GLFW_MOD_ALT && CMDCTRL_MOD(mods)){
             adeptide->duplicateCaretDown();

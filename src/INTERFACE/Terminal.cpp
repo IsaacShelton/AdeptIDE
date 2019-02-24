@@ -137,12 +137,16 @@ bool Terminal::type(unsigned int codepoint){
         this->richTextNotUpdatedSinceInput = true;
     }
 
-    editable_buffer += (char) codepoint;
-
     if((char) codepoint == '\n' && this->pseudoTerminal){
         // Feed buffer to pseudo terminal
-        this->pseudoTerminal->feedInput(this->editable_buffer);
+        this->pseudoTerminal->feedInput(this->editable_buffer + "\n");
+        this->history.insert(this->history.begin(), editable_buffer);
         editable_buffer = "";
+
+        if(this->history.size() > 25) this->history.erase(this->history.begin() + 25);
+        this->history_index = -1;
+    } else {
+        editable_buffer += (char) codepoint;
     }
 
     this->append(codepoint);
@@ -212,4 +216,24 @@ float Terminal::calculateScrollOffset(){
 
 float Terminal::calculateScrollOffset(size_t line){
     return (this->font->line_height * FONT_SCALE) * line;
+}
+
+void Terminal::up(){
+    if(this->history_index + 1 < this->history.size()){
+        for(int i = 0; i != 1000; i++) this->backspace();
+        //this->richText.remove(this->richText.text.length() - this->editable_buffer.length(), this->editable_buffer.length());
+        this->editable_buffer = this->history[++this->history_index];
+        this->append(this->editable_buffer);
+        this->richTextNotUpdatedSinceInput = true;
+    }
+}
+
+void Terminal::down(){
+    if(this->history_index > 0){
+        for(int i = 0; i != 1000; i++) this->backspace();
+        //this->richText.remove(this->richText.text.length() - this->editable_buffer.length(), this->editable_buffer.length());
+        this->editable_buffer = this->history[--this->history_index];
+        this->append(this->editable_buffer);
+        this->richTextNotUpdatedSinceInput = true;
+    }
 }

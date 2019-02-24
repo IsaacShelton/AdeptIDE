@@ -227,7 +227,7 @@ UnixPTY::UnixPTY(const std::string& shell, const std::vector<std::string> argume
                 switch(select(this->fdMaster + 1, &fd_in, NULL, NULL, &timeout)){
                 case -1:
                     fprintf(stderr, "Error %d on select()\n", errno);
-                    exitcode(1);
+                    exit(1);
                 default:
                     if (FD_ISSET(this->fdMaster, &fd_in)){
                         res = read(this->fdMaster, input, sizeof(input) - 1);
@@ -236,7 +236,7 @@ UnixPTY::UnixPTY(const std::string& shell, const std::vector<std::string> argume
                             this->output += input;
                         } else if(res < 0){
                             fprintf(stderr, "Error %d on read master PTY\n", errno);
-                            exitcode(1);
+                            exit(1);
                         }
                     }
                 }
