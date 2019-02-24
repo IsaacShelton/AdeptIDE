@@ -219,7 +219,7 @@ float Terminal::calculateScrollOffset(size_t line){
 }
 
 void Terminal::up(){
-    if(this->history_index + 1 < this->history.size()){
+    if(this->history_index + 1 < (int) this->history.size()){
         for(int i = 0; i != 1000; i++) this->backspace();
         //this->richText.remove(this->richText.text.length() - this->editable_buffer.length(), this->editable_buffer.length());
         this->editable_buffer = this->history[++this->history_index];
