@@ -167,7 +167,7 @@ errorcode_t pkg_read(compiler_t *compiler, object_t *object){
             fread(&length, sizeof(length_t), 1, file);
 
             tokenlist->tokens[t].data = malloc(sizeof(token_string_data_t));
-            ((token_string_data_t*) tokenlist->tokens[t].data)->array = malloc(length + 1);
+            ((token_string_data_t*) tokenlist->tokens[t].data)->array = malloc(buildup_length + 1);
             fread(((token_string_data_t*) tokenlist->tokens[t].data)->array, sizeof(char), length, file);
             ((token_string_data_t*) tokenlist->tokens[t].data)->array[length] = '\0'; // For lazy conversion to c-string
         }
