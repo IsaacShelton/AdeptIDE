@@ -23,17 +23,29 @@ class RichText {
 
     Font *font = NULL;
     std::vector<HighlightState> forwardLineState;
+    SyntaxColorPalette palette = SyntaxColorPalette::VISUAL_STUDIO;
 
     void insertCharacterData(size_t index, char character);
     void removeCharacterData(size_t index);
     void grow(size_t additionalCharacters);
 
+    enum Relation {WHITESPACE, WHITESPACE_OR_OPERATOR};
+
+    struct Special {
+        std::string name;
+        Relation prereleation, postrelation;
+        const Vector3f *color;
+    };
+
+    std::vector<Special> adeptSpecials;
+    std::vector<Special> javaSpecials;
+
 public:
     // NOTE: 'text' shouldn't be modified directly when possible
     std::string text;
     FileType fileType = FileType::ADEPT;
-    SyntaxColorPalette palette = SyntaxColorPalette::VISUAL_STUDIO;
 
+    RichText();
     ~RichText();
     void setFont(Font *font);
     void loadFromFile(const std::string& filename);
@@ -45,6 +57,8 @@ public:
     TextModel* getTextModel();
     void setFileType(const FileType& fileType);
     void setSyntaxColorPalette(const SyntaxColorPalette& palette);
+    SyntaxColorPalette getSyntaxColorPalette();
+    void updateSpecials();
 
     void forceHighlightEverything();
     size_t highlightLine(size_t lineBeginning, size_t line);

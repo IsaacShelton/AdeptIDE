@@ -9,12 +9,8 @@
 #include "INTERFACE/Caret.h"
 #include "INTERFACE/RichText.h"
 
-void RichText::setFont(Font *font){
-    this->font = font;
-    this->forwardLineState.clear();
-    this->forwardLineState.push_back(PLAIN); // Given state to line 1
-    this->forwardLineState.push_back(PLAIN); // Forward state from line 1
-    this->fileType = FileType::PLAIN_TEXT;
+RichText::RichText(){
+    this->updateSpecials();
 }
 
 RichText::~RichText(){
@@ -23,6 +19,14 @@ RichText::~RichText(){
     free(this->uvs);
     free(this->colors);
     free(this->indices);
+}
+
+void RichText::setFont(Font *font){
+    this->font = font;
+    this->forwardLineState.clear();
+    this->forwardLineState.push_back(PLAIN); // Given state to line 1
+    this->forwardLineState.push_back(PLAIN); // Forward state from line 1
+    this->fileType = FileType::PLAIN_TEXT;
 }
 
 void RichText::loadFromFile(const std::string& filename){
@@ -123,6 +127,181 @@ void RichText::setFileType(const FileType& fileType){
 void RichText::setSyntaxColorPalette(const SyntaxColorPalette& palette){
     this->palette = palette;
     this->forceHighlightEverything();
+    this->updateSpecials();    
+}
+
+SyntaxColorPalette RichText::getSyntaxColorPalette(){
+    return this->palette;
+}
+
+void RichText::updateSpecials(){
+    this->adeptSpecials = {
+        {"as", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.keyword},
+        {"at", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.keyword},
+        {"if", WHITESPACE, WHITESPACE_OR_OPERATOR, &palette.keyword},
+        {"in", WHITESPACE_OR_OPERATOR, WHITESPACE, &palette.keyword},
+        {"or", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.keyword},
+        {"it", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.keyword},
+        {"for", WHITESPACE, WHITESPACE_OR_OPERATOR, &palette.keyword},
+        {"and", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.keyword},
+        {"new", WHITESPACE_OR_OPERATOR, WHITESPACE, &palette.keyword},
+        {"int", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.type},
+        {"ptr", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.type},
+        {"out", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.keyword},
+        {"idx", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.keyword},
+        {"def", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.keyword},
+        {"Any", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.type},
+        {"POD", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.keyword},
+        {"func", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.keyword},
+        {"void", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.type},
+        {"null", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.keyword},
+        {"cast", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.keyword},
+        {"uint", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.type},
+        {"byte", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.type},
+        {"long", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.type},
+        {"bool", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.type},
+        {"else", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.keyword},
+        {"case", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.keyword},
+        {"true", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.keyword},
+        {"this", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.keyword},
+        {"each", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.keyword},
+        {"enum", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.keyword},
+        {"while", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.keyword},
+        {"until", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.keyword},
+        {"defer", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.keyword},
+        {"ubyte", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.type},
+        {"ulong", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.type},
+        {"short", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.type},
+        {"float", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.type},
+        {"usize", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.type},
+        {"false", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.keyword},
+        {"alias", WHITESPACE_OR_OPERATOR, WHITESPACE, &palette.keyword},
+        {"break", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.keyword},
+        {"undef", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.keyword},
+        {"inout", WHITESPACE_OR_OPERATOR, WHITESPACE, &palette.keyword},
+        {"struct", WHITESPACE_OR_OPERATOR, WHITESPACE, &palette.keyword},
+        {"public", WHITESPACE_OR_OPERATOR, WHITESPACE, &palette.keyword},
+        {"import", WHITESPACE, WHITESPACE, &palette.keyword},
+        {"return", WHITESPACE_OR_OPERATOR, WHITESPACE, &palette.keyword},
+        {"switch", WHITESPACE, WHITESPACE_OR_OPERATOR, &palette.keyword},
+        {"delete", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.keyword},
+        {"sizeof", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.keyword},
+        {"unless", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.keyword},
+        {"ushort", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.type},
+        {"String", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.type},
+        {"double", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.type},
+        {"pragma", WHITESPACE_OR_OPERATOR, WHITESPACE, &palette.keyword},
+        {"repeat", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.keyword},
+        {"static", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.keyword},
+        {"AnyType", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.type},
+        {"private", WHITESPACE_OR_OPERATOR, WHITESPACE, &palette.keyword},
+        {"foreign", WHITESPACE, WHITESPACE, &palette.keyword},
+        {"dynamic", WHITESPACE, WHITESPACE, &palette.keyword},
+        {"default", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.keyword},
+        {"stdcall", WHITESPACE_OR_OPERATOR, WHITESPACE, &palette.keyword},
+        {"constant", WHITESPACE, WHITESPACE, &palette.keyword},
+        {"continue", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.keyword},
+        {"external", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.keyword},
+        {"typeinfo", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.keyword},
+        {"__types__", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.number},
+        {"dangerous", WHITESPACE, WHITESPACE, &palette.keyword},
+        {"AnyPtrType", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.type},
+        {"successful", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.type},
+        {"AnyTypeKind", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.type},    
+        {"AnyStructType", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.type},
+        {"__type_kinds__", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.number},
+        {"AnyFuncPtrType", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.type},
+        {"__types_length__", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.number},
+        {"AnyFixedArrayType", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.type},
+        {"__type_kinds_length__", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.number},
+    };
+
+    this->javaSpecials = {
+        {"do", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.keyword},
+        {"if", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.keyword},
+        {"for", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.keyword},
+        {"int", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.type},
+        {"new", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.keyword},
+        {"try", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.keyword},
+        {"File", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.type},
+        {"Math", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.type},
+        {"byte", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.type},
+        {"case", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.keyword},
+        {"char", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.type},
+        {"else", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.keyword},
+        {"enum", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.keyword},
+        {"goto", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.keyword},
+        {"long", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.type},
+        {"null", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.keyword},
+        {"this", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.keyword},
+        {"true", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.keyword},
+        {"void", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.keyword},
+        {"break", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.keyword},
+        {"catch", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.keyword},
+        {"class", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.keyword},
+        {"const", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.keyword},
+        {"false", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.keyword},
+        {"final", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.keyword},
+        {"float", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.type},
+        {"short", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.type},
+        {"super", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.keyword},
+        {"while", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.keyword},
+        {"Object", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.type},
+        {"Random", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.type},
+        {"System", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.type},
+        {"String", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.type},
+        {"assert", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.keyword},
+        {"double", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.type},
+        {"import", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.keyword},
+        {"native", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.keyword},
+        {"public", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.keyword},
+        {"return", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.keyword},
+        {"static", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.keyword},
+        {"switch", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.keyword},
+        {"throws", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.keyword},
+        {"Console", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.type},
+        {"Scanner", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.type},
+        {"boolean", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.type},
+        {"default", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.keyword},
+        {"extends", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.keyword},
+        {"finally", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.keyword},
+        {"package", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.keyword},
+        {"private", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.keyword},
+        {"abstract", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.keyword},
+        {"continue", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.keyword},
+        {"strictfp", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.keyword},
+        {"volatile", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.keyword},
+        {"Exception", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.type},
+        {"interface", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.keyword},
+        {"protected", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.keyword},
+        {"transient", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.keyword},
+        {"BigDecimal", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.type},
+        {"BigInteger", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.type},
+        {"implements", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.keyword},
+        {"instanceof", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.keyword},
+        {"IOException", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.type},
+        {"InputStream", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.type},
+        {"MathContext", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.type},
+        {"EOFException", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.type},
+        {"OutputStream", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.type},
+        {"Serializable", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.type},
+        {"StringBuffer", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.type},
+        {"synchronized", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.keyword},
+        {"StringBuilder", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.type},
+        {"BufferedReader", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.type},
+        {"BufferedWriter", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.type},
+        {"FileDescriptor", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.type},
+        {"CharArrayReader", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.type},
+        {"CharArrayWriter", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.type},
+        {"DataInputStream", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.type},
+        {"FileInputStream", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.type},
+        {"DataOutputStream", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.type},
+        {"FileOutputStream", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.type},
+        {"BufferedInputStream", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.type},
+        {"BufferedOutputStream", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.type},
+        {"ByteArrayInputStream", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.type},
+        {"ByteArrayOutputStream", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.type},
+    };
 }
 
 void RichText::insertCharacterData(size_t index, char character){
@@ -338,6 +517,14 @@ size_t RichText::highlightLine(size_t lineBeginning, size_t line){
                     continue;
                 }
 
+                if(this->fileType == ADEPT && ascii == '$'){
+                    size_t scan_i = i + 1;
+                    while(scan_i < this->text.length() && (charIsIdentifier(this->text[scan_i]) || charIsNumeric(this->text[scan_i]))) scan_i++;
+                    this->setStringColor(i, scan_i - i, palette.type);
+                    i = scan_i - 1;
+                    continue;
+                }
+
                 if(i + 1 < this->text.length() && ascii == '/'){
                     if(this->text[i + 1] == '/'){
                         size_t remainingLength = getLineLength(this->text, lineBeginning) - (i - lineBeginning);
@@ -451,192 +638,16 @@ void RichText::highlightAffectedLines(size_t lineBeginning){
 }
 
 size_t RichText::tryHighlightKeyword(size_t index){
-    enum Relation {WHITESPACE, WHITESPACE_OR_OPERATOR};
-
-    struct Special {
-        std::string name;
-        Relation prereleation, postrelation;
-        const Vector3f *color;
-    };
-
     // NOTE: Must be sorted by name length
     Special *specials;
     size_t specials_length;
 
     if(this->fileType == FileType::ADEPT){
-        Special adeptSpecials[] = {
-            {"as", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.keyword},
-            {"at", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.keyword},
-            {"if", WHITESPACE, WHITESPACE_OR_OPERATOR, &palette.keyword},
-            {"in", WHITESPACE_OR_OPERATOR, WHITESPACE, &palette.keyword},
-            {"or", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.keyword},
-            {"it", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.keyword},
-            {"for", WHITESPACE, WHITESPACE_OR_OPERATOR, &palette.keyword},
-            {"and", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.keyword},
-            {"new", WHITESPACE_OR_OPERATOR, WHITESPACE, &palette.keyword},
-            {"int", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.type},
-            {"ptr", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.type},
-            {"out", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.keyword},
-            {"idx", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.keyword},
-            {"def", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.keyword},
-            {"Any", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.type},
-            {"POD", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.keyword},
-            {"func", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.keyword},
-            {"void", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.type},
-            {"null", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.keyword},
-            {"cast", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.keyword},
-            {"uint", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.type},
-            {"byte", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.type},
-            {"long", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.type},
-            {"bool", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.type},
-            {"else", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.keyword},
-            {"case", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.keyword},
-            {"true", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.keyword},
-            {"this", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.keyword},
-            {"each", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.keyword},
-            {"enum", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.keyword},
-            {"while", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.keyword},
-            {"until", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.keyword},
-            {"defer", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.keyword},
-            {"ubyte", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.type},
-            {"ulong", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.type},
-            {"short", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.type},
-            {"float", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.type},
-            {"usize", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.type},
-            {"false", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.keyword},
-            {"alias", WHITESPACE_OR_OPERATOR, WHITESPACE, &palette.keyword},
-            {"break", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.keyword},
-            {"undef", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.keyword},
-            {"inout", WHITESPACE_OR_OPERATOR, WHITESPACE, &palette.keyword},
-            {"struct", WHITESPACE_OR_OPERATOR, WHITESPACE, &palette.keyword},
-            {"public", WHITESPACE_OR_OPERATOR, WHITESPACE, &palette.keyword},
-            {"import", WHITESPACE, WHITESPACE, &palette.keyword},
-            {"return", WHITESPACE_OR_OPERATOR, WHITESPACE, &palette.keyword},
-            {"switch", WHITESPACE, WHITESPACE_OR_OPERATOR, &palette.keyword},
-            {"delete", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.keyword},
-            {"sizeof", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.keyword},
-            {"unless", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.keyword},
-            {"ushort", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.type},
-            {"String", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.type},
-            {"double", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.type},
-            {"pragma", WHITESPACE_OR_OPERATOR, WHITESPACE, &palette.keyword},
-            {"repeat", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.keyword},
-            {"static", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.keyword},
-            {"AnyType", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.type},
-            {"private", WHITESPACE_OR_OPERATOR, WHITESPACE, &palette.keyword},
-            {"foreign", WHITESPACE, WHITESPACE, &palette.keyword},
-            {"dynamic", WHITESPACE, WHITESPACE, &palette.keyword},
-            {"default", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.keyword},
-            {"stdcall", WHITESPACE_OR_OPERATOR, WHITESPACE, &palette.keyword},
-            {"constant", WHITESPACE, WHITESPACE, &palette.keyword},
-            {"continue", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.keyword},
-            {"external", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.keyword},
-            {"typeinfo", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.keyword},
-            {"__types__", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.number},
-            {"dangerous", WHITESPACE, WHITESPACE, &palette.keyword},
-            {"AnyPtrType", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.type},
-            {"successful", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.type},
-            {"AnyTypeKind", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.type},    
-            {"AnyStructType", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.type},
-            {"__type_kinds__", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.number},
-            {"AnyFuncPtrType", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.type},
-            {"__types_length__", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.number},
-            {"AnyFixedArrayType", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.type},
-            {"__type_kinds_length__", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.number},
-        };
-
-        specials = adeptSpecials;
-        specials_length = sizeof(adeptSpecials) / sizeof(Special);
+        specials = adeptSpecials.data();
+        specials_length = adeptSpecials.size();
     } else if(this->fileType == FileType::JAVA){
-        Special javaSpecials[] = {
-            {"do", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.keyword},
-            {"if", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.keyword},
-            {"for", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.keyword},
-            {"int", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.type},
-            {"new", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.keyword},
-            {"try", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.keyword},
-            {"File", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.type},
-            {"Math", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.type},
-            {"byte", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.type},
-            {"case", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.keyword},
-            {"char", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.type},
-            {"else", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.keyword},
-            {"enum", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.keyword},
-            {"goto", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.keyword},
-            {"long", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.type},
-            {"null", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.keyword},
-            {"this", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.keyword},
-            {"true", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.keyword},
-            {"void", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.keyword},
-            {"break", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.keyword},
-            {"catch", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.keyword},
-            {"class", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.keyword},
-            {"const", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.keyword},
-            {"false", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.keyword},
-            {"final", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.keyword},
-            {"float", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.type},
-            {"short", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.type},
-            {"super", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.keyword},
-            {"while", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.keyword},
-            {"Object", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.type},
-            {"Random", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.type},
-            {"System", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.type},
-            {"String", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.type},
-            {"assert", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.keyword},
-            {"double", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.type},
-            {"import", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.keyword},
-            {"native", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.keyword},
-            {"public", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.keyword},
-            {"return", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.keyword},
-            {"static", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.keyword},
-            {"switch", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.keyword},
-            {"throws", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.keyword},
-            {"Console", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.type},
-            {"Scanner", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.type},
-            {"boolean", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.type},
-            {"default", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.keyword},
-            {"extends", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.keyword},
-            {"finally", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.keyword},
-            {"package", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.keyword},
-            {"private", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.keyword},
-            {"abstract", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.keyword},
-            {"continue", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.keyword},
-            {"strictfp", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.keyword},
-            {"volatile", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.keyword},
-            {"Exception", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.type},
-            {"interface", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.keyword},
-            {"protected", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.keyword},
-            {"transient", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.keyword},
-            {"BigDecimal", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.type},
-            {"BigInteger", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.type},
-            {"implements", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.keyword},
-            {"instanceof", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.keyword},
-            {"IOException", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.type},
-            {"InputStream", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.type},
-            {"MathContext", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.type},
-            {"EOFException", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.type},
-            {"OutputStream", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.type},
-            {"Serializable", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.type},
-            {"StringBuffer", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.type},
-            {"synchronized", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.keyword},
-            {"StringBuilder", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.type},
-            {"BufferedReader", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.type},
-            {"BufferedWriter", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.type},
-            {"FileDescriptor", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.type},
-            {"CharArrayReader", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.type},
-            {"CharArrayWriter", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.type},
-            {"DataInputStream", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.type},
-            {"FileInputStream", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.type},
-            {"DataOutputStream", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.type},
-            {"FileOutputStream", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.type},
-            {"BufferedInputStream", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.type},
-            {"BufferedOutputStream", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.type},
-            {"ByteArrayInputStream", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.type},
-            {"ByteArrayOutputStream", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.type},
-        };
-
-        specials = javaSpecials;
-        specials_length = sizeof(javaSpecials) / sizeof(Special);
+        specials = javaSpecials.data();
+        specials_length = javaSpecials.size();
     } else {
         return index;
     }
