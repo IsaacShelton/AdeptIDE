@@ -29,6 +29,8 @@ extern "C" {
 #define AST_ELEM_GENERIC_INT   0x05
 #define AST_ELEM_GENERIC_FLOAT 0x06
 #define AST_ELEM_FUNC          0x07
+#define AST_ELEM_POLYMORPH     0x08
+#define AST_ELEM_GENERIC_BASE  0x09
 
 // Possible data flow patterns
 #define FLOW_NONE  0x00
@@ -91,8 +93,27 @@ typedef struct {
     length_t arity;
     ast_type_t *return_type;
     trait_t traits; // Uses AST_FUNC_* traits
-    bool ownership; // Whether or not we own our members
+    bool ownership; // Used for referencing functions w/o copying
 } ast_elem_func_t;
+
+// ---------------- ast_elem_polymorph_t ----------------
+// Type element for a polymorphic type variable
+typedef struct {
+    unsigned int id;
+    source_t source;
+    strong_cstr_t name;
+} ast_elem_polymorph_t;
+
+// ---------------- ast_elem_generic_base_t ----------------
+// Type element for a varient of a generic base
+typedef struct {
+    unsigned int id;
+    source_t source;
+    strong_cstr_t name;
+    ast_type_t *generics;
+    length_t generics_length;
+    bool name_is_polymorphic;
+} ast_elem_generic_base_t;
 
 // ---------------- ast_unnamed_arg_t ----------------
 // Data structure for an unnamed argument
@@ -101,6 +122,25 @@ typedef struct {
     source_t source;
     char flow; // in | out | inout
 } ast_unnamed_arg_t;
+
+// ---------------- ast_type_var_t ----------------
+// Data structure for a single polymorphic type binding
+typedef struct {
+    weak_cstr_t name;
+    ast_type_t binding;
+} ast_type_var_t;
+
+// ---------------- ast_type_var_catalog_t ----------------
+// Data structure for polymorphic type bindings
+typedef struct {
+    ast_type_var_t *type_vars;
+    length_t length;
+    length_t capacity;
+} ast_type_var_catalog_t;
+
+// ---------------- ast_elem_clone ----------------
+// Clones an AST type element, producing a duplicate
+ast_elem_t *ast_elem_clone(const ast_elem_t *element);
 
 // ---------------- ast_type_clone ----------------
 // Clones an AST type, producing a duplicate
@@ -179,6 +219,31 @@ bool ast_type_is_base_ptr_of(const ast_type_t *type, const char *base);
 // ---------------- ast_type_is_pointer_to ----------------
 // Returns whether an AST type is a pointer to another AST type
 bool ast_type_is_pointer_to(const ast_type_t *type, const ast_type_t *to);
+
+// ---------------- ast_type_has_polymorph ----------------
+// Returns whether an AST type contains a polymorphic type
+bool ast_type_has_polymorph(const ast_type_t *type);
+
+// ---------------- ast_type_has_polymorph ----------------
+// Returns whether a concrete AST type is valid for a given polymorphic type
+bool ast_type_polymorphable(const ast_type_t *polymorphic_type, const ast_type_t *concrete_type, ast_type_var_catalog_t *catalog);
+
+// ---------------- ast_type_var_catalog_init ----------------
+// Initializes an AST type var catalog
+void ast_type_var_catalog_init(ast_type_var_catalog_t *catalog);
+
+// ---------------- ast_type_var_catalog_free ----------------
+// Frees an AST type var catalog
+void ast_type_var_catalog_free(ast_type_var_catalog_t *catalog);
+
+// ---------------- ast_type_var_catalog_add ----------------
+// Adds an AST type variable binding to an AST type var catalog
+// NOTE: 'binding' doesn't have to be preserved after this call
+void ast_type_var_catalog_add(ast_type_var_catalog_t *catalog, weak_cstr_t name, ast_type_t *binding);
+
+// ---------------- ast_type_var_catalog_find ----------------
+// Finds an AST type variable binding within an AST type var catalog
+ast_type_var_t *ast_type_var_catalog_find(ast_type_var_catalog_t *catalog, weak_cstr_t name);
 
 #ifdef __cplusplus
 }

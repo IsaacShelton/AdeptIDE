@@ -28,10 +28,15 @@ void ast_init(ast_t *ast){
     ast->common.ast_usize_type = NULL;
 
     ast->type_table = NULL;
-
     ast->meta_definitions = NULL;
     ast->meta_definitions_length = 0;
     ast->meta_definitions_capacity = 0;
+    ast->polymorphic_funcs = NULL;
+    ast->polymorphic_funcs_length = 0;
+    ast->polymorphic_funcs_capacity = 0;
+    ast->polymorphic_structs = NULL;
+    ast->polymorphic_structs_length = 0;
+    ast->polymorphic_structs_capacity = 0;
 
     // Add relevant standard meta definitions
     #ifdef _WIN32
@@ -89,6 +94,12 @@ void ast_free(ast_t *ast){
         meta_expr_free_fully(ast->meta_definitions[i].value);
     }
     free(ast->meta_definitions);
+    free(ast->polymorphic_funcs);
+    for(i = 0; i != ast->polymorphic_structs_length; i++){
+        ast_free_structs((ast_struct_t*) &ast->polymorphic_structs[i], 1);
+        freestrs(ast->polymorphic_structs[i].generics, ast->polymorphic_structs[i].generics_length);
+    }
+    free(ast->polymorphic_structs);
 }
 
 void ast_free_functions(ast_func_t *functions, length_t functions_length){
@@ -489,6 +500,13 @@ void ast_func_create_template(ast_func_t *func, strong_cstr_t name, bool is_stdc
     if(is_foreign)                func->traits |= AST_FUNC_FOREIGN;
 }
 
+bool ast_func_is_polymorphic(ast_func_t *func){
+    for(length_t i = 0; i != func->arity; i++){
+        if(ast_type_has_polymorph(&func->arg_types[i])) return true;
+    }
+    return false;
+}
+
 void ast_struct_init(ast_struct_t *structure, strong_cstr_t name, strong_cstr_t *names, ast_type_t *types,
         length_t length, trait_t traits, source_t source){
     structure->name = name;
@@ -497,6 +515,18 @@ void ast_struct_init(ast_struct_t *structure, strong_cstr_t name, strong_cstr_t 
     structure->field_count = length;
     structure->traits = traits;
     structure->source = source;
+}
+
+void ast_polymorphic_struct_init(ast_polymorphic_struct_t *structure, strong_cstr_t name, strong_cstr_t *names, ast_type_t *types,
+        length_t length, trait_t traits, source_t source, strong_cstr_t *generics, length_t generics_length){
+    structure->name = name;
+    structure->field_names = names;
+    structure->field_types = types;
+    structure->field_count = length;
+    structure->traits = traits;
+    structure->source = source;
+    structure->generics = generics;
+    structure->generics_length = generics_length;
 }
 
 void ast_alias_init(ast_alias_t *alias, weak_cstr_t name, ast_type_t type, trait_t traits, source_t source){
@@ -609,6 +639,13 @@ void ast_add_struct(ast_t *ast, strong_cstr_t name, strong_cstr_t *names, ast_ty
     ast_struct_init(structure, name, names, types, length, traits, source);
 }
 
+void ast_add_polymorphic_struct(ast_t *ast, strong_cstr_t name, strong_cstr_t *names, ast_type_t *types,
+        length_t length, trait_t traits, source_t source, strong_cstr_t *generics, length_t generics_length){
+    expand((void**) &ast->polymorphic_structs, sizeof(ast_polymorphic_struct_t), ast->polymorphic_structs_length, &ast->polymorphic_structs_capacity, 1, 4);
+    ast_polymorphic_struct_t *poly_structure = &ast->polymorphic_structs[ast->polymorphic_structs_length++];
+    ast_polymorphic_struct_init(poly_structure, name, names, types, length, traits, source, generics, generics_length);
+}
+
 void ast_add_global(ast_t *ast, weak_cstr_t name, ast_type_t type, ast_expr_t *initial_value, trait_t traits, source_t source){
     expand((void**) &ast->globals, sizeof(ast_global_t), ast->globals_length, &ast->globals_capacity, 1, 8);
 
@@ -654,4 +691,8 @@ int ast_constants_cmp(const void *a, const void *b){
 
 int ast_enums_cmp(const void *a, const void *b){
     return strcmp(((ast_enum_t*) a)->name, ((ast_enum_t*) b)->name);
+}
+
+int ast_polymorphic_funcs_cmp(const void *a, const void *b){
+    return strcmp(((ast_polymorphic_func_t*) a)->name, ((ast_polymorphic_func_t*) b)->name);
 }
