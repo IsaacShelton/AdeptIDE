@@ -12,10 +12,10 @@ else
 	LINKER=g++
 endif
 
-CFLAGS=-c -Wall -I"include" -I"src/INSIGHT/include" -O0 # -fmax-errors=5 -Werror
-CXXFLAGS=-c -Wall -I"include" -I"src/INSIGHT/include" -std=c++11 -DGLEW_STATIC -DADEPT_INSIGHT_BUILD -O0 # -fmax-errors=5 -Werror
+CFLAGS=-c -Wall -I"include" -I"src/INSIGHT/include" -O3 # -O0 -g -fsanitize=address # -fmax-errors=5 -Werror
+CXXFLAGS=-c -Wall -I"include" -I"src/INSIGHT/include" -std=c++11 -DGLEW_STATIC -DADEPT_INSIGHT_BUILD -O3 # -O0 -g -fsanitize=address # -fmax-errors=5 -Werror
 CXXDEBUGFLAGS=-g
-LDFLAGS=
+LDFLAGS= #-fsanitize=address
 SRCDIR=src
 OBJDIR=obj
 SOURCES=$(wildcard $(SRCDIR)/INTERFACE/*.cpp) $(wildcard $(SRCDIR)/OPENGL/*.cpp) $(wildcard $(SRCDIR)/PROCESS/*.cpp) $(wildcard $(SRCDIR)/UTIL/*.cpp)

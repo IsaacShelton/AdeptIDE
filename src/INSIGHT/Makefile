@@ -12,7 +12,7 @@ OBJDIR=obj
 C_SOURCES=$(wildcard $(SRCDIR)/AST/*.c) $(wildcard $(SRCDIR)/BRIDGE/*.c) $(wildcard $(SRCDIR)/DRVR/*.c) $(wildcard $(SRCDIR)/LEX/*.c) $(wildcard $(SRCDIR)/PARSE/*.c) $(wildcard $(SRCDIR)/UTIL/*.c)
 C_OBJECTS=$(C_SOURCES:$(SRCDIR)/%.c=$(OBJDIR)/%.o)
 INSIGHT=../../obj/insight.a
-CFLAGS=-c -Wall -I"include" -O3 -DADEPT_INSIGHT_BUILD # -fmax-errors=5 -Werror
+CFLAGS=-c -Wall -I"include" -O3 -DADEPT_INSIGHT_BUILD # -O0 -g -fsanitize=address # -fmax-errors=5 -Werror
 
 release: directories $(INSIGHT)
 

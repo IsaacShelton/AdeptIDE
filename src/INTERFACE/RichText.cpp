@@ -408,10 +408,10 @@ void RichText::insertCharacterData(size_t index, char character){
 void RichText::removeCharacterData(size_t index){
     bool is_newline = this->text[index] == '\n';
     
-    memcpy(&this->vertices[index * 8], &this->vertices[(index + 1) * 8], sizeof(float) * 8 * (this->length - index - 1));
-    memcpy(&this->uvs[index * 8], &this->uvs[(index + 1) * 8], sizeof(float) * 8 * (this->length - index - 1));
-    memcpy(&this->colors[index * 12], &this->colors[(index + 1) * 12], sizeof(float) * 12 * (this->length - index - 1));
-    memcpy(&this->indices[index * 6], &this->indices[(index + 1) * 6], sizeof(unsigned int) * 6 * (this->length - index - 1));
+    memmove(&this->vertices[index * 8], &this->vertices[(index + 1) * 8], sizeof(float) * 8 * (this->length - index - 1));
+    memmove(&this->uvs[index * 8], &this->uvs[(index + 1) * 8], sizeof(float) * 8 * (this->length - index - 1));
+    memmove(&this->colors[index * 12], &this->colors[(index + 1) * 12], sizeof(float) * 12 * (this->length - index - 1));
+    memmove(&this->indices[index * 6], &this->indices[(index + 1) * 6], sizeof(unsigned int) * 6 * (this->length - index - 1));
     this->text.erase(index, 1);
 
     for(size_t i = index; i != this->text.length(); i++){
