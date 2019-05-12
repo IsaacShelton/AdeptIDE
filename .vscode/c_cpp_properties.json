@@ -26,7 +26,10 @@
                 "C:\\Users\\isaac\\Projects\\mingw64\\x86_64-w64-mingw32\\include",
                 "C:\\Users\\isaac\\Projects\\mingw64\\lib\\gcc\\mingw32\\4.8.1\\include\\c++"
             ],
-            "defines": ["__MINGW32__", "GLEW_STATIC"],
+            "defines": [
+                "__MINGW32__",
+                "GLEW_STATIC"
+            ],
             "browse": {
                 "path": [
                     "${workspaceFolder}",
@@ -44,9 +47,11 @@
         {
             "name": "Mac",
             "includePath": [
-                "${workspaceFolder}/**"
+                "${workspaceFolder}/**",
+                "/usr/local/Cellar/glew/2.1.0/include",
+                "${workspaceFolder}/src/INSIGHT/include/**"
             ],
-            "defines": [],
+            "defines": ["ADEPT_INSIGHT_BUILD"],
             "macFrameworkPath": [
                 "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.14.sdk/System/Library/Frameworks"
             ],

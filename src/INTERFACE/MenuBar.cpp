@@ -201,7 +201,7 @@ void MenuBar::load(Settings *settings, Font *font, Texture *fontTexture, std::ve
     this->tabUnderlineEndX = 0.0f;
     this->targetTabUnderlineEndX = 0.0f;
     this->underlineBaseModel = createSolidModel(1.0f, 1.0f);
-    this->filenamesOffsetX = explorerExpanded ? 256.0f : 96.0f;
+    this->filenamesOffsetX = explorerExpanded ? 256.0f : 128.0f;
     this->targetFilenamesOffsetX = this->filenamesOffsetX;
 }
 
@@ -210,7 +210,7 @@ void MenuBar::addMenu(const std::string& label, MenuAction action, void *data){
 }
 
 void MenuBar::update(bool explorerExpanded){
-    this->targetFilenamesOffsetX = explorerExpanded ? 250.0f : 96.0f;
+    this->targetFilenamesOffsetX = explorerExpanded ? 250.0f : 128.0f;
     
     if(fabs(this->tabUnderlineBeginX - this->targetTabUnderlineBeginX) > 0.01f){
         this->tabUnderlineBeginX += (this->targetTabUnderlineBeginX > this->tabUnderlineBeginX ? 1 : -1) * fabs(this->tabUnderlineBeginX - this->targetTabUnderlineBeginX) * clampedHalfDelta(this->settings->hidden.delta);

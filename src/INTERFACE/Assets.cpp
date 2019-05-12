@@ -14,6 +14,7 @@ AdeptIDEAssets::~AdeptIDEAssets(){
     delete treeModel;
     delete functionModel;
     delete structureModel;
+    delete cdModel;
 
     delete emblemTexture;
     delete plainTextTexture;
@@ -27,6 +28,7 @@ AdeptIDEAssets::~AdeptIDEAssets(){
     delete treeTexture;
     delete functionTexture;
     delete structureTexture;
+    delete cdTexture;
 }
 
 void AdeptIDEAssets::loadAdeptIDEAssets(const std::string& assetsFolder){
@@ -42,6 +44,7 @@ void AdeptIDEAssets::loadAdeptIDEAssets(const std::string& assetsFolder){
     texture(assetsFolder, "tree.png", &treeTexture);
     texture(assetsFolder, "function.png", &functionTexture);
     texture(assetsFolder, "structure.png", &structureTexture);
+    texture(assetsFolder, "cd.png", &cdTexture);
     
     model(256, emblemTexture, &emblemModel);
     model(16, plainTextTexture, &plainTextModel);
@@ -55,5 +58,6 @@ void AdeptIDEAssets::loadAdeptIDEAssets(const std::string& assetsFolder){
     model(16, treeTexture, &treeModel);
     model(16, functionTexture, &functionModel);
     model(16, structureTexture, &structureModel);
+    model(16, cdTexture, &cdModel);
 }
 

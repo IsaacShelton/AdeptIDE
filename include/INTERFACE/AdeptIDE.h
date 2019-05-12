@@ -10,8 +10,10 @@
 #include "INTERFACE/Message.h"
 #include "INTERFACE/Settings.h"
 #include "INTERFACE/Explorer.h"
+#include "INTERFACE/FileLooker.h"
 #include "INTERFACE/Terminal.h"
 #include "PROCESS/FolderWatcher.h"
+
 
 class AdeptIDE : public AdeptIDEAssets { // Inheritance not symbolic
 private:
@@ -45,6 +47,7 @@ public:
     Message *message;
     Explorer *explorer;
     Terminal *terminal;
+    FileLooker *fileLooker;
 
     AdeptIDE();
     ~AdeptIDE();
@@ -116,6 +119,9 @@ public:
 
     void saveFile();
     void runFile();
+
+    void lookForFile();
+    void cdFile();
 
     void createMessage(const std::string& message, double seconds);
 };

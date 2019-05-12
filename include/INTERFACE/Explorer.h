@@ -3,6 +3,7 @@
 #define EXPLORER_H_INCLUDED
 
 class AdeptIDE;
+class FileLooker;
 
 #include <string>
 #include "OPENGL/Model.h"
@@ -13,6 +14,7 @@ class AdeptIDE;
 #include "INTERFACE/Font.h"
 #include "INTERFACE/Assets.h"
 #include "INTERFACE/Settings.h"
+#include "INTERFACE/FileLooker.h"
 #include "PROCESS/FolderWatcher.h"
 
 class ExplorerNode;
@@ -66,6 +68,7 @@ class Explorer {
     SolidModel *container;
     float containerWidth, containerHeight;
     Matrix4f transformationMatrix;
+    FileLooker *fileLooker;
 
     double scroll, maxScroll;
     float targetScrollXOffset, targetScrollYOffset, scrollXOffset, scrollYOffset;
@@ -78,7 +81,7 @@ class Explorer {
 
     Explorer();
     ~Explorer();
-    void load(Settings *settings, Font *font, Texture *fontTexture, float containerWidth, float containerHeight);
+    void load(Settings *settings, Font *font, Texture *fontTexture, float containerWidth, float containerHeight, FileLooker *fileLooker);
     void render(Matrix4f &projectionMatrix, Shader *shader, Shader *fontShader, Shader *solidShader, AdeptIDEAssets *assets);
     void resize(float height);
     bool leftClick(AdeptIDE* adeptide, double x, double y);
@@ -93,8 +96,7 @@ class Explorer {
     bool setRootFolder(const std::string& path);
     bool generateNodes();
     bool refreshNodes();
+    std::string getFolderPath();
 };
-
-#include "INTERFACE/AdeptIDE.h"
 
 #endif // EXPLORER_H_INCLUDED

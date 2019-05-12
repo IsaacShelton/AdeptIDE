@@ -18,6 +18,7 @@ struct AdeptIDEAssets {
     Model *treeModel = NULL;
     Model *functionModel = NULL;
     Model *structureModel = NULL;
+    Model *cdModel = NULL;
 
     Texture *fontTexture = NULL;
     Texture *emblemTexture = NULL;
@@ -32,6 +33,7 @@ struct AdeptIDEAssets {
     Texture *treeTexture = NULL;
     Texture *functionTexture = NULL;
     Texture *structureTexture = NULL;
+    Texture *cdTexture = NULL;
 
     ~AdeptIDEAssets();
 

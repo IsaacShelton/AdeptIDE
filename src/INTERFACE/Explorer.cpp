@@ -4,6 +4,7 @@
 
 #include <math.h>
 #include <iostream>
+#include "INTERFACE/AdeptIDE.h"
 #include "INTERFACE/Explorer.h"
 #include "UTIL/filename.h"
 #include "UTIL/animationMath.h"
@@ -16,7 +17,7 @@ Explorer::~Explorer(){
     delete this->container;
 }
 
-void Explorer::load(Settings *settings, Font *font, Texture *fontTexture, float containerWidth, float containerHeight){
+void Explorer::load(Settings *settings, Font *font, Texture *fontTexture, float containerWidth, float containerHeight, FileLooker *fileLooker){
     this->settings = settings;
     this->font = font;
     this->fontTexture = fontTexture;
@@ -32,6 +33,7 @@ void Explorer::load(Settings *settings, Font *font, Texture *fontTexture, float 
     this->scrollYOffset = 0.0f;
     this->visible = settings->explorer_default_show;
     this->containerX = this->visible ? 0.0f : -256.0f;
+    this->fileLooker = fileLooker;
 
     this->setRootFolder(settings->explorer_default_folder);
 }
@@ -70,6 +72,13 @@ void Explorer::render(Matrix4f &projectionMatrix, Shader *shader, Shader *fontSh
         for(ExplorerNode *child : this->rootNode->children){
             child->draw(settings, font, fontTexture, projectionMatrix, shader, fontShader, assets, x, &y, this->containerX, this->containerWidth);
         }
+    } else {
+        transformationMatrix.translateFromIdentity(this->containerX + this->containerWidth / 2.0f - 8.0f, this->containerHeight / 2.0f - 8.0f, -0.899f);
+
+        shader->bind();
+        shader->giveMatrix4f("projection_matrix", projectionMatrix);
+        shader->giveMatrix4f("transformation_matrix", transformationMatrix);
+        renderModel(assets->openFolderModel);
     }
 }
 
@@ -122,6 +131,10 @@ bool Explorer::leftClick(AdeptIDE *adeptide, double x, double y){
             for(ExplorerNode *child : this->rootNode->children){
                 if(child->propagateLeftClick(adeptide, font, x, y, testX, &testY)) break;
             }
+        } else if(TextEditor *textEditor = adeptide->getCurrentEditorAsTextEditor()){
+            char *path = filename_path(textEditor->filename.c_str());
+            this->setRootFolder(path);
+            free(path);
         }
 
         return true;
@@ -201,6 +214,8 @@ void Explorer::setVisibility(bool visibility){
 }
 
 bool Explorer::setRootFolder(const std::string& path){
+    // NOTE: Returns whether too many files
+
     delete this->rootNode;
 
     if(path == ""){
@@ -208,10 +223,16 @@ bool Explorer::setRootFolder(const std::string& path){
         return false;
     }
 
+    this->folderPath = path;
     this->rootNode = new ExplorerNode(path, ExplorerNode::Kind::FOLDER, this->font);
     this->rootNode->parent = NULL;
     this->scroll = 0;
-    return this->generateNodes();
+    bool too_many_files = this->generateNodes();
+
+    if(this->fileLooker)
+        this->fileLooker->setFiles(this->rootNode);
+
+    return too_many_files;
 }
 
 bool Explorer::generateNodes(){
@@ -244,6 +265,10 @@ bool Explorer::refreshNodes(){
 
 float Explorer::calculateScrollOffset(){
     return font->line_height * FONT_SCALE * 1.5 * scroll;
+}
+
+std::string Explorer::getFolderPath(){
+    return this->folderPath;
 }
 
 ExplorerNode::ExplorerNode(const std::string &name, ExplorerNode::Kind kind, Font *fontUsedToCreateTextModel){

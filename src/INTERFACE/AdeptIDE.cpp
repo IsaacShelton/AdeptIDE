@@ -58,6 +58,7 @@ AdeptIDE::~AdeptIDE(){
     delete this->message;
     delete this->explorer;
     delete this->terminal;
+    delete this->fileLooker;
 }
 
 int AdeptIDE::main(int argc, const char **argv){
@@ -115,7 +116,7 @@ int AdeptIDE::main(int argc, const char **argv){
         const GLFWvidmode *vidmode = glfwGetVideoMode(monitor);
         this->width = vidmode->width;
         this->height = vidmode->height;
-        this->window = glfwCreateWindow(this->width, this->height, "Adept IDE", monitor, NULL);
+        this->window = glfwCreateWindow(this->width, this->height, "AdeptIDE", monitor, NULL);
     } else {
         this->width = this->settings.ide_default_width;
         this->height = this->settings.ide_default_height;
@@ -233,9 +234,12 @@ int AdeptIDE::main(int argc, const char **argv){
     this->menubar.menus[4]->dropdownMenu->menus.push_back(new Menu("Build                     Ctrl+B", this->menubar.font, build_adept_project, this));
     this->menubar.menus[4]->dropdownMenu->menus.push_back(new Menu("Build & Run         Ctrl+Shift+B", this->menubar.font, build_and_run_adept_project, this));
 
+    this->fileLooker = new FileLooker();
+    this->fileLooker->load(&this->settings, &this->font, this->fontTexture, 512, 32); // 320 h
+
     this->message = NULL;
     this->explorer = new Explorer();
-    this->explorer->load(&this->settings, &this->font, this->fontTexture, 256, this->height);
+    this->explorer->load(&this->settings, &this->font, this->fontTexture, 256, this->height, this->fileLooker);
 
     this->terminal = new Terminal();
     this->terminal->load(&this->settings, &this->font, this->fontTexture, this->width, 256);
@@ -378,12 +382,22 @@ int AdeptIDE::main(int argc, const char **argv){
             this->shader->giveMatrix4f("transformation_matrix", this->transformationMatrix);
             renderModel(this->treeModel);
 
+            this->transformationMatrix.translate(32.0f, 0.0f, 0.0f);
+            this->shader->giveMatrix4f("transformation_matrix", this->transformationMatrix);
+            renderModel(this->cdModel);
+
             this->explorer->render(projectionMatrix, shader, fontShader, solidShader, (AdeptIDEAssets*) this);
         }
 
         if(this->terminal){
             this->terminal->containerX = (this->explorer ? this->explorer->containerX : 0) + 256;
             this->terminal->render(projectionMatrix, shader, fontShader, solidShader, this->height, (AdeptIDEAssets*) this);
+        }
+
+        if(this->fileLooker){
+            this->fileLooker->containerX = this->width / 2 - this->fileLooker->containerWidth / 2;
+            this->fileLooker->containerY = 52;
+            this->fileLooker->render(projectionMatrix, shader, fontShader, solidShader, (AdeptIDEAssets*) this);
         }
 
         if(this->message){
@@ -522,10 +536,11 @@ void AdeptIDE::openFolder(){
     if(this->explorer){
         std::string folder;
 
-        if(openFolderDialog(this->window, folder) && this->explorer->setRootFolder(folder))
-            this->createMessage("Too many files in directory! Some files omitted!", 3.0);
-        
-        this->explorer->setVisibility(true);
+        if(openFolderDialog(this->window, folder)){
+            if(this->explorer->setRootFolder(folder))
+                this->createMessage("Too many files in directory! Some files omitted!", 3.0);
+            this->explorer->setVisibility(true);
+        }
     }
 }
 
@@ -760,6 +775,7 @@ void AdeptIDE::duplicateCaretDown(){
 }
 
 void AdeptIDE::type(const std::string& text){
+    if(this->fileLooker && this->fileLooker->type(text)) return;
     if(this->terminal && this->terminal->type(text)) return;
 
     TextEditor *currentTextEditor = this->getCurrentEditorAsTextEditor();
@@ -767,6 +783,7 @@ void AdeptIDE::type(const std::string& text){
 }
 
 void AdeptIDE::type(char character){
+    if(this->fileLooker && this->fileLooker->type(character)) return;
     if(this->terminal && this->terminal->type(character)) return;
 
     TextEditor *currentTextEditor = this->getCurrentEditorAsTextEditor();
@@ -801,6 +818,11 @@ void AdeptIDE::typeCString(){
 void AdeptIDE::backspace(){
     if(this->terminal && this->terminal->isVisible()){
         this->terminal->backspace();
+        return;
+    }
+
+    if(this->fileLooker && this->fileLooker->isVisible()){
+        this->fileLooker->backspace();
         return;
     }
 
@@ -997,6 +1019,27 @@ void AdeptIDE::runFile(){
     chdir(cwd);
 }
 
+void AdeptIDE::lookForFile(){
+    if(!this->fileLooker) return;
+    this->fileLooker->toggleVisibility();
+}
+
+void AdeptIDE::cdFile(){
+    if(TextEditor *textEditor = this->getCurrentEditorAsTextEditor()){
+        if(this->terminal){
+            char *path = filename_path(textEditor->filename.c_str());
+            this->terminal->type("cd \"" + std::string(path) + "\"\n");
+            free(path);
+        }
+        return;
+    }
+
+    if(this->explorer && this->explorer->getFolderPath() != ""){
+        this->terminal->type("cd \"" + this->explorer->getFolderPath() + "\"\n");
+        return;
+    }
+}
+
 void AdeptIDE::createMessage(const std::string& message, double seconds){
     delete this->message;
     this->message = new Message(message, &font, seconds, width, height);
@@ -1033,6 +1076,7 @@ void key_callback(GLFWwindow *window, int key, int scancode, int action, int mod
     #endif
 
     if(key == GLFW_KEY_COMMA && input && CMDCTRL_MOD(mods)){
+        if(adeptide->fileLooker) adeptide->fileLooker->setVisibility(false);
         settings_menu(adeptide);
         return;
     }
@@ -1052,8 +1096,10 @@ void key_callback(GLFWwindow *window, int key, int scancode, int action, int mod
     #else
     if(key == GLFW_KEY_SLASH && input && mods & GLFW_MOD_CONTROL){
     #endif
-        if(adeptide->explorer)
+        if(adeptide->explorer){
             adeptide->explorer->toggleVisibility();
+            if(adeptide->fileLooker) adeptide->fileLooker->setVisibility(false);
+        }
     }
 
     #ifdef __APPLE__
@@ -1061,8 +1107,10 @@ void key_callback(GLFWwindow *window, int key, int scancode, int action, int mod
     #else
     if(key == GLFW_KEY_MINUS && input && mods & GLFW_MOD_CONTROL){
     #endif
-        if(adeptide->terminal)
+        if(adeptide->terminal){
             adeptide->terminal->toggleVisibility();
+            if(adeptide->fileLooker) adeptide->fileLooker->setVisibility(false);
+        }
     }
     
     if(key == GLFW_KEY_BACKSPACE && input){
@@ -1086,7 +1134,15 @@ void key_callback(GLFWwindow *window, int key, int scancode, int action, int mod
     }
 
     if(key == GLFW_KEY_ENTER && input){
-        if(mods & GLFW_MOD_SHIFT)
+        if(adeptide->fileLooker && adeptide->fileLooker->isVisible()){
+            std::string found = adeptide->fileLooker->look();
+            adeptide->fileLooker->setVisibility(false);
+            if(found != ""){
+                adeptide->openEditor(found);
+            } else {
+                adeptide->createMessage("No matches found", 1);
+            }
+        } else if(mods & GLFW_MOD_SHIFT)
             adeptide->nextLine();
         else if(CMDCTRL_MOD(mods))
             adeptide->nextPrecedingLine();
@@ -1096,6 +1152,7 @@ void key_callback(GLFWwindow *window, int key, int scancode, int action, int mod
     }
 
     if(key == GLFW_KEY_TAB && input){
+        if(adeptide->fileLooker) adeptide->fileLooker->setVisibility(false);
         adeptide->tab();
         adeptide->menubar.loseFocus();
     }
@@ -1105,7 +1162,9 @@ void key_callback(GLFWwindow *window, int key, int scancode, int action, int mod
     }
 
     if(key == GLFW_KEY_ESCAPE && action == GLFW_PRESS){
-        if(TextEditor *editor = adeptide->getCurrentEditorAsTextEditor()){
+        if(adeptide->fileLooker && adeptide->fileLooker->isVisible()){
+            adeptide->fileLooker->setVisibility(false);
+        } else if(TextEditor *editor = adeptide->getCurrentEditorAsTextEditor()){
             if(editor->hasSelection()){
                 adeptide->destroySelection();
             } else {
@@ -1118,25 +1177,20 @@ void key_callback(GLFWwindow *window, int key, int scancode, int action, int mod
         adeptide->menubar.loseFocus();
     }
 
-    #ifdef __APPLE__
-    if((key == GLFW_KEY_HOME || (key == GLFW_KEY_LEFT && mods & GLFW_MOD_SUPER)) && input){
-    #else
     if(key == GLFW_KEY_HOME && input){
-    #endif
+        if(adeptide->fileLooker) adeptide->fileLooker->setVisibility(false);
+
         if(glfwGetKey(window, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS)
             adeptide->startSelection();
 
         adeptide->moveCaretBeginningOfLine();
-
         adeptide->menubar.loseFocus();
         return;
     }
 
-    #ifdef __APPLE__
-    if((key == GLFW_KEY_END || (key == GLFW_KEY_RIGHT && mods & GLFW_MOD_SUPER)) && input){
-    #else
     if(key == GLFW_KEY_END && input){
-    #endif
+        if(adeptide->fileLooker) adeptide->fileLooker->setVisibility(false);
+
         if(glfwGetKey(window, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS)
             adeptide->startSelection();
 
@@ -1147,10 +1201,16 @@ void key_callback(GLFWwindow *window, int key, int scancode, int action, int mod
     }
 
     if(key == GLFW_KEY_LEFT && input){
+        if(adeptide->fileLooker) adeptide->fileLooker->setVisibility(false);
+
         if(glfwGetKey(window, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS)
             adeptide->startSelection();
 
+        #ifdef __APPLE__
+        if(mods & GLFW_MOD_CONTROL || mods & GLFW_MOD_SUPER) adeptide->moveCaretBeginningOfWord();
+        #else
         if(mods & GLFW_MOD_CONTROL) adeptide->moveCaretBeginningOfWord();
+        #endif
         else if(mods & GLFW_MOD_ALT) adeptide->moveCaretBeginningOfSubWord();
         else adeptide->moveCaretLeft();
 
@@ -1158,10 +1218,16 @@ void key_callback(GLFWwindow *window, int key, int scancode, int action, int mod
     }
 
     if(key == GLFW_KEY_RIGHT && input){
+        if(adeptide->fileLooker) adeptide->fileLooker->setVisibility(false);
+
         if(glfwGetKey(window, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS)
             adeptide->startSelection();
 
+        #ifdef __APPLE__
+        if(mods & GLFW_MOD_CONTROL || mods & GLFW_MOD_SUPER) adeptide->moveCaretEndOfWord();
+        #else
         if(mods & GLFW_MOD_CONTROL) adeptide->moveCaretEndOfWord();
+        #endif
         else if(mods & GLFW_MOD_ALT) adeptide->moveCaretEndOfSubWord();
         else adeptide->moveCaretRight();
 
@@ -1169,6 +1235,8 @@ void key_callback(GLFWwindow *window, int key, int scancode, int action, int mod
     }
 
     if(key == GLFW_KEY_UP && input){
+        if(adeptide->fileLooker) adeptide->fileLooker->setVisibility(false);
+
         if(adeptide->terminal && adeptide->terminal->isVisible()){
             adeptide->terminal->up();
         } else if(glfwGetKey(window, GLFW_KEY_LEFT_ALT) == GLFW_PRESS && glfwGetKey(window, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS){
@@ -1186,6 +1254,8 @@ void key_callback(GLFWwindow *window, int key, int scancode, int action, int mod
     }
 
     if(key == GLFW_KEY_DOWN && input){
+        if(adeptide->fileLooker) adeptide->fileLooker->setVisibility(false);
+
         if(adeptide->terminal && adeptide->terminal->isVisible()){
             adeptide->terminal->down();
         } else if(glfwGetKey(window, GLFW_KEY_LEFT_ALT) == GLFW_PRESS && glfwGetKey(window, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS){
@@ -1244,10 +1314,12 @@ void key_callback(GLFWwindow *window, int key, int scancode, int action, int mod
             if(mods & GLFW_MOD_SHIFT) theme_one_dark(adeptide);
             break;
         case GLFW_KEY_A:
+            if(adeptide->fileLooker) adeptide->fileLooker->setVisibility(false);
             adeptide->selectAll();
             adeptide->menubar.loseFocus();
             break;
         case GLFW_KEY_L:
+            if(adeptide->fileLooker) adeptide->fileLooker->setVisibility(false);
             adeptide->selectLine();
             adeptide->menubar.loseFocus();
             break;
@@ -1257,6 +1329,7 @@ void key_callback(GLFWwindow *window, int key, int scancode, int action, int mod
             adeptide->menubar.loseFocus();
             break;
         case GLFW_KEY_N:
+            if(adeptide->fileLooker) adeptide->fileLooker->setVisibility(false);
             if(mods & GLFW_MOD_SHIFT) open_playground_menu(adeptide);
             else adeptide->newFile(FileType::ADEPT);
             adeptide->menubar.loseFocus();
@@ -1266,7 +1339,7 @@ void key_callback(GLFWwindow *window, int key, int scancode, int action, int mod
             adeptide->menubar.loseFocus();
             break;
         case GLFW_KEY_P:
-            adeptide->createMessage("This is a test message with some text\nWe can put whatever in here", 3.0);
+            adeptide->lookForFile();
             adeptide->menubar.loseFocus();
             break;
         case GLFW_KEY_S:
@@ -1278,6 +1351,7 @@ void key_callback(GLFWwindow *window, int key, int scancode, int action, int mod
             adeptide->menubar.loseFocus();
             break;
         case GLFW_KEY_X:
+            if(adeptide->fileLooker) adeptide->fileLooker->setVisibility(false);
             adeptide->cutSelected();
             adeptide->menubar.loseFocus();
             break;
@@ -1286,6 +1360,7 @@ void key_callback(GLFWwindow *window, int key, int scancode, int action, int mod
             adeptide->menubar.loseFocus();
             break;
         case GLFW_KEY_W:
+            if(adeptide->fileLooker) adeptide->fileLooker->setVisibility(false);
             adeptide->removeCurrentEditor();
             adeptide->menubar.loseFocus();
             break;
@@ -1329,6 +1404,8 @@ void mouse_button_callback(GLFWwindow* window, int button, int action, int mods)
 }
 
 void handle_left_click(AdeptIDE *adeptide, double xpos, double ypos){
+    if(adeptide->fileLooker) adeptide->fileLooker->setVisibility(false);
+
     if(adeptide->menubar.leftClick(xpos, ypos, &adeptide->currentEditorIndex)){
         // Click menu
         adeptide->updateTitle();
@@ -1341,6 +1418,9 @@ void handle_left_click(AdeptIDE *adeptide, double xpos, double ypos){
     } else if(xpos >= 64.0f && xpos <= 96.0f && ypos >= 24.0f && ypos <= 24.0f + 32.0f){
         // Update Insight Tree Button
         adeptide->updateInsight();
+    } else if(xpos >= 96.0f && xpos <= 128.0f && ypos >= 24.0f && ypos <= 24.0f + 32.0f){
+        // Update Insight Tree Button
+        adeptide->cdFile();
     } else if(adeptide->explorer && adeptide->explorer->leftClick(adeptide, xpos, ypos)){
         // Click explorer
     } else {

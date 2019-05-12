@@ -519,6 +519,7 @@ size_t RichText::highlightLine(size_t lineBeginning, size_t line){
 
                 if(this->fileType == ADEPT && ascii == '$'){
                     size_t scan_i = i + 1;
+                    if(scan_i < this->text.length() && this->text[scan_i] == ':') scan_i++;
                     while(scan_i < this->text.length() && (charIsIdentifier(this->text[scan_i]) || charIsNumeric(this->text[scan_i]))) scan_i++;
                     this->setStringColor(i, scan_i - i, palette.type);
                     i = scan_i - 1;
