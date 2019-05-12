@@ -34,6 +34,9 @@ void ast_init(ast_t *ast){
     ast->polymorphic_funcs = NULL;
     ast->polymorphic_funcs_length = 0;
     ast->polymorphic_funcs_capacity = 0;
+    ast->polymorphic_methods = NULL;
+    ast->polymorphic_methods_length = 0;
+    ast->polymorphic_methods_capacity = 0;
     ast->polymorphic_structs = NULL;
     ast->polymorphic_structs_length = 0;
     ast->polymorphic_structs_capacity = 0;
@@ -95,6 +98,7 @@ void ast_free(ast_t *ast){
     }
     free(ast->meta_definitions);
     free(ast->polymorphic_funcs);
+    free(ast->polymorphic_methods);
     for(i = 0; i != ast->polymorphic_structs_length; i++){
         ast_free_structs((ast_struct_t*) &ast->polymorphic_structs[i], 1);
         freestrs(ast->polymorphic_structs[i].generics, ast->polymorphic_structs[i].generics_length);
@@ -561,6 +565,16 @@ successful_t ast_struct_find_field(ast_struct_t *ast_struct, const char *name, l
         }
     }
     return false;
+}
+
+ast_polymorphic_struct_t *ast_polymorphic_struct_find(ast_t *ast, const char *name){
+    // TODO: Maybe sort and do a binary serach or something
+    for(length_t i = 0; i != ast->polymorphic_structs_length; i++){
+        if(strcmp(ast->polymorphic_structs[i].name, name) == 0){
+            return &ast->polymorphic_structs[i];
+        }
+    }
+    return NULL;
 }
 
 successful_t ast_enum_find_kind(ast_enum_t *ast_enum, const char *name, length_t *out_index){

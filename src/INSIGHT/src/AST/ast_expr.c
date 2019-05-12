@@ -994,7 +994,7 @@ ast_expr_t *ast_expr_clone(ast_expr_t* expr){
         break;
 
         #undef expr_as_declare
-        #undef clone_as_declare    
+        #undef clone_as_declare
     case EXPR_ASSIGN: case EXPR_ADDASSIGN: case EXPR_SUBTRACTASSIGN:
     case EXPR_MULTIPLYASSIGN: case EXPR_DIVIDEASSIGN: case EXPR_MODULUSASSIGN:
         #define expr_as_assign ((ast_expr_assign_t*) expr)
@@ -1046,7 +1046,7 @@ ast_expr_t *ast_expr_clone(ast_expr_t* expr){
         #define expr_as_ifelse ((ast_expr_ifelse_t*) expr)
         #define clone_as_ifelse ((ast_expr_ifelse_t*) clone)
 
-        clone = malloc(sizeof(ast_expr_if_t));
+        clone = malloc(sizeof(ast_expr_ifelse_t));
         clone_as_ifelse->label = expr_as_ifelse->label;
         clone_as_ifelse->value = ast_expr_clone(expr_as_ifelse->value);
         clone_as_ifelse->statements_length = expr_as_ifelse->statements_length;

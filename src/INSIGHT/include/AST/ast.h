@@ -172,6 +172,11 @@ typedef struct {
     length_t polymorphic_funcs_length;
     length_t polymorphic_funcs_capacity;
 
+    // A second list of polymorphic functions that only contains methods
+    ast_polymorphic_func_t *polymorphic_methods;
+    length_t polymorphic_methods_length;
+    length_t polymorphic_methods_capacity;
+
     // Polymorphic structures
     ast_polymorphic_struct_t *polymorphic_structs;
     length_t polymorphic_structs_length;
@@ -238,6 +243,10 @@ void ast_enum_init(ast_enum_t *inum, weak_cstr_t name, weak_cstr_t *kinds, lengt
 // ---------------- ast_struct_find ----------------
 // Finds a structure by name
 ast_struct_t *ast_struct_find(ast_t *ast, const char *name);
+
+// ---------------- ast_polymorphic_struct_find ----------------
+// Finds a polymorphic structure by name
+ast_polymorphic_struct_t *ast_polymorphic_struct_find(ast_t *ast, const char *name);
 
 // ---------------- ast_struct_find_field ----------------
 // Finds a field by name within a structure

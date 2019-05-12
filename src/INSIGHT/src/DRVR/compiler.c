@@ -249,6 +249,8 @@ errorcode_t parse_arguments(compiler_t *compiler, object_t *object, int argc, ch
                 compiler->traits |= COMPILER_NO_UNDEF;
             } else if(strcmp(argv[arg_index], "--no-type-info") == 0){
                 compiler->traits |= COMPILER_NO_TYPE_INFO;
+            } else if(strcmp(argv[arg_index], "--unsafe-new") == 0){
+                compiler->traits |= COMPILER_UNSAFE_NEW;
             } else if(strcmp(argv[arg_index], "--null-checks") == 0){
                 compiler->checks |= COMPILER_NULL_CHECKS;
             }
@@ -423,8 +425,9 @@ void show_help(){
     printf("    -O                Set optimization level\n");
 
     printf("\nLanguage Options:\n");
-    printf("    --no-undef        Force initialize for 'undef'\n");
     printf("    --no-type-info    Disable runtime type information\n");
+    printf("    --no-undef        Force initialize for 'undef'\n");
+    printf("    --unsafe-new      Disables zero-initialization of memory allocated with 'new'\n");
     printf("    --null-checks     Enable runtime null-checks\n");
 
     #ifdef ENABLE_DEBUG_FEATURES
@@ -553,9 +556,7 @@ void compiler_warn(compiler_t *compiler, source_t source, const char *message){
     object_t *object = compiler->objects[source.object_index];
     int line, column;
     lex_get_location(object->buffer, source.index, &line, &column);
-    terminal_set_color(TERMINAL_COLOR_YELLOW);
-    printf("%s:%d:%d: %s\n", filename_name_const(object->filename), line, column, message);
-    terminal_set_color(TERMINAL_COLOR_DEFAULT);
+    yellowprintf("%s:%d:%d: %s\n", filename_name_const(object->filename), line, column, message);
 }
 
 void compiler_warnf(compiler_t *compiler, source_t source, const char *format, ...){
