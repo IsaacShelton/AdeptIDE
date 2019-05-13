@@ -1,6 +1,8 @@
 
 #include <math.h>
+#include <assert.h>
 #include <iostream>
+#include <algorithm>
 #include "INTERFACE/FileLooker.h"
 #include "UTIL/filename.h"
 #include "UTIL/animationMath.h"
@@ -86,6 +88,7 @@ bool FileLooker::scrollDownIfHovering(double x, double y, int lineCount){
 
 bool FileLooker::isBeingHovered(double x, double y){
     assert(false && "FileLooker::isBeingHovered is unimplemented");
+    return true;
 }
 
 bool FileLooker::isVisible(){
