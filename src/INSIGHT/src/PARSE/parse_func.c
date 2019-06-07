@@ -1,5 +1,6 @@
 
 #include "UTIL/util.h"
+#include "UTIL/search.h"
 #include "PARSE/parse.h"
 #include "PARSE/parse_func.h"
 #include "PARSE/parse_stmt.h"
@@ -14,6 +15,11 @@ errorcode_t parse_func(parse_ctx_t *ctx){
     bool is_stdcall, is_foreign;
 
     if(parse_func_head(ctx, &name, &is_stdcall, &is_foreign)) return FAILURE;
+
+    if(is_foreign && ctx->struct_association != NULL){
+        compiler_panicf(ctx->compiler, source, "Cannot declare foreign function within struct domain");
+        return FAILURE;
+    }
 
     expand((void**) &ast->funcs, sizeof(ast_func_t), ast->funcs_length, &ast->funcs_capacity, 1, 4);
 
@@ -36,12 +42,15 @@ errorcode_t parse_func(parse_ctx_t *ctx){
     }
     
     // enforce specific arguements for special functions & methods
-    if(strcmp(func->name, "__defer__") == 0 && (
-        func->traits != TRAIT_NONE
+    if(func->traits == AST_FUNC_DEFER && (
+        strcmp(func->name, "__defer__") != 0
         || !ast_type_is_void(&func->return_type)
         || func->arity != 1
         || strcmp(func->arg_names[0], "this") != 0
-        || !ast_type_is_base_ptr(&func->arg_types[0])
+        || !(  ast_type_is_base_ptr(&func->arg_types[0])
+            || ast_type_is_polymorph_ptr(&func->arg_types[0])
+            || ast_type_is_generic_base_ptr(&func->arg_types[0])
+            )
         || func->arg_type_traits[0] != TRAIT_NONE
     )){
         compiler_panic(ctx->compiler, source, "Management method __defer__ must be declared as 'func __defer__(this *T) void'");
@@ -50,7 +59,10 @@ errorcode_t parse_func(parse_ctx_t *ctx){
 
     if(strcmp(func->name, "__pass__") == 0 && (
         func->traits != TRAIT_NONE
-        || !ast_type_is_base(&func->return_type)
+        || !(  ast_type_is_base(&func->return_type)
+            || ast_type_is_polymorph(&func->return_type)
+            || ast_type_is_generic_base(&func->return_type)
+            )
         || func->arity != 1
         || !ast_types_identical(&func->return_type, &func->arg_types[0])
         || func->arg_type_traits[0] != AST_FUNC_ARG_TYPE_TRAIT_POD
@@ -64,13 +76,39 @@ errorcode_t parse_func(parse_ctx_t *ctx){
         || !ast_type_is_void(&func->return_type)
         || func->arity != 2
         || strcmp(func->arg_names[0], "this") != 0
-        || !ast_type_is_base_ptr(&func->arg_types[0])
+        || !(  ast_type_is_base_ptr(&func->arg_types[0])
+            || ast_type_is_polymorph_ptr(&func->arg_types[0])
+            || ast_type_is_generic_base_ptr(&func->arg_types[0])
+            )
         || !ast_type_is_pointer_to(&func->arg_types[0], &func->arg_types[1])
         || func->arg_type_traits[0] != TRAIT_NONE
         || func->arg_type_traits[1] != AST_FUNC_ARG_TYPE_TRAIT_POD
     )){
         compiler_panic(ctx->compiler, source, "Management method __assign__ must be declared as 'func __assign__(this *T, other POD T) void'");
         return FAILURE;
+    }
+
+    static const char *math_management_funcs[] = {
+        "__add__", "__divide__", "__equals__", "__greater_than__",
+        "__greater_than_or_equal__", "__less_than__", "__less_than_or_equal__",
+        "__modulus__", "__multiply__", "__not_equals__", "__subtract__"
+    };
+    static const length_t math_management_funcs_length = sizeof(math_management_funcs) / sizeof(const char*);
+    maybe_index_t math_func_index = binary_string_search(math_management_funcs, math_management_funcs_length, func->name);
+    
+    if(math_func_index != -1){
+        // Enforce math management function prototype
+        // NOTE: The type that's returned is up to the user
+        // NOTE: The first argument cannot be a pointer
+        if(func->arity != 2){
+            compiler_panicf(ctx->compiler, source, "Management method %s must take two arguments", func->name);
+            return FAILURE;
+        }
+
+        if(ast_type_is_pointer(&func->arg_types[0])){
+            compiler_panicf(ctx->compiler, source, "Management method %s cannot have a pointer as the first argument", func->name);
+            return FAILURE;
+        }
     }
 
     if(ast_func_is_polymorphic(func)){
@@ -161,6 +199,16 @@ errorcode_t parse_func_arguments(parse_ctx_t *ctx, ast_func_t *func){
     length_t capacity = 0;
 
     if(parse_ignore_newlines(ctx, "Expected '(' after function name")) return FAILURE;
+
+    if(ctx->struct_association){
+        parse_func_grow_arguments(func, backfill, &capacity);
+        func->arg_names[0] = strclone("this");
+        ast_type_make_base_ptr(&func->arg_types[0], strclone(ctx->struct_association->name));
+        func->arg_sources[0] = ctx->struct_association->source;
+        func->arg_flows[0] = FLOW_IN;
+        func->arg_type_traits[0] = TRAIT_NONE;
+        func->arity++;
+    }
 
     if(tokens[*i].id != TOKEN_OPEN) return SUCCESS;
     (*i)++; // Eat '('

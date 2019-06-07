@@ -17,6 +17,11 @@ errorcode_t parse_pragma(parse_ctx_t *ctx){
     token_t *tokens = ctx->tokenlist->tokens;
     maybe_null_weak_cstr_t read = NULL;
 
+    if(ctx->struct_association != NULL){
+        compiler_panicf(ctx->compiler, ctx->tokenlist->sources[*ctx->i], "Cannot pass pragma directives within struct domain");
+        return FAILURE;
+    }
+
     const char * const directives[] = {
         "compiler_supports", "compiler_version", "deprecated", "help", "mac_only", "no_type_info", "no_undef", "optimization", "options",
         "package", "project_name", "unsupported", "windows_only"
@@ -59,10 +64,8 @@ errorcode_t parse_pragma(parse_ctx_t *ctx){
         }
 
         // Check to make sure we support the target version
-        if(strcmp(read, "2.0") == 0){
+        if(strcmp(read, "2.0") == 0 || strcmp(read, "2.1") == 0){
             compiler_warnf(ctx->compiler, ctx->tokenlist->sources[*i], "This compiler only partially supports version '%s'", read);
-        } else if(strcmp(read, "2.1") == 0){
-            compiler_warnf(ctx->compiler, ctx->tokenlist->sources[*i], "This compiler only supports a superset of version '%s'", read);
         } else if(strcmp(read, "2.2") != 0){
             compiler_panicf(ctx->compiler, ctx->tokenlist->sources[*i], "This compiler doesn't support version '%s'", read);
             puts("\nSupported Versions: '2.0', '2.1', '2.2'");

@@ -7,6 +7,11 @@ errorcode_t parse_import(parse_ctx_t *ctx){
     // import 'somefile.adept'
     //   ^
 
+    if(ctx->struct_association != NULL){
+        compiler_panicf(ctx->compiler, ctx->tokenlist->sources[*ctx->i], "Cannot import dependencies within struct domain");
+        return FAILURE;
+    }
+
     maybe_null_weak_cstr_t file = parse_grab_string(ctx, "Expected filename string after 'import' keyword");
     if(file == NULL) return FAILURE;
 
@@ -31,9 +36,14 @@ errorcode_t parse_import(parse_ctx_t *ctx){
     return SUCCESS;
 }
 
-void parse_foreign_library(parse_ctx_t *ctx){
+errorcode_t parse_foreign_library(parse_ctx_t *ctx){
     // foreign 'libmycustomlibrary.a'
     //    ^
+
+    if(ctx->struct_association != NULL){
+        compiler_panicf(ctx->compiler, ctx->tokenlist->sources[*ctx->i], "Cannot declare foreign dependencies within struct domain");
+        return FAILURE;
+    }
 
     // Assume the token we're currently on is 'foreign' keyword
     maybe_null_weak_cstr_t library = parse_grab_string(ctx, "INTERNAL ERROR: Assumption failed that 'foreign' keyword would be proceeded by a string, will probably crash...");
@@ -59,6 +69,7 @@ void parse_foreign_library(parse_ctx_t *ctx){
 
     if(!is_framework) library = filename_local(ctx->object->filename, library);
     ast_add_foreign_library(ctx->ast, library, is_framework);
+    return SUCCESS;
 }
 
 errorcode_t parse_import_object(parse_ctx_t *ctx, strong_cstr_t relative_filename, strong_cstr_t absolute_filename) {

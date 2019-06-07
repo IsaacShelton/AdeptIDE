@@ -297,7 +297,8 @@ void ast_dump_statements(FILE *file, ast_expr_t **statements, length_t length, l
             break;
         case EXPR_CALL: {
                 ast_expr_call_t *call_stmt = (ast_expr_call_t*) statements[s];
-                fprintf(file, "%s(", call_stmt->name);
+
+                fprintf(file, "%s%s(", call_stmt->name, call_stmt->is_tentative ? "?" : "");
                 for(length_t arg_index = 0; arg_index != call_stmt->arity; arg_index++){
                     char *arg_str = ast_expr_str(call_stmt->args[arg_index]);
                     if(arg_index + 1 != call_stmt->arity) fprintf(file, "%s, ", arg_str);
@@ -365,7 +366,7 @@ void ast_dump_statements(FILE *file, ast_expr_t **statements, length_t length, l
         case EXPR_CALL_METHOD: {
                 ast_expr_call_method_t *call_stmt = (ast_expr_call_method_t*) statements[s];
                 char *value_str = ast_expr_str(call_stmt->value);
-                fprintf(file, "%s.%s(", value_str, call_stmt->name);
+                fprintf(file, "%s.%s%s(", value_str, call_stmt->name, call_stmt->is_tentative ? "?" : "");
                 free(value_str);
                 for(length_t arg_index = 0; arg_index != call_stmt->arity; arg_index++){
                     char *arg_str = ast_expr_str(call_stmt->args[arg_index]);
@@ -499,9 +500,10 @@ void ast_func_create_template(ast_func_t *func, strong_cstr_t name, bool is_stdc
     func->statements_capacity = 0;
     func->source = source;
 
-    if(strcmp(name, "main") == 0) func->traits |= AST_FUNC_MAIN;
-    if(is_stdcall)                func->traits |= AST_FUNC_STDCALL;
-    if(is_foreign)                func->traits |= AST_FUNC_FOREIGN;
+    if(strcmp(name, "main") == 0)      func->traits |= AST_FUNC_MAIN;
+    if(strcmp(name, "__defer__") == 0) func->traits |= AST_FUNC_DEFER;
+    if(is_stdcall)                     func->traits |= AST_FUNC_STDCALL;
+    if(is_foreign)                     func->traits |= AST_FUNC_FOREIGN;
 }
 
 bool ast_func_is_polymorphic(ast_func_t *func){
@@ -646,18 +648,20 @@ void ast_add_enum(ast_t *ast, weak_cstr_t name, weak_cstr_t *kinds, length_t len
     ast_enum_init(&ast->enums[ast->enums_length++], name, kinds, length, source);
 }
 
-void ast_add_struct(ast_t *ast, strong_cstr_t name, strong_cstr_t *names, ast_type_t *types,
+ast_struct_t *ast_add_struct(ast_t *ast, strong_cstr_t name, strong_cstr_t *names, ast_type_t *types,
         length_t length, trait_t traits, source_t source){
     expand((void**) &ast->structs, sizeof(ast_struct_t), ast->structs_length, &ast->structs_capacity, 1, 4);
     ast_struct_t *structure = &ast->structs[ast->structs_length++];
     ast_struct_init(structure, name, names, types, length, traits, source);
+    return structure;
 }
 
-void ast_add_polymorphic_struct(ast_t *ast, strong_cstr_t name, strong_cstr_t *names, ast_type_t *types,
+ast_polymorphic_struct_t *ast_add_polymorphic_struct(ast_t *ast, strong_cstr_t name, strong_cstr_t *names, ast_type_t *types,
         length_t length, trait_t traits, source_t source, strong_cstr_t *generics, length_t generics_length){
     expand((void**) &ast->polymorphic_structs, sizeof(ast_polymorphic_struct_t), ast->polymorphic_structs_length, &ast->polymorphic_structs_capacity, 1, 4);
     ast_polymorphic_struct_t *poly_structure = &ast->polymorphic_structs[ast->polymorphic_structs_length++];
     ast_polymorphic_struct_init(poly_structure, name, names, types, length, traits, source, generics, generics_length);
+    return poly_structure;
 }
 
 void ast_add_global(ast_t *ast, weak_cstr_t name, ast_type_t type, ast_expr_t *initial_value, trait_t traits, source_t source){

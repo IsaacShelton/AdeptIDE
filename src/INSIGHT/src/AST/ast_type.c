@@ -476,10 +476,17 @@ bool ast_types_identical(const ast_type_t *a, const ast_type_t *b){
                 }
 
                 if(generic_base_a->generics_length != generic_base_b->generics_length) return false;
+                if(strcmp(generic_base_a->name, generic_base_b->name) != 0) return false;
 
                 for(length_t i = 0; i != generic_base_a->generics_length; i++){
                     if(!ast_types_identical(&generic_base_a->generics[i], &generic_base_b->generics[i])) return false;
                 }
+            }
+            break;
+        case AST_ELEM_POLYMORPH: {
+                ast_elem_polymorph_t *polymorph_a = (ast_elem_polymorph_t*) a->elements[i];
+                ast_elem_polymorph_t *polymorph_b = (ast_elem_polymorph_t*) b->elements[i];
+                if(strcmp(polymorph_a->name, polymorph_b->name) != 0) return false;
             }
             break;
         default:
@@ -523,6 +530,10 @@ bool ast_type_is_base_ptr_of(const ast_type_t *type, const char *base){
     return true;
 }
 
+bool ast_type_is_pointer(const ast_type_t *type){
+    return type->elements_length > 1 && type->elements[0]->id == AST_ELEM_POINTER;
+}
+
 bool ast_type_is_pointer_to(const ast_type_t *type, const ast_type_t *to){
     if(type->elements_length < 2 || type->elements_length != to->elements_length + 1) return false;
     if(type->elements[0]->id != AST_ELEM_POINTER) return false;
@@ -534,6 +545,30 @@ bool ast_type_is_pointer_to(const ast_type_t *type, const ast_type_t *to){
     stripped.elements_length--;
     
     return ast_types_identical(&stripped, to);
+}
+
+bool ast_type_is_polymorph(const ast_type_t *type){
+    if(type->elements_length != 1) return false;
+    if(type->elements[0]->id != AST_ELEM_POLYMORPH) return false;
+    return true;
+}
+
+bool ast_type_is_polymorph_ptr(const ast_type_t *type){
+    if(type->elements_length != 2) return false;
+    if(type->elements[0]->id != AST_ELEM_POINTER || type->elements[1]->id != AST_ELEM_POLYMORPH) return false;
+    return true;
+}
+
+bool ast_type_is_generic_base(const ast_type_t *type){
+    if(type->elements_length != 1) return false;
+    if(type->elements[0]->id != AST_ELEM_GENERIC_BASE) return false;
+    return true;
+}
+
+bool ast_type_is_generic_base_ptr(const ast_type_t *type){
+    if(type->elements_length != 2) return false;
+    if(type->elements[0]->id != AST_ELEM_POINTER || type->elements[1]->id != AST_ELEM_GENERIC_BASE) return false;
+    return true;
 }
 
 bool ast_type_has_polymorph(const ast_type_t *type){
@@ -654,6 +689,7 @@ bool ast_type_polymorphable(const ast_type_t *polymorphic_type, const ast_type_t
                 }
 
                 if(generic_base_a->generics_length != generic_base_b->generics_length) return false;
+                if(strcmp(generic_base_a->name, generic_base_b->name) != 0) return false;
 
                 for(length_t i = 0; i != generic_base_a->generics_length; i++){
                     if(!ast_type_polymorphable(&generic_base_a->generics[i], &generic_base_b->generics[i], catalog)) return false;

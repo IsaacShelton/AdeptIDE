@@ -1,5 +1,6 @@
 
 #include "UTIL/util.h"
+#include "UTIL/search.h"
 #include "PARSE/parse_expr.h"
 #include "PARSE/parse_util.h"
 #include "PARSE/parse_type.h"
@@ -126,6 +127,12 @@ errorcode_t parse_primary_expr(parse_ctx_t *ctx, ast_expr_t **out_expr){
     case TOKEN_TYPEINFO:
         if(parse_expr_typeinfo(ctx, out_expr)) return FAILURE;
         break;
+    case TOKEN_INCREMENT:
+        if(parse_expr_preincrement(ctx, out_expr)) return FAILURE;
+        break;
+    case TOKEN_DECREMENT:
+        if(parse_expr_predecrement(ctx, out_expr)) return FAILURE;
+        break;
     default:
         parse_panic_token(ctx, sources[*i], tokens[*i].id, "Unexpected token '%s' in expression");
         return FAILURE;
@@ -172,6 +179,9 @@ errorcode_t parse_expr_post(parse_ctx_t *ctx, ast_expr_t **inout_expr){
             }
             break;
         case TOKEN_MEMBER: {
+                bool is_tentative = tokens[*i + 1].id == TOKEN_MAYBE;
+                if(is_tentative) (*i)++;
+
                 if(tokens[++(*i)].id != TOKEN_WORD){
                     compiler_panic(ctx->compiler, sources[*i - 1], "Expected identifier after '.' operator");
                     return FAILURE;
@@ -186,6 +196,7 @@ errorcode_t parse_expr_post(parse_ctx_t *ctx, ast_expr_t **inout_expr){
                     call_expr->source = sources[*i - 2];
                     call_expr->arity = 0;
                     call_expr->args = NULL;
+                    call_expr->is_tentative = is_tentative;
                     *i += 2;
 
                     // value.method(arg1, arg2, ...)
@@ -240,6 +251,11 @@ errorcode_t parse_expr_post(parse_ctx_t *ctx, ast_expr_t **inout_expr){
                     *inout_expr = (ast_expr_t*) call_expr;
                     (*i)++;
                 } else {
+                    if(is_tentative){
+                        compiler_panic(ctx->compiler, sources[*i - 2], "Cannot have tentative field access");
+                        return FAILURE;
+                    }
+
                     // Member access expression
                     ast_expr_member_t *memb_expr = malloc(sizeof(ast_expr_member_t));
                     memb_expr->id = EXPR_MEMBER;
@@ -267,6 +283,34 @@ errorcode_t parse_expr_post(parse_ctx_t *ctx, ast_expr_t **inout_expr){
                 *inout_expr = (ast_expr_t*) at_expr;
             }
             break;
+        case TOKEN_MAYBE: {
+                ast_expr_t *expr_a, *expr_b;
+                source_t source = sources[(*i)++];
+                if(parse_expr(ctx, &expr_a)) return FAILURE;
+
+                if(tokens[(*i)++].id != TOKEN_COLON){
+                    compiler_panic(ctx->compiler, sources[*i - 1], "Ternary operator expected ':' after expression");
+                    ast_expr_free_fully(expr_a);
+                    return FAILURE;
+                }
+
+                if(parse_expr(ctx, &expr_b)) return FAILURE;
+                ast_expr_create_ternary(inout_expr, *inout_expr, expr_a, expr_b, source);
+            }
+            break;
+        case TOKEN_INCREMENT: case TOKEN_DECREMENT: {
+                if(!expr_is_mutable(*inout_expr)){
+                    compiler_panicf(ctx->compiler, sources[*i], "Can only %s mutable values", tokens[*i].id == TOKEN_INCREMENT ? "increment" : "decrement");
+                    return FAILURE;
+                }
+
+                ast_expr_unary_t *increment = (ast_expr_unary_t*) malloc(sizeof(ast_expr_unary_t));
+                increment->id = tokens[*i].id == TOKEN_INCREMENT ? EXPR_POSTINCREMENT : EXPR_POSTDECREMENT;
+                increment->source = sources[(*i)++];
+                increment->value = *inout_expr;
+                *inout_expr = (ast_expr_t*) increment;
+            }
+            break;
         default:
             return SUCCESS;
         }
@@ -291,13 +335,29 @@ errorcode_t parse_op_expr(parse_ctx_t *ctx, int precedence, ast_expr_t **inout_l
 
         if(keep_mutable) return SUCCESS;
 
-        if(operator == TOKEN_NEWLINE || operator == TOKEN_END || operator == TOKEN_CLOSE
-            || operator == TOKEN_NEXT || operator == TOKEN_TERMINATE_JOIN
-            || operator == TOKEN_BEGIN || operator == TOKEN_BRACKET_CLOSE
-            || operator == TOKEN_ASSIGN || operator == TOKEN_ADDASSIGN
-            || operator == TOKEN_SUBTRACTASSIGN || operator == TOKEN_MULTIPLYASSIGN
-            || operator == TOKEN_DIVIDEASSIGN || operator == TOKEN_MODULUSASSIGN
-            || operator == TOKEN_ELSE) return SUCCESS;
+        // NOTE: Must be sorted
+        const static int op_termination_tokens[] = {
+            TOKEN_ASSIGN,         // 0x00000008
+            TOKEN_CLOSE,          // 0x00000011
+            TOKEN_BEGIN,          // 0x00000012
+            TOKEN_END,            // 0x00000013
+            TOKEN_NEWLINE,        // 0x00000014
+            TOKEN_NEXT,           // 0x00000021
+            TOKEN_BRACKET_CLOSE,  // 0x00000023
+            TOKEN_ADDASSIGN,      // 0x00000027
+            TOKEN_SUBTRACTASSIGN, // 0x00000028
+            TOKEN_MULTIPLYASSIGN, // 0x00000029
+            TOKEN_DIVIDEASSIGN,   // 0x0000002A
+            TOKEN_MODULUSASSIGN,  // 0x0000002B
+            TOKEN_TERMINATE_JOIN, // 0x0000002F
+            TOKEN_COLON,          // 0x00000030
+            TOKEN_MAYBE,          // 0x0000003B
+            TOKEN_ELSE            // 0x0000004E
+        };
+
+        // Terminate operator expression portion if termination operator encountered
+        if(binary_int_search(op_termination_tokens, sizeof(op_termination_tokens) / sizeof(int), operator) != -1)
+            return SUCCESS;
 
         #define BUILD_MATH_EXPR_MACRO(new_built_expr_id) { \
             if(parse_rhs_expr(ctx, inout_left, &right, operator_precedence)) return FAILURE; \
@@ -310,29 +370,31 @@ errorcode_t parse_op_expr(parse_ctx_t *ctx, int precedence, ast_expr_t **inout_l
         }
 
         switch(operator){
-        case TOKEN_ADD:            BUILD_MATH_EXPR_MACRO(EXPR_ADD);        break;
-        case TOKEN_SUBTRACT:       BUILD_MATH_EXPR_MACRO(EXPR_SUBTRACT);   break;
-        case TOKEN_MULTIPLY:       BUILD_MATH_EXPR_MACRO(EXPR_MULTIPLY);   break;
-        case TOKEN_DIVIDE:         BUILD_MATH_EXPR_MACRO(EXPR_DIVIDE);     break;
-        case TOKEN_MODULUS:        BUILD_MATH_EXPR_MACRO(EXPR_MODULUS);    break;
-        case TOKEN_EQUALS:         BUILD_MATH_EXPR_MACRO(EXPR_EQUALS);     break;
-        case TOKEN_NOTEQUALS:      BUILD_MATH_EXPR_MACRO(EXPR_NOTEQUALS);  break;
-        case TOKEN_GREATERTHAN:    BUILD_MATH_EXPR_MACRO(EXPR_GREATER);    break;
-        case TOKEN_LESSTHAN:       BUILD_MATH_EXPR_MACRO(EXPR_LESSER);     break;
-        case TOKEN_GREATERTHANEQ:  BUILD_MATH_EXPR_MACRO(EXPR_GREATEREQ);  break;
-        case TOKEN_LESSTHANEQ:     BUILD_MATH_EXPR_MACRO(EXPR_LESSEREQ);   break;
-        case TOKEN_BIT_AND:        BUILD_MATH_EXPR_MACRO(EXPR_BIT_AND);    break;
-        case TOKEN_BIT_OR:         BUILD_MATH_EXPR_MACRO(EXPR_BIT_OR);     break;
-        case TOKEN_BIT_XOR:        BUILD_MATH_EXPR_MACRO(EXPR_BIT_XOR);    break;
-        case TOKEN_BIT_LSHIFT:     BUILD_MATH_EXPR_MACRO(EXPR_BIT_LSHIFT); break;
-        case TOKEN_BIT_RSHIFT:     BUILD_MATH_EXPR_MACRO(EXPR_BIT_RSHIFT); break;
+        case TOKEN_ADD:            BUILD_MATH_EXPR_MACRO(EXPR_ADD);            break;
+        case TOKEN_SUBTRACT:       BUILD_MATH_EXPR_MACRO(EXPR_SUBTRACT);       break;
+        case TOKEN_MULTIPLY:       BUILD_MATH_EXPR_MACRO(EXPR_MULTIPLY);       break;
+        case TOKEN_DIVIDE:         BUILD_MATH_EXPR_MACRO(EXPR_DIVIDE);         break;
+        case TOKEN_MODULUS:        BUILD_MATH_EXPR_MACRO(EXPR_MODULUS);        break;
+        case TOKEN_EQUALS:         BUILD_MATH_EXPR_MACRO(EXPR_EQUALS);         break;
+        case TOKEN_NOTEQUALS:      BUILD_MATH_EXPR_MACRO(EXPR_NOTEQUALS);      break;
+        case TOKEN_GREATERTHAN:    BUILD_MATH_EXPR_MACRO(EXPR_GREATER);        break;
+        case TOKEN_LESSTHAN:       BUILD_MATH_EXPR_MACRO(EXPR_LESSER);         break;
+        case TOKEN_GREATERTHANEQ:  BUILD_MATH_EXPR_MACRO(EXPR_GREATEREQ);      break;
+        case TOKEN_LESSTHANEQ:     BUILD_MATH_EXPR_MACRO(EXPR_LESSEREQ);       break;
+        case TOKEN_BIT_AND:        BUILD_MATH_EXPR_MACRO(EXPR_BIT_AND);        break;
+        case TOKEN_BIT_OR:         BUILD_MATH_EXPR_MACRO(EXPR_BIT_OR);         break;
+        case TOKEN_BIT_XOR:        BUILD_MATH_EXPR_MACRO(EXPR_BIT_XOR);        break;
+        case TOKEN_BIT_LSHIFT:     BUILD_MATH_EXPR_MACRO(EXPR_BIT_LSHIFT);     break;
+        case TOKEN_BIT_RSHIFT:     BUILD_MATH_EXPR_MACRO(EXPR_BIT_RSHIFT);     break;
         case TOKEN_BIT_LGC_LSHIFT: BUILD_MATH_EXPR_MACRO(EXPR_BIT_LGC_LSHIFT); break;
         case TOKEN_BIT_LGC_RSHIFT: BUILD_MATH_EXPR_MACRO(EXPR_BIT_LGC_RSHIFT); break;
         case TOKEN_AND:
-        case TOKEN_UBERAND:        BUILD_MATH_EXPR_MACRO(EXPR_AND);        break;
+        case TOKEN_UBERAND:        BUILD_MATH_EXPR_MACRO(EXPR_AND);            break;
         case TOKEN_OR:
-        case TOKEN_UBEROR:         BUILD_MATH_EXPR_MACRO(EXPR_OR);         break;
-        case TOKEN_AS: if(parse_expr_as(ctx, inout_left)) return FAILURE;       break;
+        case TOKEN_UBEROR:         BUILD_MATH_EXPR_MACRO(EXPR_OR);             break;
+        case TOKEN_AS:
+            if(parse_expr_as(ctx, inout_left)) return FAILURE;
+            break;
         default:
             parse_panic_token(ctx, sources[*i], tokens[*i].id, "Unrecognized operator '%s' in expression");
             ast_expr_free_fully(*inout_left);
@@ -400,8 +462,16 @@ errorcode_t parse_expr_call(parse_ctx_t *ctx, ast_expr_t **out_expr){
     ast_expr_t *arg;
     length_t max_arity = 0;
 
-    // Assume that '(' token follows
-    *i += 2;
+    // Determine whether call is tentative, assume that '(' token follows
+    bool is_tentative;
+    (*i)++;
+
+    if(tokens[(*i)++].id == TOKEN_MAYBE){
+        is_tentative = true;
+        (*i)++;
+    } else {
+        is_tentative = false;
+    }
 
     while(tokens[*i].id != TOKEN_CLOSE){
         if(parse_expr(ctx, &arg)){
@@ -423,7 +493,12 @@ errorcode_t parse_expr_call(parse_ctx_t *ctx, ast_expr_t **out_expr){
         }
     }
 
-    ast_expr_create_call(out_expr, name, arity, args, source);
+    if(is_tentative){
+        compiler_panic(ctx->compiler, source, "Tentative calls cannot be used in expressions");
+        return FAILURE;
+    }
+
+    ast_expr_create_call(out_expr, name, arity, args, is_tentative, source);
     *i += 1;
     return SUCCESS;
 }
@@ -457,7 +532,7 @@ errorcode_t parse_expr_address(parse_ctx_t *ctx, ast_expr_t **out_expr){
         return FAILURE;
     }
 
-    if(!EXPR_IS_MUTABLE(addr_expr->value->id)){
+    if(!expr_is_mutable(addr_expr->value)){
         compiler_panic(ctx->compiler, addr_expr->value->source, "The '&' operator requires the operand to be mutable");
         ast_expr_free_fully((ast_expr_t*) addr_expr);
         return FAILURE;
@@ -822,6 +897,46 @@ errorcode_t parse_expr_typeinfo(parse_ctx_t *ctx, ast_expr_t **out_expr){
     }
 
     *out_expr = (ast_expr_t*) typeinfo;
+    return SUCCESS;
+}
+
+errorcode_t parse_expr_preincrement(parse_ctx_t *ctx, ast_expr_t **out_expr){
+    ast_expr_unary_t *preincrement_expr = malloc(sizeof(ast_expr_unary_t));
+    preincrement_expr->id = EXPR_PREINCREMENT;
+    preincrement_expr->source = ctx->tokenlist->sources[(*ctx->i)++];
+
+    if(parse_primary_expr(ctx, &preincrement_expr->value) || parse_op_expr(ctx, 0, &preincrement_expr->value, true)){
+        free(preincrement_expr);
+        return FAILURE;
+    }
+
+    if(!expr_is_mutable(preincrement_expr->value)){
+        compiler_panic(ctx->compiler, preincrement_expr->value->source, "The '++' operator requires the operand to be mutable");
+        ast_expr_free_fully((ast_expr_t*) preincrement_expr);
+        return FAILURE;
+    }
+    
+    *out_expr = (ast_expr_t*) preincrement_expr;
+    return SUCCESS;
+}
+
+errorcode_t parse_expr_predecrement(parse_ctx_t *ctx, ast_expr_t **out_expr){
+    ast_expr_unary_t *predecrement_expr = malloc(sizeof(ast_expr_unary_t));
+    predecrement_expr->id = EXPR_PREDECREMENT;
+    predecrement_expr->source = ctx->tokenlist->sources[(*ctx->i)++];
+
+    if(parse_primary_expr(ctx, &predecrement_expr->value) || parse_op_expr(ctx, 0, &predecrement_expr->value, true)){
+        free(predecrement_expr);
+        return FAILURE;
+    }
+
+    if(!expr_is_mutable(predecrement_expr->value)){
+        compiler_panic(ctx->compiler, predecrement_expr->value->source, "The '--' operator requires the operand to be mutable");
+        ast_expr_free_fully((ast_expr_t*) predecrement_expr);
+        return FAILURE;
+    }
+    
+    *out_expr = (ast_expr_t*) predecrement_expr;
     return SUCCESS;
 }
 

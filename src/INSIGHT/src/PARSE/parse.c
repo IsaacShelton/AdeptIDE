@@ -47,7 +47,7 @@ errorcode_t parse_tokens(parse_ctx_t *ctx){
             break;
         case TOKEN_FOREIGN:
             if(tokens[i + 1].id == TOKEN_STRING || tokens[i + 1].id == TOKEN_CSTRING){
-                parse_foreign_library(ctx);
+                if(parse_foreign_library(ctx)) return FAILURE;
                 break;
             }
             if(parse_func(ctx)) return FAILURE;
@@ -74,10 +74,22 @@ errorcode_t parse_tokens(parse_ctx_t *ctx){
         case TOKEN_META:
             if(parse_meta(ctx)) return FAILURE;
             break;
+        case TOKEN_END:
+            if(ctx->struct_association == NULL){
+                compiler_panicf(ctx->compiler, ctx->tokenlist->sources[*ctx->i], "Unexpected trailing closing brace '}'");
+                return FAILURE;
+            }
+            ctx->struct_association = NULL;
+            break;
         default:
             parse_panic_token(ctx, ctx->tokenlist->sources[i], tokens[i].id, "Encountered unexpected token '%s' in global scope");
             return FAILURE;
         }
+    }
+
+    if(ctx->struct_association != NULL){
+        compiler_panicf(ctx->compiler, ctx->tokenlist->sources[*ctx->i], "Expected closing brace '}' for struct domain");
+        return FAILURE;
     }
 
     return SUCCESS;
