@@ -17,14 +17,15 @@
         },
         {
             "name": "MinGW",
-            "intelliSenseMode": "clang-x64",
+            "intelliSenseMode": "gcc-x64",
             "compilerPath": "C:/Users/isaac/Projects/mingw64/bin/gcc.exe",
             "includePath": [
                 "${workspaceFolder}",
                 "${workspaceFolder}\\**",
+                "${workspaceFolder}\\src\\INSIGHT\\include\\**",
                 "C:\\Users\\isaac\\Projects\\mingw64\\include",
                 "C:\\Users\\isaac\\Projects\\mingw64\\x86_64-w64-mingw32\\include",
-                "C:\\Users\\isaac\\Projects\\mingw64\\lib\\gcc\\mingw32\\4.8.1\\include\\c++"
+                "C:\\Users\\isaac\\Projects\\mingw64\\lib\\gcc\\x86_64-w64-mingw32\\8.1.0\\include\\c++"
             ],
             "defines": [
                 "__MINGW32__",
@@ -34,9 +35,10 @@
                 "path": [
                     "${workspaceFolder}",
                     "${workspaceFolder}/**",
+                    "${workspaceFolder}/src/INSIGHT/include/**",
                     "C:/Users/isaac/Projects/mingw64/include",
                     "C:/Users/isaac/Projects/mingw64/x86_64-w64-mingw32/include",
-                    "C:/Users/isaac/Projects/mingw64/lib/gcc/mingw32/4.8.1/include/c++"
+                    "C:/Users/isaac/Projects/mingw64/lib/gcc/x86_64-w64-mingw32/8.1.0/include/c++"
                 ],
                 "limitSymbolsToIncludedHeaders": true,
                 "databaseFilename": ""
