@@ -61,6 +61,7 @@ public:
     void append(unsigned int codepoint);
     void append(const std::string& text);
     void clear();
+    void paste(GLFWwindow *window);
 
     bool scrollDownIfHovering(double x, double y, double windowHeight, int lineCount);
     bool scrollUpIfHovering(double x, double y, double windowHeight, int lineCount);
