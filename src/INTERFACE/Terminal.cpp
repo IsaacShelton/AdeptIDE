@@ -190,6 +190,10 @@ void Terminal::clear(){
     this->scroll = 0;
 }
 
+void Terminal::paste(GLFWwindow *window){
+    this->type(std::string(glfwGetClipboardString(window)));
+}
+
 bool Terminal::scrollDownIfHovering(double x, double y, double windowHeight, int lineAmount){
     if(!this->visible || !this->isBeingHovered(x, y, windowHeight)) return false;
 

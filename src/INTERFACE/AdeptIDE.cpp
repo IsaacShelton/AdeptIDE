@@ -886,8 +886,11 @@ void AdeptIDE::cutSelected(){
 }
 
 void AdeptIDE::paste(){
-    TextEditor *currentTextEditor = this->getCurrentEditorAsTextEditor();
-    if(currentTextEditor) currentTextEditor->paste(this->window);
+    if(this->terminal && this->terminal->isVisible()){
+        this->terminal->paste(this->window);
+    } else if(TextEditor *currentTextEditor = this->getCurrentEditorAsTextEditor()){
+        currentTextEditor->paste(this->window);
+    }
 }
 
 void AdeptIDE::tab(){

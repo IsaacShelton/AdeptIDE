@@ -12,6 +12,7 @@
 #include <sys/select.h>
 #include <sys/ioctl.h>
 #include <unistd.h>
+#include <time.h>
 #endif
 
 #include <string.h>
@@ -129,6 +130,7 @@ WindowsCMD::WindowsCMD(const std::string& shell, const std::vector<std::string> 
             }
 
             this->mutex.unlock();
+            Sleep(10);
         }
 
         CloseHandle(pi.hThread);
@@ -250,6 +252,14 @@ UnixPTY::UnixPTY(const std::string& shell, const std::vector<std::string> argume
                 }
 
                 this->mutex.unlock();
+                
+                // EXPERIMENTAL: Sleep for 10ms
+                /*
+                struct timespec ts;
+                ts.tv_sec = 0;
+                ts.tv_nsec = 10000000;
+                nanosleep(&ts, NULL);
+                */
             }
 
             this->mutex.lock();
