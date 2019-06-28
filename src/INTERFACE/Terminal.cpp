@@ -191,7 +191,8 @@ void Terminal::clear(){
 }
 
 void Terminal::paste(GLFWwindow *window){
-    this->type(std::string(glfwGetClipboardString(window)));
+    const char *clipboard = glfwGetClipboardString(window);
+    if(clipboard) this->type(std::string(clipboard));
 }
 
 bool Terminal::scrollDownIfHovering(double x, double y, double windowHeight, int lineAmount){
