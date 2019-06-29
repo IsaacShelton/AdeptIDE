@@ -205,7 +205,7 @@ bool objectIntoSettings(Settings *settings, nlohmann::json object){
         if(setting(it, "ide.default.width", &settings->ide_default_width)) continue;
         if(setting(it, "ide.default.height", &settings->ide_default_height)) continue;
         if(setting(it, "ide.default.fps", &settings->ide_default_fps)){
-            //glfwSwapInterval(settings->ide_default_fps <= 0 ? 0 : 60 / settings->ide_default_fps);
+            glfwSwapInterval(settings->ide_default_fps <= 0 ? 0 : 60 / settings->ide_default_fps);
             continue;
         }
         if(setting(it, "ide.quicktype", &settings->ide_quicktype)) continue;

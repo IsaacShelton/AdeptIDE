@@ -534,7 +534,8 @@ void TextEditor::cutSelected(GLFWwindow *window){
 }
 
 void TextEditor::paste(GLFWwindow *window){
-    this->type(std::string(glfwGetClipboardString(window)));
+    const char *clipboard = glfwGetClipboardString(window);
+    if(clipboard) this->type(std::string(clipboard));
 }
 
 void TextEditor::tab(){

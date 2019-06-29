@@ -124,8 +124,7 @@ int AdeptIDE::main(int argc, const char **argv){
     }
 
     glfwMakeContextCurrent(this->window);
-    glfwSwapInterval(0);
-    //glfwSwapInterval(this->settings.ide_default_fps <= 0 ? 0 : 60 / this->settings.ide_default_fps);
+    glfwSwapInterval(this->settings.ide_default_fps <= 0 ? 0 : 60 / this->settings.ide_default_fps);
 
     if(glewInit() != GLEW_OK){
         std::cerr << "Failed to initialize GLEW" << std::endl;
@@ -816,13 +815,13 @@ void AdeptIDE::typeCString(){
 }
 
 void AdeptIDE::backspace(){
-    if(this->terminal && this->terminal->isVisible()){
-        this->terminal->backspace();
-        return;
-    }
-
     if(this->fileLooker && this->fileLooker->isVisible()){
         this->fileLooker->backspace();
+        return;
+    }
+    
+    if(this->terminal && this->terminal->isVisible()){
+        this->terminal->backspace();
         return;
     }
 
