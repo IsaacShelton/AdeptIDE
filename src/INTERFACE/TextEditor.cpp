@@ -941,6 +941,10 @@ void TextEditor::saveFile(){
     this->makeAst();
 }
 
+void TextEditor::undo(){
+    
+}
+
 void TextEditor::getRowAndColumnAt(double xpos, double ypos, int *out_row, int *out_column){
     xpos -= this->xOffset - (this->font->mono_character_width * FONT_SCALE * 0.5f) + this->textXOffset;
     ypos -= this->yOffset - this->calculateScrollOffset();
