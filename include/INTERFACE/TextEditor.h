@@ -16,6 +16,7 @@
 #include "INTERFACE/SymbolWeight.h"
 #include "INTERFACE/GenericEditor.h"
 #include "INTERFACE/SuggestionBox.h"
+#include "UTIL/ChangeRecord.h"
 
 #include "INSIGHT/insight.h"
 
@@ -55,6 +56,8 @@ class TextEditor : public GenericEditor {
 
     RichText richText;
     SuggestionBox suggestionBox;
+
+    ChangeRecord changeRecord;
 
     void handleSelection();
     float calculateScrollOffset();
@@ -147,6 +150,8 @@ public:
 
     void loadTextFromFile(const std::string &filename);
     void saveFile();
+
+    void undo();
 
     void getRowAndColumnAt(double xpos, double ypos, int *out_row, int *out_column);
     size_t getCaretPosition();

@@ -206,13 +206,21 @@ void TextEditor::type(const std::string& characters){
         this->deleteSelected();
     }
 
+    if(this->additionalCarets.size() != 0)
+        this->changeRecord.startGroup();
+
+    this->changeRecord.addInsertion(this->caret.getPosition(), characters);
     this->relationallyIncreaseCaret(&this->caret, characters.length());
     this->richText.insert(this->caret.getPosition() - characters.length(), characters);
 
     for(Caret *additionalCaret : this->additionalCarets){
+        this->changeRecord.addInsertion(additionalCaret->getPosition(), characters);
         this->relationallyIncreaseCaret(additionalCaret, characters.length());
         this->richText.insert(additionalCaret->getPosition() - characters.length(), characters);
     }
+
+    if(this->additionalCarets.size() != 0)
+        this->changeRecord.endGroup();
 
     if(std::count(characters.begin(), characters.end(), '\n') != 0){
         this->lineNumbersUpdated = true;
@@ -232,13 +240,21 @@ void TextEditor::type(char character){
         this->deleteSelected();
     }
 
+    if(this->additionalCarets.size() != 0)
+        this->changeRecord.startGroup();
+
+    this->changeRecord.addInsertion(this->caret.getPosition(), character);
     this->relationallyIncreaseCaret(&this->caret, 1);
     this->richText.insert(this->caret.getPosition() - 1, character);
 
     for(Caret *additionalCaret : this->additionalCarets){
+        this->changeRecord.addInsertion(additionalCaret->getPosition(), character);
         this->relationallyIncreaseCaret(additionalCaret, 1);
         this->richText.insert(additionalCaret->getPosition() - 1, character);
     }
+
+    if(this->additionalCarets.size() != 0)
+        this->changeRecord.endGroup();
 
     if(character == '\n'){
         this->lineNumbersUpdated = true;
@@ -253,12 +269,13 @@ void TextEditor::type(char character){
     }
 
     this->adjustViewForCaret();
-
+    /*
     global_background_input.mutex.lock();
     global_background_input.text = this->richText.text;
     global_background_input.filename = this->filename;
     global_background_input.mutex.unlock();
     global_background_input.updated.store(true);
+    */
 }
 
 void TextEditor::typeBlock(){
