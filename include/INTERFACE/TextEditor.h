@@ -152,6 +152,9 @@ public:
     void saveFile();
 
     void undo();
+    void redo();
+    void undoChange(Change *change);
+    void redoChange(Change *change);
 
     void getRowAndColumnAt(double xpos, double ypos, int *out_row, int *out_column);
     size_t getCaretPosition();

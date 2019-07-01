@@ -335,6 +335,7 @@ void TextEditor::backspaceForCaret(Caret *caret){
             this->lineNumbersUpdated = true;
         }
 
+        this->changeRecord.addDeletion(i - 4, deleted, true);
         this->richText.remove(i - 4, 4);
         this->relationallyDecreaseCaret(caret, 4);
     } else if(i > 0){
@@ -344,6 +345,7 @@ void TextEditor::backspaceForCaret(Caret *caret){
             this->lineNumbersUpdated = true;
         }
 
+        this->changeRecord.addDeletion(i - 1, deleted, true);
         this->richText.remove(i - 1, 1);
         this->relationallyDecreaseCaret(caret, 1);
     }
@@ -364,6 +366,7 @@ void TextEditor::del(){
             this->lineNumbersUpdated = true;
         }
 
+        this->changeRecord.addDeletion(i, deleted, false);
         richText.remove(i, 4);
     } else if(i < richText.text.length()){
         std::string deleted = richText.text.substr(i, 1);
@@ -372,6 +375,7 @@ void TextEditor::del(){
             this->lineNumbersUpdated = true;
         }
 
+        this->changeRecord.addDeletion(i, deleted, false);
         richText.remove(i, 1);
     }
 }
@@ -408,7 +412,8 @@ bool TextEditor::smartRemove(){
         if((richText.text[i - 1] == '(' && richText.text[i] == ')')
         || (richText.text[i - 1] == '[' && richText.text[i] == ']')
         || (richText.text[i - 1] == '{' && richText.text[i] == '}')){
-            richText.remove(i - 1, 2);
+            this->changeRecord.addDeletion(i - 1, this->richText.text.substr(i - 1, 2), false);
+            this->richText.remove(i - 1, 2);
             this->caret.decrease(1);
             this->adjustViewForCaret();
             return true;
@@ -429,6 +434,7 @@ void TextEditor::backspaceLine(){
         this->lineNumbersUpdated = true;
     }
 
+    this->changeRecord.addDeletion(beginning, this->richText.text.substr(beginning, end - beginning), true);
     this->richText.remove(beginning, end - beginning);
     this->caret.set(beginning);
 
@@ -449,6 +455,7 @@ void TextEditor::delLine(){
         this->lineNumbersUpdated = true;
     }
 
+    this->changeRecord.addDeletion(beginning, this->richText.text.substr(beginning, end - beginning), false);
     this->richText.remove(beginning, end - beginning);
     this->caret.set(beginning);
 
@@ -504,8 +511,10 @@ void TextEditor::deleteRange(size_t beginning, size_t end){
         this->lineNumbersUpdated = true;
     }
 
+    this->changeRecord.addDeletion(beginning, this->richText.text.substr(beginning, end - beginning), true);
     this->richText.remove(beginning, end - beginning);
     this->destroySelection();
+
     if(this->caret.getPosition() == end){
         this->relationallyDecreaseCaret(&this->caret, end - beginning);
     } else {
@@ -942,7 +951,58 @@ void TextEditor::saveFile(){
 }
 
 void TextEditor::undo(){
-    
+    if(Change *changeToUndo = this->changeRecord.getChangeToUndo()){
+        this->undoChange(changeToUndo);
+        this->changeRecord.nextUndo--;
+    }
+}
+
+void TextEditor::redo(){
+    if(Change *changeToRedo = this->changeRecord.getChangeToRedo()){
+        this->redoChange(changeToRedo);
+    }
+}
+
+void TextEditor::undoChange(Change *change){
+    switch(change->kind){
+    case INSERTION: {
+            InsertionChange *insertion = (InsertionChange*) change;
+            this->richText.remove(insertion->position, insertion->inserted.size());
+            this->moveCaretToPosition(insertion->position);
+
+            if(std::count(insertion->inserted.begin(), insertion->inserted.end(), '\n') != 0){
+                this->lineNumbersUpdated = true;
+            }
+        }
+        break;
+    case DELETION: {
+            DeletionChange *deletion = (DeletionChange*) change;
+            this->richText.insert(deletion->position, deletion->deleted);
+            this->moveCaretToPosition(deletion->backspace ? deletion->position + deletion->deleted.size() : deletion->position);
+
+            if(std::count(deletion->deleted.begin(), deletion->deleted.end(), '\n') != 0){
+                this->lineNumbersUpdated = true;
+            }
+        }
+        break;
+    case GROUPED: {
+            GroupedChange *group = (GroupedChange*) change;
+            for(Change *innerChange : group->children)
+                this->undoChange(innerChange);
+        }
+        break;
+    }
+}
+
+void TextEditor::redoChange(Change *change){
+    switch(change->kind){
+    case INSERTION:
+        break;
+    case DELETION:
+        break;
+    case GROUPED:
+        break;
+    }
 }
 
 void TextEditor::getRowAndColumnAt(double xpos, double ypos, int *out_row, int *out_column){

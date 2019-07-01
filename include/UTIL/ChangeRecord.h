@@ -21,8 +21,9 @@ struct InsertionChange : public Change {
 struct DeletionChange : public Change {
     size_t position;
     std::string deleted;
+    bool backspace;
 
-    DeletionChange(size_t position, const std::string& deleted);
+    DeletionChange(size_t position, const std::string& deleted, bool backspace);
 };
 
 struct GroupedChange : public Change {
@@ -34,16 +35,24 @@ struct GroupedChange : public Change {
 
 class ChangeRecord {
     std::vector<Change*> temporaryGroup;
+    bool insideGroup;
 
 public:
     std::vector<Change*> changes;
+    int nextUndo;
 
+    ChangeRecord();
     ~ChangeRecord();
     void addInsertion(size_t position, const std::string& inserted);
     void addInsertion(size_t position, char inserted);
-    void addDeletion(size_t position, const std::string& deleted);
+    void addDeletion(size_t position, const std::string& deleted, bool backspace);
     void startGroup();
     void endGroup();
+    void addChange(Change *change);
+    void forgetOldestChange();
+
+    Change *getChangeToUndo();
+    Change *getChangeToRedo();
 };
 
 #endif

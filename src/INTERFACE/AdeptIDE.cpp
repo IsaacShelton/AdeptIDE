@@ -1373,6 +1373,12 @@ void key_callback(GLFWwindow *window, int key, int scancode, int action, int mod
         case GLFW_KEY_R:
             adeptide->runFile();
             break;
+        case GLFW_KEY_Z:
+            if(TextEditor *editor = adeptide->getCurrentEditorAsTextEditor()){
+                if(mods & GLFW_MOD_SHIFT) editor->redo();
+                else                      editor->undo();
+            }
+            break;
         case GLFW_KEY_LEFT_BRACKET:
             if(mods & GLFW_MOD_SHIFT) adeptide->typeBlock();
             else                      adeptide->typeArrayAccess();
