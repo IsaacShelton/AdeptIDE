@@ -960,6 +960,7 @@ void TextEditor::undo(){
 void TextEditor::redo(){
     if(Change *changeToRedo = this->changeRecord.getChangeToRedo()){
         this->redoChange(changeToRedo);
+        this->changeRecord.nextUndo++;
     }
 }
 
@@ -996,11 +997,31 @@ void TextEditor::undoChange(Change *change){
 
 void TextEditor::redoChange(Change *change){
     switch(change->kind){
-    case INSERTION:
+    case INSERTION: {
+            InsertionChange *insertion = (InsertionChange*) change;
+            this->richText.insert(insertion->position, insertion->inserted);
+            this->moveCaretToPosition(insertion->position + insertion->inserted.size());
+
+            if(std::count(insertion->inserted.begin(), insertion->inserted.end(), '\n') != 0){
+                this->lineNumbersUpdated = true;
+            }
+        }
         break;
-    case DELETION:
+    case DELETION: {
+            DeletionChange *deletion = (DeletionChange*) change;
+            this->richText.remove(deletion->position, deletion->deleted.size());
+            this->moveCaretToPosition(deletion->position);
+
+            if(std::count(deletion->deleted.begin(), deletion->deleted.end(), '\n') != 0){
+                this->lineNumbersUpdated = true;
+            }
+        }
         break;
-    case GROUPED:
+    case GROUPED: {
+            GroupedChange *group = (GroupedChange*) change;
+            for(Change *innerChange : group->children)
+                this->redoChange(innerChange);
+        }
         break;
     }
 }
