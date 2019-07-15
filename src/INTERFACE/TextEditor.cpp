@@ -787,6 +787,19 @@ void TextEditor::adjustViewForCaret(){
     }
 }
 
+void TextEditor::focusViewForCaret(){
+    if(this->maxHeight < 0) return;
+
+    size_t currentLine = this->caret.getLine(this->richText.text);
+    size_t linesViewable = (size_t) (this->maxHeight / this->calculateScrollOffset(1));
+
+    this->scroll = currentLine - 1 - linesViewable / 2;
+    if(this->scroll < 0) this->scroll = 0;
+    
+    int totalLines = std::count(this->richText.text.begin(), this->richText.text.end(), '\n') + 1;
+    if(this->scroll > totalLines - linesViewable) this->scroll = totalLines - linesViewable;
+}
+
 void TextEditor::selectAll(){
     this->deleteAdditionalCarets();
 
@@ -880,6 +893,21 @@ void TextEditor::relationallyMaintainDecrease(Caret *caret, size_t amount){
             additionalCaret->decrease(amount);
         }
     }
+}
+
+void TextEditor::gotoLine(int lineNumber){
+    if(lineNumber < 1) return;
+
+    size_t position = 0;
+    size_t number = 1;
+
+    while(position < this->richText.text.length() && number != lineNumber){
+        if(this->richText.text[position++] == '\n') number++;
+    }
+
+    this->moveCaretToPosition(position);
+    this->moveCaretBeginningOfLine();
+    this->focusViewForCaret();
 }
 
 void TextEditor::duplicateCaretUp(){

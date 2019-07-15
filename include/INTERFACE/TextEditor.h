@@ -133,12 +133,14 @@ public:
     void pageUp();
     void pageDown();
     void adjustViewForCaret();
+    void focusViewForCaret();
     void selectAll();
     void selectLine();
     void relationallyIncreaseCaret(Caret *caret, size_t amount);
     void relationallyDecreaseCaret(Caret *caret, size_t amount);
     void relationallyMaintainIncrease(Caret *caret, size_t amount);
     void relationallyMaintainDecrease(Caret *caret, size_t amount);
+    void gotoLine(int lineNumber);
 
     void duplicateCaretUp();
     void duplicateCaretDown();
