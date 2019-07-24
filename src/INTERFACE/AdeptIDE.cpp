@@ -912,8 +912,15 @@ void AdeptIDE::paste(){
 }
 
 void AdeptIDE::tab(){
-    TextEditor *currentTextEditor = this->getCurrentEditorAsTextEditor();
-    if(currentTextEditor) currentTextEditor->tab();
+    if(this->terminal && this->terminal->isVisible()){
+        this->terminal->type('\t');
+        return;
+    }
+
+    if(TextEditor *currentTextEditor = this->getCurrentEditorAsTextEditor()){
+        currentTextEditor->tab();
+        return;
+    }
 }
 
 void AdeptIDE::nextLine(){
