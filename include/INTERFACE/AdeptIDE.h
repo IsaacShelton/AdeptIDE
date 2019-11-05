@@ -11,6 +11,7 @@
 #include "INTERFACE/Settings.h"
 #include "INTERFACE/Explorer.h"
 #include "INTERFACE/FileLooker.h"
+#include "INTERFACE/LineNavigator.h"
 #include "INTERFACE/Terminal.h"
 #include "PROCESS/FolderWatcher.h"
 
@@ -48,6 +49,7 @@ public:
     Explorer *explorer;
     Terminal *terminal;
     FileLooker *fileLooker;
+    LineNavigator *lineNavigator;
 
     AdeptIDE();
     ~AdeptIDE();
@@ -121,6 +123,7 @@ public:
     void runFile();
 
     void lookForFile();
+    void gotoLine();
     void cdFile();
 
     void createMessage(const std::string& message, double seconds);

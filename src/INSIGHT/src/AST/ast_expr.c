@@ -12,6 +12,8 @@ bool expr_is_mutable(ast_expr_t *expr){
         return expr_is_mutable(((ast_expr_ternary_t*) expr)->if_true) && expr_is_mutable(((ast_expr_ternary_t*) expr)->if_false);
     case EXPR_POSTINCREMENT: case EXPR_POSTDECREMENT:
         return expr_is_mutable(((ast_expr_unary_t*) expr)->value);
+    case EXPR_PHANTOM:
+        return ((ast_expr_phantom_t*) expr)->is_mutable;
     }
 
     return false;
@@ -55,6 +57,10 @@ strong_cstr_t ast_expr_str(ast_expr_t *expr){
     case EXPR_ULONG:
         representation = malloc(21);
         sprintf(representation, "%ldul", (long int) ((ast_expr_ulong_t*) expr)->value);
+        return representation;
+    case EXPR_USIZE:
+        representation = malloc(21);
+        sprintf(representation, "%lduz", (long int) ((ast_expr_usize_t*) expr)->value);
         return representation;
     case EXPR_GENERIC_INT:
         representation = malloc(21);
@@ -457,6 +463,11 @@ strong_cstr_t ast_expr_str(ast_expr_t *expr){
             free(type_str);
             return representation;
         }
+    case EXPR_PHANTOM: {
+            representation = malloc(10);
+            sprintf(representation, "~phantom~");
+            return representation;
+        }
     case EXPR_CALL_METHOD: {
             // CLEANUP: This code is kinda scrappy, but hey it works
 
@@ -699,6 +710,9 @@ void ast_expr_free(ast_expr_t *expr){
     case EXPR_SIZEOF:
         ast_type_free( &((ast_expr_sizeof_t*) expr)->type );
         break;
+    case EXPR_PHANTOM:
+        ast_type_free( &((ast_expr_phantom_t*) expr)->type );
+        break;
     case EXPR_CALL_METHOD:
         ast_expr_free_fully( ((ast_expr_call_method_t*) expr)->value );
         ast_exprs_free_fully(((ast_expr_call_method_t*) expr)->args, ((ast_expr_call_method_t*) expr)->arity);
@@ -714,6 +728,10 @@ void ast_expr_free(ast_expr_t *expr){
     case EXPR_POSTINCREMENT:
     case EXPR_POSTDECREMENT:
         ast_expr_free_fully( ((ast_expr_unary_t*) expr)->value );
+        break;
+    case EXPR_FUNC_ADDR:
+        if(((ast_expr_func_addr_t*) expr)->match_args)
+            ast_types_free_fully(((ast_expr_func_addr_t*) expr)->match_args, ((ast_expr_func_addr_t*) expr)->match_args_length);
         break;
     case EXPR_NEW:
         ast_type_free( &((ast_expr_new_t*) expr)->type );
@@ -737,6 +755,7 @@ void ast_expr_free(ast_expr_t *expr){
         if(((ast_expr_return_t*) expr)->value != NULL){
             ast_expr_free_fully( ((ast_expr_return_t*) expr)->value );
         }
+        ast_free_statements_fully(((ast_expr_return_t*) expr)->last_minute.statements, ((ast_expr_return_t*) expr)->last_minute.length);
         break;
     case EXPR_DECLARE: case EXPR_ILDECLARE:
         ast_type_free(&((ast_expr_declare_t*) expr)->type);
@@ -771,11 +790,24 @@ void ast_expr_free(ast_expr_t *expr){
         }
         ast_expr_free_fully(((ast_expr_each_in_t*) expr)->low_array);
         ast_expr_free_fully(((ast_expr_each_in_t*) expr)->length);
+        ast_expr_free_fully(((ast_expr_each_in_t*) expr)->list);
         ast_free_statements_fully(((ast_expr_each_in_t*) expr)->statements, ((ast_expr_each_in_t*) expr)->statements_length);
         break;
     case EXPR_REPEAT:
         ast_expr_free_fully(((ast_expr_repeat_t*) expr)->limit);
         ast_free_statements_fully(((ast_expr_repeat_t*) expr)->statements, ((ast_expr_repeat_t*) expr)->statements_length);
+        break;
+    case EXPR_SWITCH:
+        ast_expr_free_fully(((ast_expr_switch_t*) expr)->value);
+        ast_free_statements_fully(((ast_expr_switch_t*) expr)->default_statements, ((ast_expr_switch_t*) expr)->default_statements_length);
+
+        for(length_t c = 0; c != ((ast_expr_switch_t*) expr)->cases_length; c++){
+            ast_case_t *expr_case = &((ast_expr_switch_t*) expr)->cases[c];
+            ast_expr_free_fully(expr_case->condition);
+            ast_free_statements_fully(expr_case->statements, expr_case->statements_length);
+        }
+
+        free(((ast_expr_switch_t*) expr)->cases);
         break;
     }
 }
@@ -819,6 +851,7 @@ ast_expr_t *ast_expr_clone(ast_expr_t* expr){
     case EXPR_UINT:          MACRO_VALUE_CLONE(ast_expr_uint_t); break;
     case EXPR_LONG:          MACRO_VALUE_CLONE(ast_expr_long_t); break;
     case EXPR_ULONG:         MACRO_VALUE_CLONE(ast_expr_ulong_t); break;
+    case EXPR_USIZE:         MACRO_VALUE_CLONE(ast_expr_usize_t); break;
     case EXPR_FLOAT:         MACRO_VALUE_CLONE(ast_expr_float_t); break;
     case EXPR_DOUBLE:        MACRO_VALUE_CLONE(ast_expr_double_t); break;
     case EXPR_BOOLEAN:       MACRO_VALUE_CLONE(ast_expr_boolean_t); break;
@@ -984,6 +1017,17 @@ ast_expr_t *ast_expr_clone(ast_expr_t* expr){
 
         #undef expr_as_sizeof
         #undef clone_as_sizeof
+    case EXPR_PHANTOM:
+        #define expr_as_phantom ((ast_expr_phantom_t*) expr)
+        #define clone_as_phantom ((ast_expr_phantom_t*) clone)
+
+        clone = malloc(sizeof(ast_expr_phantom_t));
+        clone_as_phantom->type = ast_type_clone(&expr_as_phantom->type);
+        clone_as_phantom->ir_value = expr_as_phantom->ir_value;
+        break;
+
+        #undef expr_as_phantom
+        #undef clone_as_phantom
     case EXPR_CALL_METHOD:
         #define expr_as_call_method ((ast_expr_call_method_t*) expr)
         #define clone_as_call_method ((ast_expr_call_method_t*) clone)
@@ -1105,6 +1149,13 @@ ast_expr_t *ast_expr_clone(ast_expr_t* expr){
 
         clone = malloc(sizeof(ast_expr_return_t));
         clone_as_return->value = expr_as_return->value ? ast_expr_clone(expr_as_return->value) : NULL;
+        clone_as_return->last_minute.length = expr_as_return->last_minute.length;
+        clone_as_return->last_minute.capacity = expr_as_return->last_minute.length; // (using 'length' on purpose)
+        clone_as_return->last_minute.statements = malloc(sizeof(ast_expr_t*) * expr_as_return->last_minute.length);
+        
+        for(length_t s = 0; s != expr_as_return->last_minute.length; s++){
+            clone_as_return->last_minute.statements[s] = ast_expr_clone(expr_as_return->last_minute.statements[s]);
+        }
         break;
 
         #undef expr_as_return
@@ -1171,8 +1222,9 @@ ast_expr_t *ast_expr_clone(ast_expr_t* expr){
             *clone_as_each_in->it_type = ast_type_clone(expr_as_each_in->it_type);
         }
 
-        clone_as_each_in->length = ast_expr_clone(expr_as_each_in->length);
-        clone_as_each_in->low_array = ast_expr_clone(expr_as_each_in->low_array);
+        clone_as_each_in->low_array = expr_as_each_in->low_array ? ast_expr_clone(expr_as_each_in->low_array) : NULL;
+        clone_as_each_in->length = expr_as_each_in->length ? ast_expr_clone(expr_as_each_in->length) : NULL;
+        clone_as_each_in->list = expr_as_each_in->list ? ast_expr_clone(expr_as_each_in->list) : NULL;
         clone_as_each_in->statements_length = expr_as_each_in->statements_length;
         clone_as_each_in->statements_capacity = expr_as_each_in->statements_length; // (statements_length is on purpose)
         clone_as_each_in->statements = malloc(sizeof(ast_expr_t*) * expr_as_each_in->statements_length);
@@ -1214,6 +1266,41 @@ ast_expr_t *ast_expr_clone(ast_expr_t* expr){
 
         #undef expr_as_break_to
         #undef clone_as_break_to
+    case EXPR_SWITCH:
+        #define expr_as_switch ((ast_expr_switch_t*) expr)
+        #define clone_as_switch ((ast_expr_switch_t*) clone)
+
+        clone = malloc(sizeof(ast_expr_switch_t));
+        clone_as_switch->value = ast_expr_clone(expr_as_switch->value);
+
+        clone_as_switch->cases = malloc(sizeof(ast_case_t) * expr_as_switch->cases_length);
+        clone_as_switch->cases_length = expr_as_switch->cases_length;
+        clone_as_switch->cases_capacity = expr_as_switch->cases_length; // (on purpose)
+        for(length_t c = 0; c != expr_as_switch->cases_length; c++){
+            ast_case_t *expr_case = &expr_as_switch->cases[c];
+            ast_case_t *clone_case = &clone_as_switch->cases[c];
+
+            clone_case->condition = ast_expr_clone(expr_case->condition);
+            clone_case->source = expr_case->source;
+            clone_case->statements_length = expr_case->statements_length;
+            clone_case->statements_capacity = expr_case->statements_capacity; // (on purpose)
+
+            clone_case->statements = malloc(sizeof(ast_expr_t*) * expr_case->statements_length);
+            for(length_t s = 0; s != expr_case->statements_length; s++){
+                clone_case->statements[s] = ast_expr_clone(expr_case->statements[s]);
+            }
+        }
+
+        clone_as_switch->default_statements = malloc(sizeof(ast_expr_t*) * expr_as_switch->default_statements_length);
+        for(length_t s = 0; s != expr_as_switch->default_statements_length; s++){
+            clone_as_switch->default_statements[s] = ast_expr_clone(expr_as_switch->default_statements[s]);
+        }
+        
+        clone_as_switch->default_statements_length = expr_as_switch->default_statements_length;
+        clone_as_switch->default_statements_capacity = expr_as_switch->default_statements_length; // (on purpose)
+
+        #undef expr_as_switch
+        #undef clone_as_switch
     default:
         redprintf("INTERNAL ERROR: ast_expr_clone received unimplemented expression id 0x%08X\n", expr->id);
         redprintf("Returning NULL... a crash will probably follow\n");
@@ -1315,79 +1402,84 @@ const char *global_expression_rep_table[] = {
     "<uint literal>",             // 0x00000006
     "<long literal>",             // 0x00000007
     "<ulong literal>",            // 0x00000008
-    "<float literal>",            // 0x00000009
-    "<double literal>",           // 0x0000000A
-    "<boolean literal>",          // 0x0000000B
-    "<string literal>",           // 0x0000000C
-    "<length string literal>",    // 0x0000000D
-    "null",                       // 0x0000000E
-    "<generic int>",              // 0x0000000F
-    "<generic float>",            // 0x00000010
-    "+",                          // 0x00000011
-    "-",                          // 0x00000012
-    "*",                          // 0x00000013
-    "/",                          // 0x00000014
-    "%",                          // 0x00000015
-    "==",                         // 0x00000016
-    "!=",                         // 0x00000017
-    ">",                          // 0x00000018
-    "<",                          // 0x00000019
-    ">=",                         // 0x0000001A
-    "<=",                         // 0x0000001B
-    "&&",                         // 0x0000001C
-    "||",                         // 0x0000001D
-    "!",                          // 0x0000001E
-    "&",                          // 0x0000001F
-    "|",                          // 0x00000020
-    "^",                          // 0x00000021
-    "~",                          // 0x00000022
-    "<<",                         // 0x00000023
-    ">>",                         // 0x00000024
-    "<<<",                        // 0x00000025
-    ">>>",                        // 0x00000026
-    "-",                          // 0x00000027
-    "<at>",                       // 0x00000028
-    "<call>",                     // 0x00000029
-    "<variable>",                 // 0x0000002A
-    ".",                          // 0x0000002B
-    "&",                          // 0x0000002C
-    "func&",                      // 0x0000002D
-    "*",                          // 0x0000002E
-    "[]",                         // 0x0000002F
-    "<cast>",                     // 0x00000030
-    "<sizeof>",                   // 0x00000031
-    "<call method>",              // 0x00000032
-    "<new>",                      // 0x00000033
-    "<new cstring>",              // 0x00000034
-    "<enum value>",               // 0x00000035
-    "<static array>",             // 0x00000036
-    "<static struct value>",      // 0x00000037
-    "<typeinfo for type>",        // 0x00000038
-    "<ternary>",                  // 0x00000039
-    "<declaration>",              // 0x0000003A
-    "<undef declaration>",        // 0x0000003B
-    "<inline declaration>",       // 0x0000003C
-    "<inline undef declaration>", // 0x0000003D
-    "=",                          // 0x0000003E
-    "+=",                         // 0x0000003F
-    "-=",                         // 0x00000040
-    "*=",                         // 0x00000041
-    "/=",                         // 0x00000042
-    "%=",                         // 0x00000043
-    "<return>",                   // 0x00000044
-    "<if>",                       // 0x00000045
-    "<unless>",                   // 0x00000046
-    "<if else>",                  // 0x00000047
-    "<unless else>",              // 0x00000048
-    "<while>",                    // 0x00000049
-    "<until>",                    // 0x0000004A
-    "<while continue>",           // 0x0000004B
-    "<until break>",              // 0x0000004C
-    "<each in>",                  // 0x0000004D
-    "<repeat>",                   // 0x0000004E
-    "<delete>",                   // 0x0000004F
-    "<break>",                    // 0x00000050
-    "<continue>",                 // 0x00000051
-    "<break to>",                 // 0x00000052
-    "<continue to>",              // 0x00000053
+    "<usize literal>",            // 0x00000009
+    "<float literal>",            // 0x0000000A
+    "<double literal>",           // 0x0000000B
+    "<boolean literal>",          // 0x0000000C
+    "<string literal>",           // 0x0000000D
+    "<length string literal>",    // 0x0000000E
+    "null",                       // 0x0000000F
+    "<generic int>",              // 0x00000010
+    "<generic float>",            // 0x00000011
+    "+",                          // 0x00000012
+    "-",                          // 0x00000013
+    "*",                          // 0x00000014
+    "/",                          // 0x00000015
+    "%",                          // 0x00000016
+    "==",                         // 0x00000017
+    "!=",                         // 0x00000018
+    ">",                          // 0x00000019
+    "<",                          // 0x0000001A
+    ">=",                         // 0x0000001B
+    "<=",                         // 0x0000001C
+    "&&",                         // 0x0000001D
+    "||",                         // 0x0000001E
+    "!",                          // 0x0000001F
+    "&",                          // 0x00000020
+    "|",                          // 0x00000021
+    "^",                          // 0x00000022
+    "~",                          // 0x00000023
+    "<<",                         // 0x00000024
+    ">>",                         // 0x00000025
+    "<<<",                        // 0x00000026
+    ">>>",                        // 0x00000027
+    "-",                          // 0x00000028
+    "<at>",                       // 0x00000029
+    "<call>",                     // 0x0000002A
+    "<variable>",                 // 0x0000002B
+    ".",                          // 0x0000002C
+    "&",                          // 0x0000002D
+    "func&",                      // 0x0000002E
+    "*",                          // 0x0000002F
+    "[]",                         // 0x00000030
+    "<cast>",                     // 0x00000031
+    "<sizeof>",                   // 0x00000032
+    "<call method>",              // 0x00000033
+    "<new>",                      // 0x00000034
+    "<new cstring>",              // 0x00000035
+    "<enum value>",               // 0x00000036
+    "<static array>",             // 0x00000037
+    "<static struct value>",      // 0x00000038
+    "<typeinfo for type>",        // 0x00000039
+    "<ternary>",                  // 0x0000003A
+    "<pre-increment>",            // 0x0000003B
+    "<pre-decrement>",            // 0x0000003C
+    "<post-increment>",           // 0x0000003D
+    "<post-decrement>",           // 0x0000003E
+    "<declaration>",              // 0x0000003F
+    "<undef declaration>",        // 0x00000040
+    "<inline declaration>",       // 0x00000041
+    "<inline undef declaration>", // 0x00000042
+    "=",                          // 0x00000043
+    "+=",                         // 0x00000044
+    "-=",                         // 0x00000045
+    "*=",                         // 0x00000046
+    "/=",                         // 0x00000047
+    "%=",                         // 0x00000048
+    "<return>",                   // 0x00000049
+    "<if>",                       // 0x0000004A
+    "<unless>",                   // 0x0000004B
+    "<if else>",                  // 0x0000004C
+    "<unless else>",              // 0x0000004D
+    "<while>",                    // 0x0000004E
+    "<until>",                    // 0x0000004F
+    "<while continue>",           // 0x00000050
+    "<until break>",              // 0x00000051
+    "<each in>",                  // 0x00000052
+    "<repeat>",                   // 0x00000053
+    "<delete>",                   // 0x00000054
+    "<break>",                    // 0x00000055
+    "<continue>",                 // 0x00000056
+    "<break to>",                 // 0x00000057
+    "<continue to>",              // 0x00000058
 };

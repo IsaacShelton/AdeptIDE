@@ -42,6 +42,8 @@ AdeptIDE::AdeptIDE() : AdeptIDEAssets() {
     this->message = NULL;
     this->explorer = NULL;
     this->terminal = NULL;
+    this->fileLooker = NULL;
+    this->lineNavigator = NULL;
 }
 
 AdeptIDE::~AdeptIDE(){
@@ -59,6 +61,7 @@ AdeptIDE::~AdeptIDE(){
     delete this->explorer;
     delete this->terminal;
     delete this->fileLooker;
+    delete this->lineNavigator;
 }
 
 int AdeptIDE::main(int argc, const char **argv){
@@ -236,6 +239,9 @@ int AdeptIDE::main(int argc, const char **argv){
     this->fileLooker = new FileLooker();
     this->fileLooker->load(&this->settings, &this->font, this->fontTexture, 512, 32); // 320 h
 
+    this->lineNavigator = new LineNavigator();
+    this->lineNavigator->load(&this->settings, &this->font, this->fontTexture, 512, 32);
+
     this->message = NULL;
     this->explorer = new Explorer();
     this->explorer->load(&this->settings, &this->font, this->fontTexture, 256, this->height, this->fileLooker);
@@ -397,6 +403,12 @@ int AdeptIDE::main(int argc, const char **argv){
             this->fileLooker->containerX = this->width / 2 - this->fileLooker->containerWidth / 2;
             this->fileLooker->containerY = 52;
             this->fileLooker->render(projectionMatrix, shader, fontShader, solidShader, (AdeptIDEAssets*) this);
+        }
+
+        if(this->lineNavigator){
+            this->lineNavigator->containerX = this->width / 2 - this->fileLooker->containerWidth / 2;
+            this->lineNavigator->containerY = 52;
+            this->lineNavigator->render(projectionMatrix, shader, fontShader, solidShader, (AdeptIDEAssets*) this);
         }
 
         if(this->message){
@@ -775,6 +787,7 @@ void AdeptIDE::duplicateCaretDown(){
 
 void AdeptIDE::type(const std::string& text){
     if(this->fileLooker && this->fileLooker->type(text)) return;
+    if(this->lineNavigator && this->lineNavigator->type(text)) return;
     if(this->terminal && this->terminal->type(text)) return;
 
     TextEditor *currentTextEditor = this->getCurrentEditorAsTextEditor();
@@ -783,6 +796,7 @@ void AdeptIDE::type(const std::string& text){
 
 void AdeptIDE::type(char character){
     if(this->fileLooker && this->fileLooker->type(character)) return;
+    if(this->lineNavigator && this->lineNavigator->type(character)) return;
     if(this->terminal && this->terminal->type(character)) return;
 
     TextEditor *currentTextEditor = this->getCurrentEditorAsTextEditor();
@@ -817,6 +831,11 @@ void AdeptIDE::typeCString(){
 void AdeptIDE::backspace(){
     if(this->fileLooker && this->fileLooker->isVisible()){
         this->fileLooker->backspace();
+        return;
+    }
+
+    if(this->lineNavigator && this->lineNavigator->isVisible()){
+        this->lineNavigator->backspace();
         return;
     }
     
@@ -893,8 +912,15 @@ void AdeptIDE::paste(){
 }
 
 void AdeptIDE::tab(){
-    TextEditor *currentTextEditor = this->getCurrentEditorAsTextEditor();
-    if(currentTextEditor) currentTextEditor->tab();
+    if(this->terminal && this->terminal->isVisible()){
+        this->terminal->type('\t');
+        return;
+    }
+
+    if(TextEditor *currentTextEditor = this->getCurrentEditorAsTextEditor()){
+        currentTextEditor->tab();
+        return;
+    }
 }
 
 void AdeptIDE::nextLine(){
@@ -1023,7 +1049,16 @@ void AdeptIDE::runFile(){
 
 void AdeptIDE::lookForFile(){
     if(!this->fileLooker) return;
+    if(this->lineNavigator) this->lineNavigator->setVisibility(false);
+    
     this->fileLooker->toggleVisibility();
+}
+
+void AdeptIDE::gotoLine(){
+    if(!this->fileLooker) return;
+    if(this->fileLooker) this->fileLooker->setVisibility(false);
+
+    this->lineNavigator->toggleVisibility();
 }
 
 void AdeptIDE::cdFile(){
@@ -1079,6 +1114,7 @@ void key_callback(GLFWwindow *window, int key, int scancode, int action, int mod
 
     if(key == GLFW_KEY_COMMA && input && CMDCTRL_MOD(mods)){
         if(adeptide->fileLooker) adeptide->fileLooker->setVisibility(false);
+        if(adeptide->lineNavigator) adeptide->lineNavigator->setVisibility(false);
         settings_menu(adeptide);
         return;
     }
@@ -1101,6 +1137,7 @@ void key_callback(GLFWwindow *window, int key, int scancode, int action, int mod
         if(adeptide->explorer){
             adeptide->explorer->toggleVisibility();
             if(adeptide->fileLooker) adeptide->fileLooker->setVisibility(false);
+            if(adeptide->lineNavigator) adeptide->lineNavigator->setVisibility(false);
         }
     }
 
@@ -1112,6 +1149,7 @@ void key_callback(GLFWwindow *window, int key, int scancode, int action, int mod
         if(adeptide->terminal){
             adeptide->terminal->toggleVisibility();
             if(adeptide->fileLooker) adeptide->fileLooker->setVisibility(false);
+            if(adeptide->lineNavigator) adeptide->lineNavigator->setVisibility(false);
         }
     }
     
@@ -1144,6 +1182,15 @@ void key_callback(GLFWwindow *window, int key, int scancode, int action, int mod
             } else {
                 adeptide->createMessage("No matches found", 1);
             }
+        } else if(adeptide->lineNavigator && adeptide->lineNavigator->isVisible()){
+            int line = adeptide->lineNavigator->getLineNumber();
+            adeptide->lineNavigator->setVisibility(false);
+
+            if(line == 0){
+                adeptide->createMessage("Invalid line number", 1);
+            } else if(TextEditor *currentTextEditor = adeptide->getCurrentEditorAsTextEditor()){
+                currentTextEditor->gotoLine(line);
+            }
         } else if(mods & GLFW_MOD_SHIFT)
             adeptide->nextLine();
         else if(CMDCTRL_MOD(mods))
@@ -1155,6 +1202,7 @@ void key_callback(GLFWwindow *window, int key, int scancode, int action, int mod
 
     if(key == GLFW_KEY_TAB && input){
         if(adeptide->fileLooker) adeptide->fileLooker->setVisibility(false);
+        if(adeptide->lineNavigator) adeptide->lineNavigator->setVisibility(false);
         adeptide->tab();
         adeptide->menubar.loseFocus();
     }
@@ -1166,6 +1214,8 @@ void key_callback(GLFWwindow *window, int key, int scancode, int action, int mod
     if(key == GLFW_KEY_ESCAPE && action == GLFW_PRESS){
         if(adeptide->fileLooker && adeptide->fileLooker->isVisible()){
             adeptide->fileLooker->setVisibility(false);
+        } else if(adeptide->lineNavigator && adeptide->lineNavigator->isVisible()){
+            adeptide->lineNavigator->setVisibility(false);
         } else if(TextEditor *editor = adeptide->getCurrentEditorAsTextEditor()){
             if(editor->hasSelection()){
                 adeptide->destroySelection();
@@ -1181,6 +1231,7 @@ void key_callback(GLFWwindow *window, int key, int scancode, int action, int mod
 
     if(key == GLFW_KEY_HOME && input){
         if(adeptide->fileLooker) adeptide->fileLooker->setVisibility(false);
+        if(adeptide->lineNavigator) adeptide->lineNavigator->setVisibility(false);
 
         if(glfwGetKey(window, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS)
             adeptide->startSelection();
@@ -1192,6 +1243,7 @@ void key_callback(GLFWwindow *window, int key, int scancode, int action, int mod
 
     if(key == GLFW_KEY_END && input){
         if(adeptide->fileLooker) adeptide->fileLooker->setVisibility(false);
+        if(adeptide->lineNavigator) adeptide->lineNavigator->setVisibility(false);
 
         if(glfwGetKey(window, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS)
             adeptide->startSelection();
@@ -1204,6 +1256,7 @@ void key_callback(GLFWwindow *window, int key, int scancode, int action, int mod
 
     if(key == GLFW_KEY_LEFT && input){
         if(adeptide->fileLooker) adeptide->fileLooker->setVisibility(false);
+        if(adeptide->lineNavigator) adeptide->lineNavigator->setVisibility(false);
 
         if(glfwGetKey(window, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS)
             adeptide->startSelection();
@@ -1221,6 +1274,7 @@ void key_callback(GLFWwindow *window, int key, int scancode, int action, int mod
 
     if(key == GLFW_KEY_RIGHT && input){
         if(adeptide->fileLooker) adeptide->fileLooker->setVisibility(false);
+        if(adeptide->lineNavigator) adeptide->lineNavigator->setVisibility(false);
 
         if(glfwGetKey(window, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS)
             adeptide->startSelection();
@@ -1238,6 +1292,7 @@ void key_callback(GLFWwindow *window, int key, int scancode, int action, int mod
 
     if(key == GLFW_KEY_UP && input){
         if(adeptide->fileLooker) adeptide->fileLooker->setVisibility(false);
+        if(adeptide->lineNavigator) adeptide->lineNavigator->setVisibility(false);
 
         if(adeptide->terminal && adeptide->terminal->isVisible()){
             adeptide->terminal->up();
@@ -1257,6 +1312,7 @@ void key_callback(GLFWwindow *window, int key, int scancode, int action, int mod
 
     if(key == GLFW_KEY_DOWN && input){
         if(adeptide->fileLooker) adeptide->fileLooker->setVisibility(false);
+        if(adeptide->lineNavigator) adeptide->lineNavigator->setVisibility(false);
 
         if(adeptide->terminal && adeptide->terminal->isVisible()){
             adeptide->terminal->down();
@@ -1317,11 +1373,13 @@ void key_callback(GLFWwindow *window, int key, int scancode, int action, int mod
             break;
         case GLFW_KEY_A:
             if(adeptide->fileLooker) adeptide->fileLooker->setVisibility(false);
+            if(adeptide->lineNavigator) adeptide->lineNavigator->setVisibility(false);
             adeptide->selectAll();
             adeptide->menubar.loseFocus();
             break;
         case GLFW_KEY_L:
             if(adeptide->fileLooker) adeptide->fileLooker->setVisibility(false);
+            if(adeptide->lineNavigator) adeptide->lineNavigator->setVisibility(false);
             adeptide->selectLine();
             adeptide->menubar.loseFocus();
             break;
@@ -1332,6 +1390,7 @@ void key_callback(GLFWwindow *window, int key, int scancode, int action, int mod
             break;
         case GLFW_KEY_N:
             if(adeptide->fileLooker) adeptide->fileLooker->setVisibility(false);
+            if(adeptide->lineNavigator) adeptide->lineNavigator->setVisibility(false);
             if(mods & GLFW_MOD_SHIFT) open_playground_menu(adeptide);
             else adeptide->newFile(FileType::ADEPT);
             adeptide->menubar.loseFocus();
@@ -1344,6 +1403,11 @@ void key_callback(GLFWwindow *window, int key, int scancode, int action, int mod
             adeptide->lookForFile();
             adeptide->menubar.loseFocus();
             break;
+        case GLFW_KEY_J:
+        case GLFW_KEY_G:
+            adeptide->gotoLine();
+            adeptide->menubar.loseFocus();
+            break;
         case GLFW_KEY_S:
             adeptide->saveFile();
             adeptide->menubar.loseFocus();
@@ -1354,6 +1418,7 @@ void key_callback(GLFWwindow *window, int key, int scancode, int action, int mod
             break;
         case GLFW_KEY_X:
             if(adeptide->fileLooker) adeptide->fileLooker->setVisibility(false);
+            if(adeptide->lineNavigator) adeptide->lineNavigator->setVisibility(false);
             adeptide->cutSelected();
             adeptide->menubar.loseFocus();
             break;
@@ -1363,6 +1428,7 @@ void key_callback(GLFWwindow *window, int key, int scancode, int action, int mod
             break;
         case GLFW_KEY_W:
             if(adeptide->fileLooker) adeptide->fileLooker->setVisibility(false);
+            if(adeptide->lineNavigator) adeptide->lineNavigator->setVisibility(false);
             adeptide->removeCurrentEditor();
             adeptide->menubar.loseFocus();
             break;

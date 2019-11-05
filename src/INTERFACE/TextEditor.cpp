@@ -787,6 +787,19 @@ void TextEditor::adjustViewForCaret(){
     }
 }
 
+void TextEditor::focusViewForCaret(){
+    if(this->maxHeight < 0) return;
+
+    size_t currentLine = this->caret.getLine(this->richText.text);
+    size_t linesViewable = (size_t) (this->maxHeight / this->calculateScrollOffset(1));
+
+    this->scroll = currentLine - 1 - linesViewable / 2;
+    if(this->scroll < 0) this->scroll = 0;
+    
+    int totalLines = std::count(this->richText.text.begin(), this->richText.text.end(), '\n') + 1;
+    if(this->scroll > totalLines - linesViewable) this->scroll = totalLines - linesViewable;
+}
+
 void TextEditor::selectAll(){
     this->deleteAdditionalCarets();
 
@@ -882,6 +895,21 @@ void TextEditor::relationallyMaintainDecrease(Caret *caret, size_t amount){
     }
 }
 
+void TextEditor::gotoLine(int lineNumber){
+    if(lineNumber < 1) return;
+
+    size_t position = 0;
+    size_t number = 1;
+
+    while(position < this->richText.text.length() && number != lineNumber){
+        if(this->richText.text[position++] == '\n') number++;
+    }
+
+    this->moveCaretToPosition(position);
+    this->moveCaretBeginningOfLine();
+    this->focusViewForCaret();
+}
+
 void TextEditor::duplicateCaretUp(){
     Caret *newCaret = new Caret();
     newCaret->generate(this->settings, this->font);
@@ -960,6 +988,7 @@ void TextEditor::undo(){
 void TextEditor::redo(){
     if(Change *changeToRedo = this->changeRecord.getChangeToRedo()){
         this->redoChange(changeToRedo);
+        this->changeRecord.nextUndo++;
     }
 }
 
@@ -996,11 +1025,31 @@ void TextEditor::undoChange(Change *change){
 
 void TextEditor::redoChange(Change *change){
     switch(change->kind){
-    case INSERTION:
+    case INSERTION: {
+            InsertionChange *insertion = (InsertionChange*) change;
+            this->richText.insert(insertion->position, insertion->inserted);
+            this->moveCaretToPosition(insertion->position + insertion->inserted.size());
+
+            if(std::count(insertion->inserted.begin(), insertion->inserted.end(), '\n') != 0){
+                this->lineNumbersUpdated = true;
+            }
+        }
         break;
-    case DELETION:
+    case DELETION: {
+            DeletionChange *deletion = (DeletionChange*) change;
+            this->richText.remove(deletion->position, deletion->deleted.size());
+            this->moveCaretToPosition(deletion->position);
+
+            if(std::count(deletion->deleted.begin(), deletion->deleted.end(), '\n') != 0){
+                this->lineNumbersUpdated = true;
+            }
+        }
         break;
-    case GROUPED:
+    case GROUPED: {
+            GroupedChange *group = (GroupedChange*) change;
+            for(Change *innerChange : group->children)
+                this->redoChange(innerChange);
+        }
         break;
     }
 }

@@ -58,7 +58,8 @@ errorcode_t parse_struct(parse_ctx_t *ctx){
         scan_i++;
     
     if(scan_i < ctx->tokenlist->length && ctx->tokenlist->tokens[scan_i].id == TOKEN_BEGIN){
-        ctx->struct_association = domain;
+        ctx->struct_association = (ast_polymorphic_struct_t*) domain;
+        ctx->struct_association_is_polymorphic = generics != NULL;
         *ctx->i = scan_i;
     }
 
@@ -197,7 +198,8 @@ errorcode_t parse_struct_body(parse_ctx_t *ctx, strong_cstr_t **names, ast_type_
             ast_type_t *end_type_ptr = &((*types)[*length - 1]);
 
             if(parse_type(ctx, end_type_ptr)){
-                parse_struct_free_fields(*names, *types, *length, backfill);
+                parse_struct_free_fields(*names, *types, *length - 1, backfill);
+                free((*names)[*length - 1]);
                 return FAILURE;
             }
 
