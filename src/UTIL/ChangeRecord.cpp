@@ -68,7 +68,7 @@ void ChangeRecord::addChange(Change *change){
         return;
     }
 
-    if(this->nextUndo != this->changes.size() - 1){
+    if((size_t) this->nextUndo != this->changes.size() - 1){
         for(Change *c : this->changes) delete c;
         this->changes.clear();
         this->nextUndo = -1;
@@ -93,6 +93,6 @@ Change *ChangeRecord::getChangeToUndo(){
 }
 
 Change *ChangeRecord::getChangeToRedo(){
-    if(this->nextUndo + 1 >= this->changes.size()) return NULL;
+    if((size_t) this->nextUndo + 1 >= this->changes.size()) return NULL;
     return this->changes[this->nextUndo + 1];
 }
