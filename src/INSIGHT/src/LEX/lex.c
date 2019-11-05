@@ -232,9 +232,9 @@ errorcode_t lex_buffer(compiler_t *compiler, object_t *object){
                 const char * const keywords[] = {
                     "POD", "alias", "and", "as", "at", "break", "case", "cast", "continue", "def", "default", "defer",
                     "delete", "each", "else", "enum", "external", "false", "for", "foreign", "func", "funcptr",
-                    "global", "if", "import", "in", "inout", "link", "new", "null", "or", "out",
-                    "packed", "pragma", "private", "public", "repeat", "return", "sizeof", "static", "stdcall", "struct",
-                    "switch", "true", "typeinfo", "undef", "unless", "until", "while"
+                    "global", "if", "import", "in", "inout", "new", "null", "or", "out", "packed",
+                    "pragma", "private", "public", "repeat", "return", "sizeof", "static", "stdcall", "struct", "switch", 
+                    "true", "typeinfo", "undef", "unless", "until", "while"
                 };
 
                 const length_t keywords_length = sizeof(keywords) / sizeof(const char * const);
@@ -266,7 +266,7 @@ errorcode_t lex_buffer(compiler_t *compiler, object_t *object){
             }
             break;
         case LEX_STATE_STRING:
-            if(buffer[i] == '\"' && !(lex_state.buildup_length != 0 && lex_state.buildup[lex_state.buildup_length-1] == '\\')){
+            if(buffer[i] == '\"'){
                 // End of string literal
                 t = &((*tokens)[tokenlist->length]);
                 t->id = TOKEN_STRING;
@@ -623,9 +623,6 @@ errorcode_t lex_buffer(compiler_t *compiler, object_t *object){
                     lex_state.buildup = malloc(256);
                     lex_state.buildup_capacity = 256;
                 }
-                (*sources)[tokenlist->length].index = i;
-                (*sources)[tokenlist->length].object_index = object_index;
-                (*sources)[tokenlist->length].stride = 0;
                 lex_state.buildup_length = 2;
                 lex_state.buildup_inner_stride = 2;
                 lex_state.buildup[0] = '-';
@@ -720,8 +717,8 @@ errorcode_t lex_buffer(compiler_t *compiler, object_t *object){
         }
         return FAILURE;
     }
-
-    return 0;
+    
+    return SUCCESS;
 }
 
 void lex_state_init(lex_state_t *lex_state){

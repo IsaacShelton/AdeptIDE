@@ -169,7 +169,8 @@ errorcode_t parse_func_body(parse_ctx_t *ctx, ast_func_t *func){
     if(parse_ignore_newlines(ctx, "Expected function body")) return FAILURE;
 
     ast_expr_list_t stmts;
-    ast_expr_list_t defer_stmts;
+    defer_scope_t defer_scope;
+    defer_scope_init(&defer_scope, NULL, NULL, TRAIT_NONE);
 
     if(ctx->tokenlist->tokens[*ctx->i].id == TOKEN_ASSIGN){
         (*ctx->i)++;
@@ -188,6 +189,9 @@ errorcode_t parse_func_body(parse_ctx_t *ctx, ast_func_t *func){
         stmt->id = EXPR_RETURN;
         stmt->source = return_expression->source;
         stmt->value = return_expression;
+        stmt->last_minute.statements = NULL;
+        stmt->last_minute.length = 0;
+        stmt->last_minute.capacity = 0;
         stmts.statements[stmts.length++] = (ast_expr_t*) stmt;
 
         func->statements = stmts.statements;
@@ -199,19 +203,16 @@ errorcode_t parse_func_body(parse_ctx_t *ctx, ast_func_t *func){
     if(parse_eat(ctx, TOKEN_BEGIN, "Expected '{' after function prototype")) return FAILURE;
 
     ast_expr_list_init(&stmts, 16);
-    ast_expr_list_init(&defer_stmts, 0);
-
     ctx->func = func;
 
-    if(parse_stmts(ctx, &stmts, &defer_stmts, PARSE_STMTS_STANDARD)){
+    if(parse_stmts(ctx, &stmts, &defer_scope, PARSE_STMTS_STANDARD)){
         ast_free_statements_fully(stmts.statements, stmts.length);
-        ast_free_statements_fully(defer_stmts.statements, defer_stmts.length);
+        defer_scope_free(&defer_scope);
         return FAILURE;
     }
 
-    parse_unravel_defer_stmts(&stmts, &defer_stmts, 0);
-    free(defer_stmts.statements);
-
+    defer_scope_free(&defer_scope);
+    
     func->statements = stmts.statements;
     func->statements_length = stmts.length;
     func->statements_capacity = stmts.capacity;
@@ -231,8 +232,38 @@ errorcode_t parse_func_arguments(parse_ctx_t *ctx, ast_func_t *func){
 
     if(ctx->struct_association){
         parse_func_grow_arguments(func, backfill, &capacity);
+
+        if(ctx->struct_association_is_polymorphic){
+            // Insert 'this *<$A, $B, $C, ...> AssociatedStruct' as first argument to function
+
+            ast_elem_pointer_t *pointer = malloc(sizeof(ast_elem_pointer_t));
+            pointer->id = AST_ELEM_POINTER;
+            pointer->source = NULL_SOURCE;
+
+            ast_elem_generic_base_t *generic_base = malloc(sizeof(ast_elem_generic_base_t));
+            generic_base->id = AST_ELEM_GENERIC_BASE;
+            generic_base->source = NULL_SOURCE;
+            generic_base->name = strclone(ctx->struct_association->name);
+            generic_base->generics = malloc(sizeof(ast_type_t) * ctx->struct_association->generics_length);
+
+            for(length_t i = 0; i != ctx->struct_association->generics_length; i++){
+                ast_type_make_polymorph(&generic_base->generics[i], strclone(ctx->struct_association->generics[i]));
+            }
+
+            generic_base->generics_length = ctx->struct_association->generics_length;
+            generic_base->name_is_polymorphic = false;
+    
+            func->arg_types[0].elements = malloc(sizeof(ast_elem_t*) * 2);
+            func->arg_types[0].elements[0] = (ast_elem_t*) pointer;
+            func->arg_types[0].elements[1] = (ast_elem_t*) generic_base;
+            func->arg_types[0].elements_length = 2;
+            func->arg_types[0].source = NULL_SOURCE;
+        } else {
+            // Insert 'this *AssociatedStruct' as first argument to function
+            ast_type_make_base_ptr(&func->arg_types[0], strclone(ctx->struct_association->name));
+        }
+
         func->arg_names[0] = strclone("this");
-        ast_type_make_base_ptr(&func->arg_types[0], strclone(ctx->struct_association->name));
         func->arg_sources[0] = ctx->struct_association->source;
         func->arg_flows[0] = FLOW_IN;
         func->arg_type_traits[0] = TRAIT_NONE;
@@ -242,20 +273,30 @@ errorcode_t parse_func_arguments(parse_ctx_t *ctx, ast_func_t *func){
     if(tokens[*i].id != TOKEN_OPEN) return SUCCESS;
     (*i)++; // Eat '('
 
+    // Allow polymorphic prerequisites for function arguments
+    ctx->allow_polymorphic_prereqs = true;
+
     while(tokens[*i].id != TOKEN_CLOSE){
         if(parse_ignore_newlines(ctx, "Expected function argument")){
             parse_free_unbackfilled_arguments(func, backfill);
+            ctx->allow_polymorphic_prereqs = false;
             return FAILURE;
         }
 
         parse_func_grow_arguments(func, backfill, &capacity);
-        if(parse_func_argument(ctx, func, &backfill, &is_solid)) return FAILURE;
+
+        if(parse_func_argument(ctx, func, &backfill, &is_solid)){
+            ctx->allow_polymorphic_prereqs = false;
+            return FAILURE;
+        }
+        
         if(!is_solid) continue;
 
         if(tokens[*i].id == TOKEN_NEXT){
             if(tokens[++(*i)].id == TOKEN_CLOSE){
                 compiler_panic(ctx->compiler, sources[*i], "Expected type after ',' in argument list");
                 parse_free_unbackfilled_arguments(func, backfill);
+                ctx->allow_polymorphic_prereqs = false;
                 return FAILURE;
             }
         } else if(tokens[*i].id != TOKEN_CLOSE){
@@ -264,9 +305,13 @@ errorcode_t parse_func_arguments(parse_ctx_t *ctx, ast_func_t *func){
                     : "Expected ',' after argument type";
             compiler_panic(ctx->compiler, sources[*i], error_message);
             parse_free_unbackfilled_arguments(func, backfill);
+            ctx->allow_polymorphic_prereqs = false;
             return FAILURE;
         }
     }
+
+    // Stop allowing polymorphic prerequisites
+    ctx->allow_polymorphic_prereqs = false;
     
     if(backfill != 0){
         compiler_panic(ctx->compiler, sources[*i], "Expected argument type before end of argument list");

@@ -55,6 +55,9 @@ errorcode_t parse_primary_expr(parse_ctx_t *ctx, ast_expr_t **out_expr){
     case TOKEN_ULONG:
         LITERAL_TO_EXPR(ast_expr_ulong_t, EXPR_ULONG, unsigned long long);
         break;
+    case TOKEN_USIZE:
+        LITERAL_TO_EXPR(ast_expr_usize_t, EXPR_USIZE, unsigned long long);
+        break;
     case TOKEN_FLOAT:
         LITERAL_TO_EXPR(ast_expr_float_t, EXPR_FLOAT, float);
         break;
@@ -607,6 +610,7 @@ int parse_expr_func_address(parse_ctx_t *ctx, ast_expr_t **out_expr){
     ast_expr_func_addr_t *func_addr_expr = malloc(sizeof(ast_expr_func_addr_t));
 
     length_t *i = ctx->i;
+    token_t *tokens = ctx->tokenlist->tokens;
 
     func_addr_expr->id = EXPR_FUNC_ADDR;
     func_addr_expr->source = ctx->tokenlist->sources[(*i)++];
@@ -626,7 +630,7 @@ int parse_expr_func_address(parse_ctx_t *ctx, ast_expr_t **out_expr){
         return FAILURE;
     }
 
-    /*
+
     if(tokens[*i].id == TOKEN_OPEN){
         ast_type_t arg_type;
 
@@ -635,13 +639,12 @@ int parse_expr_func_address(parse_ctx_t *ctx, ast_expr_t **out_expr){
 
         (*i)++;
 
-        // TODO: Maybe add support for varargs while searching?
         while(*i != ctx->tokenlist->length && tokens[*i].id != TOKEN_CLOSE){
-            grow(&args, sizeof(ast_type_t), arity, arity + 1);
+            grow((void*) &args, sizeof(ast_type_t), arity, arity + 1);
 
             if(parse_ignore_newlines(ctx, "Expected function argument") || parse_type(ctx, &arg_type)){
-                for(length_t i = 0; i != arity; i++) ast_type_free(&args[i]);
-                free(args);
+                ast_types_free_fully(args, arity);
+                free(func_addr_expr);
                 return FAILURE;
             }
 
@@ -650,10 +653,14 @@ int parse_expr_func_address(parse_ctx_t *ctx, ast_expr_t **out_expr){
             if(tokens[*i].id == TOKEN_NEXT){
                 if(tokens[++(*i)].id == TOKEN_CLOSE){
                     compiler_panic(ctx->compiler, ctx->tokenlist->sources[*i], "Expected type after ',' in argument list");
+                    ast_types_free_fully(args, arity);
+                    free(func_addr_expr);
                     return FAILURE;
                 }
             } else if(tokens[*i].id != TOKEN_CLOSE){
                 compiler_panic(ctx->compiler, ctx->tokenlist->sources[*i], "Expected ',' after argument type");
+                ast_types_free_fully(args, arity);
+                free(func_addr_expr);
                 return FAILURE;
             }
         }
@@ -662,10 +669,6 @@ int parse_expr_func_address(parse_ctx_t *ctx, ast_expr_t **out_expr){
         func_addr_expr->match_args = args;
         func_addr_expr->match_args_length = arity;
     }
-    */
-
-    // TODO: Add support for match args
-    compiler_warn(ctx->compiler, ctx->tokenlist->sources[*ctx->i], "Match args not supported yet so 'func &' might return wrong function");
 
     *out_expr = (ast_expr_t*) func_addr_expr;
     return SUCCESS;
@@ -700,7 +703,25 @@ errorcode_t parse_expr_cast(parse_ctx_t *ctx, ast_expr_t **out_expr){
     if(parse_type(ctx, &to)) return FAILURE;
     if(parse_ignore_newlines(ctx, "Unexpected statement termination")) return FAILURE;
 
-    if(parse_primary_expr(ctx, &from)){ // cast <type> value
+    if(ctx->tokenlist->tokens[*i].id == TOKEN_OPEN){
+        // 'cast' will only apply to expression in parentheses if present.
+        // If this behavior is undesired, use the newer 'as' operator instead
+        (*i)++;
+
+        // Ignore newlines before actual expression
+        if(parse_ignore_newlines(ctx, "Unexpected statement termination")) return FAILURE;
+        
+        if(parse_expr(ctx, &from)){
+            ast_type_free(&to);
+            return FAILURE;
+        }
+
+        if(parse_eat(ctx, TOKEN_CLOSE, "Expected ')' after expression given to 'cast'")){
+            ast_expr_free(from);
+            ast_type_free(&to);
+            return FAILURE;
+        }
+    } else if(parse_primary_expr(ctx, &from)){ // cast <type> value
         ast_type_free(&to);
         return FAILURE;
     }
@@ -708,7 +729,6 @@ errorcode_t parse_expr_cast(parse_ctx_t *ctx, ast_expr_t **out_expr){
     ast_expr_cast_t *cast_expr = malloc(sizeof(ast_expr_cast_t));
     cast_expr->id = EXPR_CAST;
     cast_expr->source = source;
-
     cast_expr->to = to;
     cast_expr->from = from;
     *out_expr = (ast_expr_t*) cast_expr;
