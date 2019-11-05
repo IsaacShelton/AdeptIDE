@@ -797,7 +797,7 @@ void TextEditor::focusViewForCaret(){
     if(this->scroll < 0) this->scroll = 0;
     
     int totalLines = std::count(this->richText.text.begin(), this->richText.text.end(), '\n') + 1;
-    if(this->scroll > totalLines - linesViewable) this->scroll = totalLines - linesViewable;
+    if(this->scroll > totalLines - (int) linesViewable) this->scroll = totalLines - (int) linesViewable;
 }
 
 void TextEditor::selectAll(){
@@ -898,8 +898,8 @@ void TextEditor::relationallyMaintainDecrease(Caret *caret, size_t amount){
 void TextEditor::gotoLine(int lineNumber){
     if(lineNumber < 1) return;
 
+    int number = 1;
     size_t position = 0;
-    size_t number = 1;
 
     while(position < this->richText.text.length() && number != lineNumber){
         if(this->richText.text[position++] == '\n') number++;
