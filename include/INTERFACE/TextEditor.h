@@ -48,11 +48,15 @@ class TextEditor : public GenericEditor {
     float textXOffset;
 
     // Fields in this grouping are controled by the mutex 'astMutex'
+    /*
     ast_t ast;
     tokenlist_t preserveTokenlist;
     char *preserveBuffer;
     bool hasAst;
+    */
     std::thread astCreationThread;
+    bool hasCompiler;
+    compiler_t compiler;
 
     RichText richText;
     SuggestionBox suggestionBox;

@@ -17,6 +17,8 @@ void SuggestionBox::load(Settings *settings, Font *font, Texture *fontTexture){
 
 void SuggestionBox::generate(const std::string& text, size_t lines, size_t longest){
     this->textModel.free();
+    delete this->boxModel;
+
     this->textModel = font->generatePlainTextModel(text, FONT_SCALE);
 
     this->width = 20.0f + this->font->mono_character_width * FONT_SCALE * longest + 26.0f;
@@ -49,7 +51,22 @@ void SuggestionBox::render(Matrix4f& projectionMatrix, Shader *shader, Shader *f
     for(const SymbolWeight& s : this->symbolWeights){
         if(i++ == 5) break;
 
-        renderModel(s.kind == SymbolWeight::Kind::FUNCTION ? assets->functionModel : assets->structureModel);
+        Model *model = NULL;
+        switch(s.kind){
+        case SymbolWeight::Kind::FUNCTION:
+            model = assets->functionModel;
+            break;
+        case SymbolWeight::Kind::STRUCT:
+            model = assets->structureModel;
+            break;
+        case SymbolWeight::Kind::GLOBAL:
+            model = assets->globalModel;
+            break;
+        default:
+            model = assets->functionModel;
+        }
+
+        renderModel(model);
 
         transformationMatrix.translate(0.0f, this->font->line_height * FONT_SCALE, 0.0f);
         shader->giveMatrix4f("transformation_matrix", transformationMatrix);

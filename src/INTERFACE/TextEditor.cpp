@@ -34,10 +34,8 @@ TextEditor::~TextEditor(){
 
     this->suggestionBox.free();
 
-    if(this->hasAst){
-        ast_free(&this->ast);
-        tokenlist_free(&this->preserveTokenlist);
-        ::free(this->preserveBuffer);
+    if(this->hasCompiler){
+        compiler_free(&this->compiler);
     }
 
     if(this->astCreationThread.joinable()) this->astCreationThread.join();
@@ -71,7 +69,7 @@ void TextEditor::load(Settings *settings, Font *font, Texture *fontTexture, floa
     this->suggestionBox.load(this->settings, this->font, this->fontTexture);
     this->showSuggestionBox = false;
 
-    this->hasAst = false;
+    this->hasCompiler = false;
     this->astCreationResult = AstCreationResultNothingNew;
 }
 
@@ -1100,7 +1098,7 @@ void TextEditor::generateSuggestions(){
 
     this->astMutex.lock();
 
-    if(!this->hasAst || end == 0){
+    if(!this->hasCompiler || end == 0){
         this->astMutex.unlock();
         return;
     }
@@ -1122,46 +1120,50 @@ void TextEditor::generateSuggestions(){
 
     // Symbol weights that may or may not replace our current symbol weights
     std::vector<SymbolWeight> possibleNewSymbolWeights;
+    ast_t *ast = &this->compiler.objects[0]->ast;
 
     // Generate possible new list of symbol weights
     std::string list;
-    for(size_t i = 0; i != this->ast.funcs_length; i++){
-        const char *name = this->ast.funcs[i].name;
+    for(size_t i = 0; i != ast->funcs_length; i++){
+        const char *name = ast->funcs[i].name;
         if(strlen(name) < last.length() || strncmp(name, last.c_str(), last.length()) != 0) continue;
 
         std::string args;
 
-        for(size_t j = 0; j != this->ast.funcs[i].arity; j++){
-            if (this->ast.funcs[i].arg_names)
-                args += std::string(this->ast.funcs[i].arg_names[j]) + " ";
+        for(size_t j = 0; j != ast->funcs[i].arity; j++){
+            if (ast->funcs[i].arg_names)
+                args += std::string(ast->funcs[i].arg_names[j]) + " ";
 
-            char *a = ast_type_str(&this->ast.funcs[i].arg_types[j]);
+            char *a = ast_type_str(&ast->funcs[i].arg_types[j]);
             args += std::string(a);
             ::free(a);
-            if(j + 1 != this->ast.funcs[i].arity) args += ", ";
+            if(j + 1 != ast->funcs[i].arity) args += ", ";
         }
 
-        if(this->ast.funcs[i].traits & AST_FUNC_VARARG) args += ", ...";
+        if(ast->funcs[i].traits & AST_FUNC_VARARG) args += ", ...";
 
-        char *r = ast_type_str(&this->ast.funcs[i].return_type);
+        char *r = ast_type_str(&ast->funcs[i].return_type);
         // Is a function
         std::string label = std::string(name) + "(" + args + ") " + r;
         ::free(r);
 
         possibleNewSymbolWeights.push_back(SymbolWeight(name, label, levenshtein(last.c_str(), name), SymbolWeight::Kind::FUNCTION));
     }
-    for(size_t i = 0; i != this->ast.structs_length; i++){
-        const char *name = this->ast.structs[i].name;
+    for(size_t i = 0; i != ast->structs_length; i++){
+        const char *name = ast->structs[i].name;
         if(strlen(name) < last.length() || strncmp(name, last.c_str(), last.length()) != 0) continue;
         // Is a struct
         possibleNewSymbolWeights.push_back(SymbolWeight(name, name, levenshtein(last.c_str(), name), SymbolWeight::Kind::STRUCT));
     }
-    for(size_t i = 0; i != this->ast.globals_length; i++){
-        //const char *name = this->ast.globals[i].name;
-        //if(strlen(name) < last.length() || strncmp(name, last.c_str(), last.length()) != 0) continue;
+    for(size_t i = 0; i != ast->globals_length; i++){
+        const char *name = ast->globals[i].name;
+        if(strlen(name) < last.length() || strncmp(name, last.c_str(), last.length()) != 0) continue;
+
+        possibleNewSymbolWeights.push_back(SymbolWeight(name, name, levenshtein(last.c_str(), name), SymbolWeight::Kind::GLOBAL));
+        
         //weights.push_back(StringWeightPair(name, "g " + std::string(name), levenshtein(last.c_str(), name)));
     }
-
+    
     // Sort the possible new symbol weights by weight
     std::sort(possibleNewSymbolWeights.begin(), possibleNewSymbolWeights.end());
 
@@ -1199,54 +1201,54 @@ void TextEditor::makeAst(bool storeCreationResult, bool fromMemory){
                 insight_buffer[0] = '\0';
                 compiler_t compiler;
                 compiler_init(&compiler);
-                compiler_new_object(&compiler);
-                compiler.objects[0]->filename = strclone(filename.c_str());
-                compiler.objects[0]->full_filename = filename_absolute(compiler.objects[0]->filename);
+                object_t *object = compiler_new_object(&compiler);
+                object->filename = strclone(filename.c_str());
+                object->full_filename = filename_absolute(object->filename);
                 
-                if(compiler.objects[0]->full_filename == NULL)
-                    compiler.objects[0]->full_filename = strclone("");
+                if(object->full_filename == NULL)
+                    object->full_filename = strclone("");
                 
                 compiler.root = strclone(adept_root.c_str());
 
-                // NOTE: We must use 'compiler.objects[0]' because the compiler infrastructure is allowed
-                // to modify where objects are stored in memory
-                // Therefore we refer to it by id 0
-                compiler.objects[0]->buffer = buffer; // Pass ownership to object instance
+                object->buffer = buffer; // Pass ownership to object instance
 
-                if(lex_buffer(&compiler, compiler.objects[0])){
+                if(lex_buffer(&compiler, object)){
                     // Failed to lex
-                    compiler_free(&compiler);
 
                     if(storeCreationResult)
                         this->astCreationResult = AstCreationResultFailure;
                     
-                    this->astMutex.unlock();
-                    return;
-                }
-
-                if(parse(&compiler, compiler.objects[0])){
-                    // Failed to parse
-
-                    if(storeCreationResult)
-                        this->astCreationResult = compiler.result_flags & COMPILER_RESULT_SUCCESS ? AstCreationResultSuccess : AstCreationResultFailure;
-
                     compiler_free(&compiler);
                     this->astMutex.unlock();
                     return;
                 }
 
-                if(this->hasAst){
-                    ast_free(&this->ast);
-                    tokenlist_free(&this->preserveTokenlist);
-                    ::free(this->preserveBuffer);
+                if(parse(&compiler, object)){
+                    // Failed to parse
+
+                    if(storeCreationResult)
+                        this->astCreationResult = compiler.result_flags & COMPILER_RESULT_SUCCESS ? AstCreationResultSuccess : AstCreationResultFailure;
+                    
+                    if(compiler.result_flags & COMPILER_RESULT_SUCCESS){
+                        if(this->hasCompiler){
+                            compiler_free(&this->compiler);
+                        }
+                        this->compiler = compiler;
+                        this->hasCompiler = true;
+                    } else {
+                        compiler_free(&compiler);
+                    }
+
+                    this->astMutex.unlock();
+                    return;
                 }
 
-                this->ast = compiler.objects[0]->ast;
-                compiler.objects[0]->compilation_stage = COMPILATION_STAGE_FILENAME;
-                this->preserveTokenlist = compiler.objects[0]->tokenlist;
-                this->preserveBuffer = compiler.objects[0]->buffer;
-                this->hasAst = true;
-                compiler_free(&compiler);
+                if(this->hasCompiler){
+                    compiler_free(&this->compiler);
+                }
+
+                this->compiler = compiler;
+                this->hasCompiler = true;
 
                 if(storeCreationResult)
                     this->astCreationResult = AstCreationResultSuccess;
@@ -1266,12 +1268,12 @@ void TextEditor::makeAst(bool storeCreationResult, bool fromMemory){
                 compiler.root = strclone(adept_root.c_str());
 
                 if(lex(&compiler, object)){
-                    puts("Failed to lex");
-                    compiler_free(&compiler);
+                    // Failed to lex
 
                     if(storeCreationResult)
                         this->astCreationResult = AstCreationResultFailure;
                     
+                    compiler_free(&compiler);
                     this->astMutex.unlock();
                     return;
                 }
@@ -1281,24 +1283,27 @@ void TextEditor::makeAst(bool storeCreationResult, bool fromMemory){
 
                     if(storeCreationResult)
                         this->astCreationResult = compiler.result_flags & COMPILER_RESULT_SUCCESS ? AstCreationResultSuccess : AstCreationResultFailure;
+                    
+                    if(compiler.result_flags & COMPILER_RESULT_SUCCESS){
+                        if(this->hasCompiler){
+                            compiler_free(&this->compiler);
+                        }
+                        this->compiler = compiler;
+                        this->hasCompiler = true;
+                    } else {
+                        compiler_free(&compiler);
+                    }
 
-                    compiler_free(&compiler);
                     this->astMutex.unlock();
                     return;
                 }
-
-                if(this->hasAst){
-                    ast_free(&this->ast);
-                    tokenlist_free(&this->preserveTokenlist);
-                    ::free(this->preserveBuffer);
+                
+                if(this->hasCompiler){
+                    compiler_free(&this->compiler);
                 }
 
-                this->ast = object->ast;
-                object->compilation_stage = COMPILATION_STAGE_FILENAME;
-                this->preserveTokenlist = object->tokenlist;
-                this->preserveBuffer = object->buffer;
-                this->hasAst = true;
-                compiler_free(&compiler);
+                this->compiler = compiler;
+                this->hasCompiler = true;
 
                 if(storeCreationResult)
                     this->astCreationResult = AstCreationResultSuccess;
