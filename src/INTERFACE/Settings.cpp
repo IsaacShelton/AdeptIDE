@@ -279,6 +279,22 @@ bool objectIntoSettings(Settings *settings, nlohmann::json object){
 
         unknownSetting(it.key());
     }
+
+    // Auto append '/' or '\\' to 'adept.root' if missing
+    // TODO: Cleanup this ugly code
+    {
+        size_t len = settings->adept_root.length();
+        if(len != 0){
+            char c = settings->adept_root[len - 1];
+            if(c != '/' && c != '\\'){
+                #if _WIN32
+                settings->adept_root += "\\";
+                #else
+                settings->adept_root += "/";
+                #endif
+            }
+        }
+    }
     
     return true;
 }

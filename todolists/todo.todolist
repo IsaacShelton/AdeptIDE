@@ -1,0 +1,15 @@
+
+TODO:
+* select & move cursor in terminal
+* find
+* replace
+* better integration with bash
+* fix issue with view focusing on cursor after 'go to line' in which no text is visible after going to the line
+* make goto file by name better to avoid overlaps
+
+COMPLETED:
++ paste in terminal
++ goto line
++ add globals to suggestions
++ append / or \\ on end of "adept.root" setting if missing
+
