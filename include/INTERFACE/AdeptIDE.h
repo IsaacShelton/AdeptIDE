@@ -144,6 +144,7 @@ void file_menu(void *data);
 void view_menu(void *data);
 void selection_menu(void *data);
 void build_menu(void *data);
+void help_menu(void *data);
 
 void new_adept_file(void *data);
 void new_plain_text_file(void *data);
@@ -170,6 +171,8 @@ void theme_fruit_smoothie(void *data);
 void theme_tropical_ocean(void *data);
 void theme_island_campfire(void *data);
 void theme_one_dark(void *data);
+
+void about_menu(void *data);
 
 void maximize(void *data);
 

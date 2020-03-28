@@ -105,6 +105,19 @@ errorcode_t parse_stmts(parse_ctx_t *ctx, ast_expr_list_t *stmt_list, defer_scop
                 stmt_list->statements[stmt_list->length++] = (ast_expr_t*) stmt;
             }
             break;
+        case TOKEN_STRING: {
+                ast_expr_t *expression;
+                if(parse_expr(ctx, &expression)) return FAILURE;
+                
+                if(expression->id != EXPR_CALL_METHOD){
+                    compiler_panicf(ctx->compiler, expression->source, "Expression not supported as a statement");
+                    ast_expr_free(expression);
+                    return FAILURE;
+                }
+
+                stmt_list->statements[stmt_list->length++] = expression;
+            }
+            break;
         case TOKEN_WORD: {
                 source = sources[(*i)++]; // Read ahead to see what type of statement this is
 
@@ -128,140 +141,18 @@ errorcode_t parse_stmts(parse_ctx_t *ctx, ast_expr_list_t *stmt_list, defer_scop
                 case TOKEN_POLYMORPH: /*polymorphic type*/
                     (*i)--; if(parse_stmt_declare(ctx, stmt_list)) return FAILURE;
                     break;
-                default: { // Assume assign statement if not one of the above
-                        (*i)--;
-                        ast_expr_t *mutable_expression;
-                        if(parse_expr(ctx, &mutable_expression)) return FAILURE;
-
-                        // If it's a call method expression, bypass and treat as statement
-                        if(mutable_expression->id == EXPR_CALL_METHOD
-                                || mutable_expression->id == EXPR_POSTINCREMENT
-                                || mutable_expression->id == EXPR_POSTDECREMENT
-                                || mutable_expression->id == EXPR_PREINCREMENT
-                                || mutable_expression->id == EXPR_PREDECREMENT){
-                            stmt_list->statements[stmt_list->length++] = (ast_expr_t*) mutable_expression;
-                            break;
-                        }
-
-                        // NOTE: This is not the only place which assignment operators are handled
-                        unsigned int id = tokens[(*i)++].id;
-                        if(id != TOKEN_ASSIGN && id != TOKEN_ADDASSIGN
-                        && id != TOKEN_SUBTRACTASSIGN && id != TOKEN_MULTIPLYASSIGN
-                        && id != TOKEN_DIVIDEASSIGN && id != TOKEN_MODULUSASSIGN){
-                            compiler_panic(ctx->compiler, sources[(*i) - 1], "Expected assignment operator after expression");
-                            ast_expr_free_fully(mutable_expression);
-                            return FAILURE;
-                        }
-
-                        bool is_pod = false;
-                        if(tokens[*i].id == TOKEN_POD){
-                            is_pod = true;
-                            (*i)++;
-                        }
-
-                        if(!expr_is_mutable(mutable_expression)){
-                            compiler_panic(ctx->compiler, sources[*i], "Can't modify expression because it is immutable");
-                            ast_expr_free_fully(mutable_expression);
-                            return FAILURE;
-                        }
-
-                        ast_expr_t *value_expression;
-                        if(parse_expr(ctx, &value_expression)){
-                            ast_expr_free_fully(mutable_expression);
-                            return FAILURE;
-                        }
-
-                        unsigned int stmt_id;
-                        switch(id){
-                        case TOKEN_ASSIGN:         stmt_id = EXPR_ASSIGN;         break;
-                        case TOKEN_ADDASSIGN:      stmt_id = EXPR_ADDASSIGN;      break;
-                        case TOKEN_SUBTRACTASSIGN: stmt_id = EXPR_SUBTRACTASSIGN; break;
-                        case TOKEN_MULTIPLYASSIGN: stmt_id = EXPR_MULTIPLYASSIGN; break;
-                        case TOKEN_DIVIDEASSIGN:   stmt_id = EXPR_DIVIDEASSIGN;   break;
-                        case TOKEN_MODULUSASSIGN:  stmt_id = EXPR_MODULUSASSIGN;  break;
-                        default:
-                            compiler_panic(ctx->compiler, sources[*i], "INTERNAL ERROR: parse_stmts() came across unknown assignment operator");
-                            ast_expr_free_fully(mutable_expression);
-                            ast_expr_free_fully(value_expression);
-                            return FAILURE;
-                        }
-
-                        ast_expr_assign_t *stmt = malloc(sizeof(ast_expr_assign_t));
-                        stmt->id = stmt_id;
-                        stmt->source = source;
-                        stmt->destination = mutable_expression;
-                        stmt->value = value_expression;
-                        stmt->is_pod = is_pod;
-                        stmt_list->statements[stmt_list->length++] = (ast_expr_t*) stmt;
-                    }
+                default:
+                    // Assume assign statement if not one of the above
+                    (*i)--;
+                    if(parse_assign(ctx, stmt_list)) return FAILURE;
                     break;
                 }
             }
             break;
-        case TOKEN_MULTIPLY: case TOKEN_OPEN: case TOKEN_INCREMENT: case TOKEN_DECREMENT: case TOKEN_ADDRESS: {
-                source = sources[*i];
-                ast_expr_t *mutable_expression;
-                if(parse_expr(ctx, &mutable_expression)) return FAILURE;
-
-                // If it's a call method expression, bypass and treat as statement
-                if(mutable_expression->id == EXPR_CALL_METHOD
-                        || mutable_expression->id == EXPR_POSTINCREMENT
-                        || mutable_expression->id == EXPR_POSTDECREMENT
-                        || mutable_expression->id == EXPR_PREINCREMENT
-                        || mutable_expression->id == EXPR_PREDECREMENT){
-                    stmt_list->statements[stmt_list->length++] = (ast_expr_t*) mutable_expression;
-                    break;
-                }
-
-                unsigned int id = tokens[(*i)++].id;
-                if(id != TOKEN_ASSIGN && id != TOKEN_ADDASSIGN && id != TOKEN_SUBTRACTASSIGN &&
-                        id != TOKEN_MULTIPLYASSIGN && id != TOKEN_DIVIDEASSIGN && id != TOKEN_MODULUSASSIGN){
-                    compiler_panic(ctx->compiler, sources[(*i) - 1], "Expected assignment operator after expression");
-                    ast_expr_free_fully(mutable_expression);
-                    return FAILURE;
-                }
-
-                if(!expr_is_mutable(mutable_expression)){
-                    compiler_panic(ctx->compiler, sources[*i], "Can't modify expression because it is immutable");
-                    ast_expr_free_fully(mutable_expression);
-                    return FAILURE;
-                }
-
-                bool is_pod = false;
-                if(tokens[*i].id == TOKEN_POD){
-                    is_pod = true;
-                    (*i)++;
-                }
-
-                ast_expr_t *value_expression;
-                if(parse_expr(ctx, &value_expression)){
-                    ast_expr_free_fully(mutable_expression);
-                    return FAILURE;
-                }
-
-                // NOTE: This is not the only place which assignment operators are handled
-                unsigned int stmt_id;
-                switch(id){
-                case TOKEN_ASSIGN: stmt_id = EXPR_ASSIGN; break;
-                case TOKEN_ADDASSIGN: stmt_id = EXPR_ADDASSIGN; break;
-                case TOKEN_SUBTRACTASSIGN: stmt_id = EXPR_SUBTRACTASSIGN; break;
-                case TOKEN_MULTIPLYASSIGN: stmt_id = EXPR_MULTIPLYASSIGN; break;
-                case TOKEN_DIVIDEASSIGN: stmt_id = EXPR_DIVIDEASSIGN; break;
-                case TOKEN_MODULUSASSIGN: stmt_id = EXPR_MODULUSASSIGN; break;
-                default:
-                    compiler_panic(ctx->compiler, sources[*i], "INTERNAL ERROR: parse_stmts() came across unknown assignment operator");
-                    ast_expr_free_fully(mutable_expression);
-                    return FAILURE;
-                }
-
-                ast_expr_assign_t *stmt = malloc(sizeof(ast_expr_assign_t));
-                stmt->id = stmt_id;
-                stmt->source = source;
-                stmt->destination = mutable_expression;
-                stmt->value = value_expression;
-                stmt->is_pod = is_pod;
-                stmt_list->statements[stmt_list->length++] = (ast_expr_t*) stmt;
-            }
+        case TOKEN_MULTIPLY: case TOKEN_OPEN: case TOKEN_INCREMENT: case TOKEN_DECREMENT:
+        case TOKEN_BIT_AND: case TOKEN_BIT_OR: case TOKEN_BIT_XOR: case TOKEN_BIT_LSHIFT: case TOKEN_BIT_RSHIFT:
+        case TOKEN_BIT_LGC_LSHIFT: case TOKEN_BIT_LGC_RSHIFT: /* DUPLICATE: case TOKEN_ADDRESS: */
+            if(parse_assign(ctx, stmt_list)) return FAILURE;
             break;
         case TOKEN_IF: case TOKEN_UNLESS: {
                 unsigned int conditional_type = tokens[*i].id;
@@ -692,6 +583,15 @@ errorcode_t parse_stmts(parse_ctx_t *ctx, ast_expr_list_t *stmt_list, defer_scop
                 }
             }
             break;
+        case TOKEN_FALLTHROUGH: {
+                ast_expr_fallthrough_t *stmt = malloc(sizeof(ast_expr_fallthrough_t));
+                stmt->id = EXPR_FALLTHROUGH;
+                stmt->source = sources[(*i)++];
+
+                defer_scope_rewind(defer_scope, stmt_list, FALLTHROUGHABLE, NULL);
+                stmt_list->statements[stmt_list->length++] = (ast_expr_t*) stmt;
+            }
+            break;
         case TOKEN_META:
             if(parse_meta(ctx)) return FAILURE;
             break;
@@ -932,7 +832,7 @@ errorcode_t parse_switch(parse_ctx_t *ctx, ast_expr_list_t *stmt_list, defer_sco
     unsigned int token_id = ctx->tokenlist->tokens[*ctx->i].id;
     bool failed = false;
 
-    defer_scope_init(&current_defer_scope, parent_defer_scope, NULL, TRAIT_NONE);
+    defer_scope_init(&current_defer_scope, parent_defer_scope, NULL, FALLTHROUGHABLE);
 
     while(token_id != TOKEN_END){
         if(token_id == TOKEN_CASE){
@@ -947,7 +847,7 @@ errorcode_t parse_switch(parse_ctx_t *ctx, ast_expr_list_t *stmt_list, defer_sco
             if(!failed){
                 defer_scope_fulfill_into(&current_defer_scope, list, list_length, list_capacity);
                 defer_scope_free(&current_defer_scope);
-                defer_scope_init(&current_defer_scope, parent_defer_scope, NULL, TRAIT_NONE);
+                defer_scope_init(&current_defer_scope, parent_defer_scope, NULL, FALLTHROUGHABLE);
 
                 expand((void**) &cases, sizeof(ast_case_t), cases_length, &cases_capacity, 1, 4);
                 ast_case_t *expr_case = &cases[cases_length++];
@@ -1020,5 +920,95 @@ errorcode_t parse_switch(parse_ctx_t *ctx, ast_expr_list_t *stmt_list, defer_sco
 
     // Append the created switch statement
     stmt_list->statements[stmt_list->length++] = (ast_expr_t*) switch_expr;
+    return SUCCESS;
+}
+
+errorcode_t parse_assign(parse_ctx_t *ctx, ast_expr_list_t *stmt_list){
+    // NOTE: Assumes 'stmt_list' has enough space for another statement
+    // NOTE: expand() should've already been used on stmt_list to make room
+
+    token_t *tokens = ctx->tokenlist->tokens;
+    source_t *sources = ctx->tokenlist->sources;
+
+    length_t *i = ctx->i;
+    source_t source = sources[*i];
+
+    ast_expr_t *mutable_expression;
+    if(parse_expr(ctx, &mutable_expression)) return FAILURE;
+
+    // If it's a call method expression, bypass and treat as statement
+    if(mutable_expression->id == EXPR_CALL_METHOD
+            || mutable_expression->id == EXPR_POSTINCREMENT
+            || mutable_expression->id == EXPR_POSTDECREMENT
+            || mutable_expression->id == EXPR_PREINCREMENT
+            || mutable_expression->id == EXPR_PREDECREMENT){
+        stmt_list->statements[stmt_list->length++] = (ast_expr_t*) mutable_expression;
+        return SUCCESS;
+    }
+
+    // NOTE: This is not the only place which assignment operators are handled
+    unsigned int id = tokens[(*i)++].id;
+
+    switch(id){
+    case TOKEN_ASSIGN: case TOKEN_ADD_ASSIGN:
+    case TOKEN_SUBTRACT_ASSIGN: case TOKEN_MULTIPLY_ASSIGN:
+    case TOKEN_DIVIDE_ASSIGN: case TOKEN_MODULUS_ASSIGN:
+    case TOKEN_BIT_AND_ASSIGN: case TOKEN_BIT_OR_ASSIGN: case TOKEN_BIT_XOR_ASSIGN:
+    case TOKEN_BIT_LS_ASSIGN: case TOKEN_BIT_RS_ASSIGN:
+    case TOKEN_BIT_LGC_LS_ASSIGN: case TOKEN_BIT_LGC_RS_ASSIGN:
+        break;
+    default:
+        compiler_panic(ctx->compiler, sources[(*i) - 1], "Expected assignment operator after expression");
+        ast_expr_free_fully(mutable_expression);
+        return FAILURE;
+    }
+
+    bool is_pod = false;
+    if(tokens[*i].id == TOKEN_POD){
+        is_pod = true;
+        (*i)++;
+    }
+
+    if(!expr_is_mutable(mutable_expression)){
+        compiler_panic(ctx->compiler, sources[*i], "Can't modify expression because it is immutable");
+        ast_expr_free_fully(mutable_expression);
+        return FAILURE;
+    }
+
+    ast_expr_t *value_expression;
+    if(parse_expr(ctx, &value_expression)){
+        ast_expr_free_fully(mutable_expression);
+        return FAILURE;
+    }
+
+    unsigned int stmt_id;
+    switch(id){
+    case TOKEN_ASSIGN:            stmt_id = EXPR_ASSIGN;          break;
+    case TOKEN_ADD_ASSIGN:        stmt_id = EXPR_ADD_ASSIGN;      break;
+    case TOKEN_SUBTRACT_ASSIGN:   stmt_id = EXPR_SUBTRACT_ASSIGN; break;
+    case TOKEN_MULTIPLY_ASSIGN:   stmt_id = EXPR_MULTIPLY_ASSIGN; break;
+    case TOKEN_DIVIDE_ASSIGN:     stmt_id = EXPR_DIVIDE_ASSIGN;   break;
+    case TOKEN_MODULUS_ASSIGN:    stmt_id = EXPR_MODULUS_ASSIGN;  break;
+    case TOKEN_BIT_AND_ASSIGN:    stmt_id = EXPR_AND_ASSIGN;      break;
+    case TOKEN_BIT_OR_ASSIGN:     stmt_id = EXPR_OR_ASSIGN;       break;
+    case TOKEN_BIT_XOR_ASSIGN:    stmt_id = EXPR_XOR_ASSIGN;      break;
+    case TOKEN_BIT_LS_ASSIGN:     stmt_id = EXPR_LS_ASSIGN;       break;
+    case TOKEN_BIT_RS_ASSIGN:     stmt_id = EXPR_RS_ASSIGN;       break;
+    case TOKEN_BIT_LGC_LS_ASSIGN: stmt_id = EXPR_LGC_LS_ASSIGN;   break;
+    case TOKEN_BIT_LGC_RS_ASSIGN: stmt_id = EXPR_LGC_RS_ASSIGN;   break;
+    default:
+        compiler_panic(ctx->compiler, sources[*i], "INTERNAL ERROR: parse_stmts() came across unknown assignment operator");
+        ast_expr_free_fully(mutable_expression);
+        ast_expr_free_fully(value_expression);
+        return FAILURE;
+    }
+
+    ast_expr_assign_t *stmt = malloc(sizeof(ast_expr_assign_t));
+    stmt->id = stmt_id;
+    stmt->source = source;
+    stmt->destination = mutable_expression;
+    stmt->value = value_expression;
+    stmt->is_pod = is_pod;
+    stmt_list->statements[stmt_list->length++] = (ast_expr_t*) stmt;
     return SUCCESS;
 }

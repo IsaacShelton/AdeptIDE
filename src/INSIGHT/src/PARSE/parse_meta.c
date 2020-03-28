@@ -17,7 +17,8 @@ errorcode_t parse_meta(parse_ctx_t *ctx){
     char *directive_name = tokenlist->tokens[*i].data;
 
     const char *standard_directives[] = {
-        "default", "elif", "else", "end", "halt", "if", "import", "input", "place", "place_error", "print", "print_error", "set", "unless"
+        "default", "elif", "else", "end", "halt", "if", "import", "input", "place", "place_error", "place_warning",
+        "print", "print_error", "print_warning", "set", "unless"
     };
 
     #define META_DIRECTIVE_DEFAULT 0
@@ -30,10 +31,12 @@ errorcode_t parse_meta(parse_ctx_t *ctx){
     #define META_DIRECTIVE_INPUT 7
     #define META_DIRECTIVE_PLACE 8
     #define META_DIRECTIVE_PLACE_ERROR 9
-    #define META_DIRECTIVE_PRINT 10
-    #define META_DIRECTIVE_PRINT_ERROR 11
-    #define META_DIRECTIVE_SET 12
-    #define META_DIRECTIVE_UNLESS 13
+    #define META_DIRECTIVE_PLACE_WARNING 10
+    #define META_DIRECTIVE_PRINT 11
+    #define META_DIRECTIVE_PRINT_ERROR 12
+    #define META_DIRECTIVE_PRINT_WARNING 13
+    #define META_DIRECTIVE_SET 14
+    #define META_DIRECTIVE_UNLESS 15
 
     maybe_index_t standard = binary_string_search(standard_directives, sizeof(standard_directives) / sizeof(char*), directive_name);
 
@@ -50,7 +53,7 @@ errorcode_t parse_meta(parse_ctx_t *ctx){
 
             meta_expr_t *value;
             if(parse_meta_expr(ctx, &value)) return FAILURE;
-            meta_collapse(ctx->ast->meta_definitions, ctx->ast->meta_definitions_length, &value);
+            meta_collapse(ctx->compiler, ctx->ast->meta_definitions, ctx->ast->meta_definitions_length, &value);
 
             meta_definition_t *existing = meta_definition_find(ctx->ast->meta_definitions, ctx->ast->meta_definitions_length, definition_name);
 
@@ -155,7 +158,7 @@ errorcode_t parse_meta(parse_ctx_t *ctx){
         (*i)++;
         break;
     case META_DIRECTIVE_HALT: // halt
-        ctx->compiler->traits |= COMPILER_RESULT_SUCCESS;
+        ctx->compiler->result_flags |= COMPILER_RESULT_SUCCESS;
         return FAILURE;
     case META_DIRECTIVE_IF: case META_DIRECTIVE_UNLESS: { // if, unless
             bool is_unless = standard == META_DIRECTIVE_UNLESS;
@@ -164,7 +167,7 @@ errorcode_t parse_meta(parse_ctx_t *ctx){
             meta_expr_t *value;
             if(parse_meta_expr(ctx, &value)) return FAILURE;
 
-            bool whether = meta_expr_into_bool(ctx->ast->meta_definitions, ctx->ast->meta_definitions_length, &value) ^ is_unless;
+            bool whether = meta_expr_into_bool(ctx->compiler, ctx->ast->meta_definitions, ctx->ast->meta_definitions_length, &value) ^ is_unless;
             meta_expr_free_fully(value);
 
             // If true, continue parsing as normal
@@ -197,7 +200,7 @@ errorcode_t parse_meta(parse_ctx_t *ctx){
                         meta_expr_t *value;
                         if(parse_meta_expr(ctx, &value)) return FAILURE;
 
-                        bool whether = meta_expr_into_bool(ctx->ast->meta_definitions, ctx->ast->meta_definitions_length, &value);
+                        bool whether = meta_expr_into_bool(ctx->compiler, ctx->ast->meta_definitions, ctx->ast->meta_definitions_length, &value);
                         meta_expr_free_fully(value);
 
                         if(whether){   
@@ -237,7 +240,7 @@ errorcode_t parse_meta(parse_ctx_t *ctx){
             if(parse_meta_expr(ctx, &value)) return FAILURE;
             length_t new_i = *i;
 
-            strong_cstr_t file = meta_expr_into_string(ctx->ast->meta_definitions, ctx->ast->meta_definitions_length, &value);
+            strong_cstr_t file = meta_expr_into_string(ctx->compiler, ctx->ast->meta_definitions, ctx->ast->meta_definitions_length, &value);
             meta_expr_free_fully(value);
             *i = old_i;
 
@@ -292,7 +295,7 @@ errorcode_t parse_meta(parse_ctx_t *ctx){
 
             meta_expr_t *value;
             if(parse_meta_expr(ctx, &value)) return FAILURE;
-            meta_collapse(ctx->ast->meta_definitions, ctx->ast->meta_definitions_length, &value);
+            meta_collapse(ctx->compiler, ctx->ast->meta_definitions, ctx->ast->meta_definitions_length, &value);
             char *print_value = meta_expr_str(value);
             printf("%s", print_value);
             free(print_value);
@@ -304,9 +307,21 @@ errorcode_t parse_meta(parse_ctx_t *ctx){
 
             meta_expr_t *value;
             if(parse_meta_expr(ctx, &value)) return FAILURE;
-            meta_collapse(ctx->ast->meta_definitions, ctx->ast->meta_definitions_length, &value);
+            meta_collapse(ctx->compiler, ctx->ast->meta_definitions, ctx->ast->meta_definitions_length, &value);
             char *print_value = meta_expr_str(value);
             redprintf("%s", print_value);
+            free(print_value);
+            meta_expr_free_fully(value);
+        }
+        break;
+    case META_DIRECTIVE_PLACE_WARNING: { // place_warning
+            (*i)++;
+
+            meta_expr_t *value;
+            if(parse_meta_expr(ctx, &value)) return FAILURE;
+            meta_collapse(ctx->compiler, ctx->ast->meta_definitions, ctx->ast->meta_definitions_length, &value);
+            char *print_value = meta_expr_str(value);
+            yellowprintf("%s", print_value);
             free(print_value);
             meta_expr_free_fully(value);
         }
@@ -316,7 +331,7 @@ errorcode_t parse_meta(parse_ctx_t *ctx){
 
             meta_expr_t *value;
             if(parse_meta_expr(ctx, &value)) return FAILURE;
-            meta_collapse(ctx->ast->meta_definitions, ctx->ast->meta_definitions_length, &value);
+            meta_collapse(ctx->compiler, ctx->ast->meta_definitions, ctx->ast->meta_definitions_length, &value);
             char *print_value = meta_expr_str(value);
             printf("%s\n", print_value);
             free(print_value);
@@ -328,9 +343,22 @@ errorcode_t parse_meta(parse_ctx_t *ctx){
 
             meta_expr_t *value;
             if(parse_meta_expr(ctx, &value)) return FAILURE;
-            meta_collapse(ctx->ast->meta_definitions, ctx->ast->meta_definitions_length, &value);
+            meta_collapse(ctx->compiler, ctx->ast->meta_definitions, ctx->ast->meta_definitions_length, &value);
             char *print_value = meta_expr_str(value);
             redprintf("%s", print_value);
+            putchar(0x0A);
+            free(print_value);
+            meta_expr_free_fully(value);
+        }
+        break;
+    case META_DIRECTIVE_PRINT_WARNING: { // print_warning
+            (*i)++;
+
+            meta_expr_t *value;
+            if(parse_meta_expr(ctx, &value)) return FAILURE;
+            meta_collapse(ctx->compiler, ctx->ast->meta_definitions, ctx->ast->meta_definitions_length, &value);
+            char *print_value = meta_expr_str(value);
+            yellowprintf("%s", print_value);
             putchar(0x0A);
             free(print_value);
             meta_expr_free_fully(value);
@@ -343,7 +371,7 @@ errorcode_t parse_meta(parse_ctx_t *ctx){
 
             meta_expr_t *value;
             if(parse_meta_expr(ctx, &value)) return FAILURE;
-            meta_collapse(ctx->ast->meta_definitions, ctx->ast->meta_definitions_length, &value);
+            meta_collapse(ctx->compiler, ctx->ast->meta_definitions, ctx->ast->meta_definitions_length, &value);
 
             meta_definition_t *existing = meta_definition_find(ctx->ast->meta_definitions, ctx->ast->meta_definitions_length, definition_name);
 
@@ -406,6 +434,7 @@ errorcode_t parse_meta_primary_expr(parse_ctx_t *ctx, meta_expr_t **out_expr){
         *out_expr = malloc(sizeof(meta_expr_var_t));
         (*out_expr)->id = META_EXPR_VAR;
         ((meta_expr_var_t*) *out_expr)->name = strclone(tokens[*i].data);
+        ((meta_expr_var_t*) *out_expr)->source = sources[*i];
         (*i)++;
         break;
     case TOKEN_GENERIC_INT:

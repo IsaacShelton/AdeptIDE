@@ -26,7 +26,7 @@
 #endif
 
 errorcode_t compiler_run(compiler_t *compiler, int argc, char **argv){
-    // A wrapper function around 'compiler_execute'
+    // A wrapper function around 'compiler_invoke'
     compiler_invoke(compiler, argc, argv);
     return !(compiler->result_flags & COMPILER_RESULT_SUCCESS);
 }
@@ -251,6 +251,8 @@ errorcode_t parse_arguments(compiler_t *compiler, object_t *object, int argc, ch
                 compiler->traits |= COMPILER_NO_UNDEF;
             } else if(strcmp(argv[arg_index], "--no-type-info") == 0){
                 compiler->traits |= COMPILER_NO_TYPE_INFO;
+            } else if(strcmp(argv[arg_index], "--unsafe-meta") == 0){
+                compiler->traits |= COMPILER_UNSAFE_META;
             } else if(strcmp(argv[arg_index], "--unsafe-new") == 0){
                 compiler->traits |= COMPILER_UNSAFE_NEW;
             } else if(strcmp(argv[arg_index], "--null-checks") == 0){
@@ -340,7 +342,7 @@ errorcode_t parse_arguments(compiler_t *compiler, object_t *object, int argc, ch
 }
 
 void break_into_arguments(const char *s, int *out_argc, char ***out_argv){
-    // Breaks a string into arguments (quote and backslashes allowed)
+    // Breaks a string into arguments (quotes and backslashes allowed)
     // TODO: Clean up this function because it's all over the place
 
     bool in_quote = false;
@@ -413,7 +415,7 @@ void break_into_arguments(const char *s, int *out_argc, char ***out_argv){
 }
 
 void show_help(){
-    printf("The Adept Compiler v2.2 - (c) 2016-2020 Isaac Shelton\n\n");
+    printf("The Adept Compiler v%s - (c) 2016-2020 Isaac Shelton\n\n", ADEPT_VERSION_STRING);
     printf("Usage: adept [options] <filename>\n\n");
     printf("Options:\n");
     printf("    -h, --help        Display this message\n");
@@ -430,6 +432,7 @@ void show_help(){
     printf("\nLanguage Options:\n");
     printf("    --no-type-info    Disable runtime type information\n");
     printf("    --no-undef        Force initialize for 'undef'\n");
+    printf("    --unsafe-meta     Allow unsafe usage of meta constructs\n");
     printf("    --unsafe-new      Disables zero-initialization of memory allocated with 'new'\n");
     printf("    --null-checks     Enable runtime null-checks\n");
 
@@ -632,7 +635,7 @@ void compiler_undeclared_function(compiler_t *compiler, object_t *object, source
         if(mapping->is_beginning_of_group == -1){
             mapping->is_beginning_of_group = index == 0 ? 1 : (strcmp(mapping->name, ir_module->func_mappings[index - 1].name) != 0);
         }
-        if(mapping->is_beginning_of_group == 1 && index != original_index) return;
+        if(mapping->is_beginning_of_group == 1 && index != original_index) break;
 
         print_candidate(&object->ast.funcs[mapping->ast_func_id]);
     } while(++index != ir_module->funcs_length);
@@ -643,7 +646,7 @@ void compiler_undeclared_function(compiler_t *compiler, object_t *object, source
         ast_polymorphic_func_t *poly = &object->ast.polymorphic_funcs[index];
         
         if(poly->is_beginning_of_group == -1){
-            poly->is_beginning_of_group = (strcmp(poly->name, object->ast.polymorphic_funcs[index - 1].name) != 0);
+            poly->is_beginning_of_group = index == 0 ? 1 : (strcmp(poly->name, object->ast.polymorphic_funcs[index - 1].name) != 0);
         }
         if(poly->is_beginning_of_group == 1 && index != poly_index) break;
 
@@ -668,6 +671,7 @@ void compiler_undeclared_method(compiler_t *compiler, object_t *object, source_t
     // Modify ast_type_t to remove a pointer element from the front
     // NOTE: We don't take ownership of 'this_type' or its data
     // NOTE: This change doesn't propogate to outside this function
+    // NOTE: 'ast_type_dereference' isn't used because 'this_type' doesn't own it's elements
     // DANGEROUS: Manually removing ast_elem_pointer_t
     this_type.elements = &this_type.elements[1];
     this_type.elements_length--; // Reduce length accordingly
@@ -687,7 +691,9 @@ void compiler_undeclared_method(compiler_t *compiler, object_t *object, source_t
         original_index = -1;
     }
 
-    if(original_index == -1){
+    maybe_index_t poly_index = find_beginning_of_poly_func_group(object->ast.polymorphic_funcs, object->ast.polymorphic_funcs_length, name);
+
+    if(original_index == -1 && poly_index == -1){
         // No method with that name exists for that struct
         char *this_core_typename = ast_type_str(&this_type);
         compiler_panicf(compiler, source, "Undeclared method '%s' for type '%s'", name, this_core_typename);
@@ -709,9 +715,9 @@ void compiler_undeclared_method(compiler_t *compiler, object_t *object, source_t
         ir_method_t *method = &ir_module->methods[index];
 
         if(method->is_beginning_of_group == -1){
-            method->is_beginning_of_group = (strcmp(method->name, ir_module->methods[index - 1].name) != 0 || strcmp(method->struct_name, ir_module->methods[index - 1].struct_name) != 0);
+            method->is_beginning_of_group = index == 0 ? 1 : (strcmp(method->name, ir_module->methods[index - 1].name) != 0 || strcmp(method->struct_name, ir_module->methods[index - 1].struct_name) != 0);
         }
-        if(method->is_beginning_of_group == 1 && index != original_index) return;
+        if(method->is_beginning_of_group == 1 && index != original_index) break;
 
         // Print method candidate for basic struct type
         print_candidate(&object->ast.funcs[method->ast_func_id]);
@@ -722,7 +728,7 @@ void compiler_undeclared_method(compiler_t *compiler, object_t *object, source_t
         ir_generic_base_method_t *generic_base_method = &ir_module->generic_base_methods[index];
         
         if(generic_base_method->is_beginning_of_group == -1){
-            generic_base_method->is_beginning_of_group = (strcmp(generic_base_method->name, ir_module->generic_base_methods[index - 1].name) != 0 || strcmp(generic_base_method->generic_base, ir_module->generic_base_methods[index - 1].generic_base) != 0);
+            generic_base_method->is_beginning_of_group = index == 0 ? 1 : (strcmp(generic_base_method->name, ir_module->generic_base_methods[index - 1].name) != 0 || strcmp(generic_base_method->generic_base, ir_module->generic_base_methods[index - 1].generic_base) != 0);
         }
         if(generic_base_method->is_beginning_of_group == 1 && index != original_index) break;
 
@@ -743,14 +749,13 @@ void compiler_undeclared_method(compiler_t *compiler, object_t *object, source_t
         }
     } while(++index != ir_module->generic_base_methods_length);
 
-    maybe_index_t poly_index = find_beginning_of_poly_func_group(object->ast.polymorphic_funcs, object->ast.polymorphic_funcs_length, name);
     index = poly_index;
 
     if(index != -1) do {
         ast_polymorphic_func_t *poly = &object->ast.polymorphic_funcs[index];
 
         if(poly->is_beginning_of_group == -1){
-            poly->is_beginning_of_group = (strcmp(poly->name, object->ast.polymorphic_funcs[index - 1].name) != 0);
+            poly->is_beginning_of_group = index == 0 ? 1 : (strcmp(poly->name, object->ast.polymorphic_funcs[index - 1].name) != 0);
         }
         if(poly->is_beginning_of_group == 1 && index != poly_index) break;
 

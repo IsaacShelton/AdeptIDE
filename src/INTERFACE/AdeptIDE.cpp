@@ -166,7 +166,7 @@ int AdeptIDE::main(int argc, const char **argv){
     this->menubar.addMenu("SELECTION", &selection_menu, NULL);
     this->menubar.addMenu("BUILD",     &build_menu,     NULL);
     this->menubar.addMenu("EXECUTE",   NULL,            NULL);
-    this->menubar.addMenu("HELP",      NULL,            NULL);
+    this->menubar.addMenu("HELP",      &help_menu,      NULL);
 
     DropdownMenu *newFileDropdown = new DropdownMenu(&this->font, 8.0f + 256.0f + 16.0f * 3, 20.0f, 32);
     Menu *newFileMenu = new Menu("New File                       >", this->menubar.font, NULL, newFileDropdown);
@@ -235,6 +235,14 @@ int AdeptIDE::main(int argc, const char **argv){
     this->menubar.menus[4]->data = this->menubar.menus[4]->dropdownMenu;
     this->menubar.menus[4]->dropdownMenu->menus.push_back(new Menu("Build                     Ctrl+B", this->menubar.font, build_adept_project, this));
     this->menubar.menus[4]->dropdownMenu->menus.push_back(new Menu("Build & Run         Ctrl+Shift+B", this->menubar.font, build_and_run_adept_project, this));
+
+    selectionDropDownX = 8.0f;
+    for(int q = 0; q != 6; q++)
+        selectionDropDownX += 16.0f +this->menubar.menus[q]->textWidth;
+    DropdownMenu *helpMenu = new DropdownMenu(&this->font, selectionDropDownX, 20.0f, 32);
+    this->menubar.menus[6]->dropdownMenu = helpMenu;
+    this->menubar.menus[6]->data = helpMenu;
+    this->menubar.menus[6]->dropdownMenu->menus.push_back(new Menu("About", this->menubar.font, about_menu, this));
 
     this->fileLooker = new FileLooker();
     this->fileLooker->load(&this->settings, &this->font, this->fontTexture, 512, 32); // 320 h
@@ -1687,6 +1695,28 @@ void theme_one_dark(void *data){
     }
 }
 
+void about_menu(void *data){
+    AdeptIDE *adeptide = static_cast<AdeptIDE *>(data);
+    
+    std::string about_string;
+    about_string += "VERSION:  AdpetIDE " + std::string(__DATE__) + " " + std::string(__TIME__) + "\n";
+    about_string += "INSIGHT:  Adept 2.3 (in development)\n";
+    about_string += "PLATFORM: ";
+
+    #if _WIN32
+    about_string += "Windows";
+    #elif __APPLE__
+    about_string += "MacOS";
+    #elif __linux__
+    about_string += "Linux";
+    #else
+    about_string += "Unix";
+    #endif
+
+    adeptide->createMessage(about_string, 4.0);
+    adeptide->menubar.loseFocus();
+}
+
 void maximize(void *data){
     AdeptIDE *adeptide = static_cast<AdeptIDE *>(data);
     glfwMaximizeWindow(adeptide->window);
@@ -1700,6 +1730,11 @@ void selection_menu(void *data){
 }
 
 void build_menu(void *data){
+    DropdownMenu *dropdownMenu = static_cast<DropdownMenu*>(data);
+    dropdownMenu->isOpen = true;
+}
+
+void help_menu(void *data){
     DropdownMenu *dropdownMenu = static_cast<DropdownMenu*>(data);
     dropdownMenu->isOpen = true;
 }

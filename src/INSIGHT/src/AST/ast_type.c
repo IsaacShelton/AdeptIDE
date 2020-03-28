@@ -2,6 +2,7 @@
 #include "AST/ast.h"
 #include "AST/ast_type.h"
 #include "UTIL/util.h"
+#include "UTIL/hash.h"
 #include "UTIL/color.h"
 
 ast_elem_t *ast_elem_clone(const ast_elem_t *element){
@@ -65,7 +66,7 @@ ast_elem_t *ast_elem_clone(const ast_elem_t *element){
         }
     case AST_ELEM_POLYMORPH_PREREQ: {
             new_element = malloc(sizeof(ast_elem_polymorph_prereq_t));
-            ((ast_elem_polymorph_prereq_t*) new_element)->id = AST_ELEM_POLYMORPH;
+            ((ast_elem_polymorph_prereq_t*) new_element)->id = AST_ELEM_POLYMORPH_PREREQ;
             ((ast_elem_polymorph_prereq_t*) new_element)->source = element->source;
             ((ast_elem_polymorph_prereq_t*) new_element)->name = strclone(((ast_elem_polymorph_prereq_t*) element)->name);
             ((ast_elem_polymorph_prereq_t*) new_element)->similarity_prerequisite = strclone(((ast_elem_polymorph_prereq_t*) element)->similarity_prerequisite);
@@ -465,13 +466,13 @@ bool ast_types_identical(const ast_type_t *a, const ast_type_t *b){
         case AST_ELEM_BASE:
             if(strcmp(((ast_elem_base_t*) a->elements[i])->base, "usize") == 0 || strcmp(((ast_elem_base_t*) a->elements[i])->base, "ulong") == 0){
                 // Cheap little hack to get 'usize' to be treated the same as 'ulong'
-                // TODO: Create special function func non-identical comparison, or modify the name of this function
+                // MAYBE TODO: Create special function func non-identical comparison, or modify the name of this function
                 if(strcmp(((ast_elem_base_t*) b->elements[i])->base, "usize") == 0 || strcmp(((ast_elem_base_t*) b->elements[i])->base, "ulong") == 0)
                     break;
             }
             if(strcmp(((ast_elem_base_t*) a->elements[i])->base, "successful") == 0 || strcmp(((ast_elem_base_t*) a->elements[i])->base, "bool") == 0){
                 // Cheap little hack to get 'successful' to be treated the same as 'bool'
-                // TODO: Create special function func non-identical comparison, or modify the name of this function
+                // MAYBE TODO: Create special function func non-identical comparison, or modify the name of this function
                 if(strcmp(((ast_elem_base_t*) b->elements[i])->base, "successful") == 0 || strcmp(((ast_elem_base_t*) b->elements[i])->base, "bool") == 0)
                     break;
             }
@@ -607,6 +608,12 @@ bool ast_type_is_generic_base_ptr(const ast_type_t *type){
     return true;
 }
 
+bool ast_type_is_fixed_array(const ast_type_t *type){
+    if(type->elements_length < 2) return false;
+    if(type->elements[0]->id != AST_ELEM_FIXED_ARRAY) return false;
+    return true;
+}
+
 bool ast_type_has_polymorph(const ast_type_t *type){
     for(length_t i = 0; i != type->elements_length; i++){
         switch(type->elements[i]->id){
@@ -643,6 +650,19 @@ bool ast_type_has_polymorph(const ast_type_t *type){
     return false;
 }
 
+void ast_type_dereference(ast_type_t *inout_type){
+    if(inout_type->elements_length < 2 || inout_type->elements[0]->id != AST_ELEM_POINTER){
+        redprintf("INTERNAL ERROR: ast_type_dereference received non pointer type\n");
+        return;
+    }
+
+    // Modify ast_type_t to remove a pointer element from the front
+    // DANGEROUS: Manually deleting ast_elem_pointer_t
+    free(inout_type->elements[0]);
+    memmove(inout_type->elements, &inout_type->elements[1], sizeof(ast_elem_t*) * (inout_type->elements_length - 1));
+    inout_type->elements_length--; // Reduce length accordingly
+}
+
 void ast_type_var_catalog_init(ast_type_var_catalog_t *catalog){
     catalog->type_vars = NULL;
     catalog->length = 0;
@@ -671,4 +691,71 @@ ast_type_var_t *ast_type_var_catalog_find(ast_type_var_catalog_t *catalog, weak_
     }
 
     return NULL;
+}
+
+hash_t ast_type_hash(ast_type_t *type){
+    hash_t master_hash = 0;
+
+    for(length_t i = 0; i != type->elements_length; i++){
+        master_hash = hash_combine(master_hash, ast_elem_hash(type->elements[i]));
+    }
+
+    return master_hash;
+}
+
+hash_t ast_elem_hash(ast_elem_t *element){
+    hash_t element_hash = hash_data(&element->id, sizeof(element->id));
+    
+    switch(element->id){
+    case AST_ELEM_BASE: {
+            ast_elem_base_t *base_elem = (ast_elem_base_t*) element;
+            element_hash = hash_combine(element_hash, hash_data(base_elem->base, strlen(base_elem->base)));
+        }
+        break;
+    case AST_ELEM_POINTER:
+    case AST_ELEM_ARRAY:
+    case AST_ELEM_GENERIC_INT:
+    case AST_ELEM_GENERIC_FLOAT:
+        break;
+    case AST_ELEM_FIXED_ARRAY: {
+            ast_elem_fixed_array_t *fixed_array_elem = (ast_elem_fixed_array_t*) element;
+            element_hash = hash_combine(element_hash, hash_data(&fixed_array_elem->length, sizeof(fixed_array_elem->length)));
+        }
+        break;
+    case AST_ELEM_FUNC: {
+            ast_elem_func_t *func_elem = (ast_elem_func_t*) element;
+            for(length_t i = 0; i != func_elem->arity; i++){
+                element_hash = hash_combine(element_hash, ast_type_hash(&func_elem->arg_types[i]));
+            }
+            element_hash = hash_combine(element_hash, ast_type_hash(func_elem->return_type));
+            element_hash = hash_combine(element_hash, hash_data(&func_elem->traits, sizeof(func_elem->traits)));
+        }
+        break;
+    case AST_ELEM_POLYMORPH: {
+            ast_elem_polymorph_t *polymorph = (ast_elem_polymorph_t*) element;
+            element_hash = hash_combine(element_hash, hash_data(polymorph->name, strlen(polymorph->name)));
+        }
+        break;
+    case AST_ELEM_POLYMORPH_PREREQ: {
+            ast_elem_polymorph_prereq_t *polymorph_prereq = (ast_elem_polymorph_prereq_t*) element;
+            element_hash = hash_combine(element_hash, hash_data(polymorph_prereq->name, strlen(polymorph_prereq->name)));
+            element_hash = hash_combine(element_hash, hash_data(polymorph_prereq->similarity_prerequisite, strlen(polymorph_prereq->similarity_prerequisite)));
+        }
+        break;
+    case AST_ELEM_GENERIC_BASE: {
+            ast_elem_generic_base_t *generic_base_elem = (ast_elem_generic_base_t*) element;
+            element_hash = hash_combine(element_hash, hash_data(generic_base_elem->name, strlen(generic_base_elem->name)));
+
+            for(length_t i = 0; i != generic_base_elem->generics_length; i++){
+                element_hash = hash_combine(element_hash, ast_type_hash(&generic_base_elem->generics[i]));
+            }
+
+            element_hash = hash_combine(element_hash, hash_data(&generic_base_elem->name_is_polymorphic, sizeof(generic_base_elem->name_is_polymorphic)));
+        }
+        break;
+    default:
+        redprintf("INTERNAL ERROR: Encountered unexpected type element id when cloning ast_elem_t, a crash will probably follow...\n");
+    }
+
+    return element_hash;
 }

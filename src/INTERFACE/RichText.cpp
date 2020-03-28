@@ -209,6 +209,7 @@ void RichText::updateSpecials(){
         {"AnyPtrType", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.type},
         {"successful", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.type},
         {"AnyTypeKind", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.type},    
+        {"fallthrough", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.keyword},
         {"AnyStructType", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.type},
         {"__type_kinds__", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.number},
         {"AnyFuncPtrType", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.type},
@@ -520,8 +521,7 @@ size_t RichText::highlightLine(size_t lineBeginning, size_t line){
 
                 if(this->fileType == ADEPT && ascii == '$'){
                     size_t scan_i = i + 1;
-                    if(scan_i < this->text.length() && this->text[scan_i] == ':') scan_i++;
-                    while(scan_i < this->text.length() && (charIsIdentifier(this->text[scan_i]) || charIsNumeric(this->text[scan_i]))) scan_i++;
+                    while(scan_i < this->text.length() && (charIsIdentifier(this->text[scan_i]) || charIsNumeric(this->text[scan_i]) || this->text[scan_i] == '~')) scan_i++;
                     this->setStringColor(i, scan_i - i, palette.type);
                     i = scan_i - 1;
                     continue;

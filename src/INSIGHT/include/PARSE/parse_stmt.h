@@ -13,8 +13,9 @@ extern "C" {
 // ------------------ defer_scope_t ------------------
 // A single scope for containing defer statements
 struct defer_scope;
-#define BREAKABLE   TRAIT_1
-#define CONTINUABLE TRAIT_2
+#define BREAKABLE       TRAIT_1
+#define CONTINUABLE     TRAIT_2
+#define FALLTHROUGHABLE TRAIT_3
 
 typedef struct defer_scope {
     ast_expr_list_t list;
@@ -66,6 +67,12 @@ errorcode_t parse_stmt_declare(parse_ctx_t *ctx, ast_expr_list_t *expr_list);
 // ------------------ parse_switch ------------------
 // Parses a switch statement
 errorcode_t parse_switch(parse_ctx_t *ctx, ast_expr_list_t *stmt_list, defer_scope_t *parent_defer_scope);
+
+// ------------------ parse_assign ------------------
+// Parses an assignment statement
+// NOTE: Assumes 'stmt_list' has enough space for another statement
+// NOTE: expand() should be used on stmt_list to make room sometime before calling
+errorcode_t parse_assign(parse_ctx_t *ctx, ast_expr_list_t *stmt_list);
 
 #ifdef __cplusplus
 }

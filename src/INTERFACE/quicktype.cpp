@@ -34,6 +34,7 @@ void quicktype_adept(AdeptIDE *adeptide, int key){
         case GLFW_KEY_B: adeptide->type("byte"); return;
         case GLFW_KEY_C: adeptide->type("ubyte"); return;
         case GLFW_KEY_D: adeptide->type("def "); return;
+        case GLFW_KEY_F: adeptide->type("fallthrough"); return;
         case GLFW_KEY_I: adeptide->type("int"); return;
         case GLFW_KEY_J: adeptide->type("uint"); return;
         case GLFW_KEY_L: adeptide->type("long"); return;
