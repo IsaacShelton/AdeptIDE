@@ -1,4 +1,7 @@
 
+#include <assert.h>
+#include <algorithm>
+
 #include "INTERFACE/TextBar.h"
 
 TextBar::~TextBar(){
