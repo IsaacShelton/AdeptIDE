@@ -721,7 +721,16 @@ void RichText::highlightNumber(size_t& i){
             if(++scan_i != text.size()) while( (charIsNumeric(text[scan_i]) or (text[scan_i] >= 'a' and text[scan_i] <= 'f') or (text[scan_i] >= 'A' and text[scan_i] <= 'F') )) if(++scan_i == text.size()) break;
         } else {
             // Regular numbers
-            while( (charIsNumeric(text[scan_i]) or text[scan_i] == '.')) if(++scan_i == text.size()) break;
+            bool can_e = true;
+            while(true){
+                if(!(charIsNumeric(text[scan_i]) || text[scan_i] == '.')){
+                    if(text[scan_i] == 'e' && can_e){
+                        can_e = false;
+                    } else break;
+                }
+
+                if(++scan_i == text.size()) break;
+            }
         }
 
         if(scan_i != text.size()){
