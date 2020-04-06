@@ -444,6 +444,10 @@ void AdeptIDE::handleInput(){
     double mouseX, mouseY;
     glfwGetCursorPos(window, &mouseX, &mouseY);
 
+    if(this->explorer){
+        this->explorer->update();
+    }
+
     if(TextEditor *currentTextEditor = this->getCurrentEditorAsTextEditor()){
         if(!this->mouseReleased && distance(mouseX + currentTextEditor->getNetXOffset(), mouseY + currentTextEditor->getNetYOffset(),
                     this->mouseDownX + this->mouseDownNetXOffset , this->mouseDownY + this->mouseDownNetYOffset) > 5.0f

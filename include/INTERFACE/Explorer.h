@@ -69,6 +69,7 @@ class Explorer {
     float containerWidth, containerHeight;
     Matrix4f transformationMatrix;
     FileLooker *fileLooker;
+    FolderWatcher *folderWatcher;
 
     double scroll, maxScroll;
     float targetScrollXOffset, targetScrollYOffset, scrollXOffset, scrollYOffset;
@@ -92,6 +93,7 @@ class Explorer {
     bool isVisible();
     void toggleVisibility();
     void setVisibility(bool visibility);
+    void update();
 
     bool setRootFolder(const std::string& path);
     bool generateNodes();

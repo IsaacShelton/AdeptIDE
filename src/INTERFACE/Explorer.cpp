@@ -11,10 +11,13 @@
 
 Explorer::Explorer(){
     this->container = NULL;
+    this->fileLooker = NULL;
+    this->folderWatcher = NULL;
 }
 
 Explorer::~Explorer(){
     delete this->container;
+    delete this->folderWatcher;
 }
 
 void Explorer::load(Settings *settings, Font *font, Texture *fontTexture, float containerWidth, float containerHeight, FileLooker *fileLooker){
@@ -213,13 +216,22 @@ void Explorer::setVisibility(bool visibility){
     this->visible = visibility;
 }
 
+void Explorer::update(){
+    if(this->folderWatcher && this->folderWatcher->changeOccured()){
+        this->refreshNodes();
+    }
+}
+
 bool Explorer::setRootFolder(const std::string& path){
     // NOTE: Returns whether too many files
 
     delete this->rootNode;
 
     if(path == ""){
+        delete this->folderWatcher;
+
         this->rootNode = NULL;
+        this->folderWatcher = NULL;
         return false;
     }
 
@@ -232,6 +244,11 @@ bool Explorer::setRootFolder(const std::string& path){
     if(this->fileLooker)
         this->fileLooker->setFiles(this->rootNode);
 
+    if(this->folderWatcher == NULL){
+        this->folderWatcher = new FolderWatcher();
+    }
+
+    this->folderWatcher->target(path);
     return too_many_files;
 }
 
