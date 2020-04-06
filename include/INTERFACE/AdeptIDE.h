@@ -12,9 +12,9 @@
 #include "INTERFACE/Explorer.h"
 #include "INTERFACE/FileLooker.h"
 #include "INTERFACE/LineNavigator.h"
+#include "INTERFACE/CommandRunner.h"
 #include "INTERFACE/Terminal.h"
 #include "PROCESS/FolderWatcher.h"
-
 
 class AdeptIDE : public AdeptIDEAssets { // Inheritance not symbolic
 private:
@@ -50,6 +50,7 @@ public:
     Terminal *terminal;
     FileLooker *fileLooker;
     LineNavigator *lineNavigator;
+    CommandRunner *commandRunner;
 
     AdeptIDE();
     ~AdeptIDE();
@@ -124,9 +125,16 @@ public:
 
     void lookForFile();
     void gotoLine();
-    void cdFile();
+    void runCommand();
+    bool cdFile();
+
+    void hideAnyTextBars();
+    void hideAnyTextBarsExcept(TextBar *textbar);
 
     void createMessage(const std::string& message, double seconds);
+
+    void handleEnterKey(int mods);
+    void handleEscapeKey(int mods);
 };
 
 void scroll_callback(GLFWwindow *window, double xOffset, double yOffset);
@@ -180,5 +188,13 @@ void build_adept_project(void *data);
 void build_and_run_adept_project(void *data);
 
 double distance(double x1, double y1, double x2, double y2);
+
+#ifdef __APPLE__
+#define QUICKTYPE_KEY GLFW_KEY_LEFT_SUPER
+#define CMDCTRL_MOD(a) (a & GLFW_MOD_SUPER || a & GLFW_MOD_CONTROL)
+#else
+#define QUICKTYPE_KEY GLFW_KEY_RIGHT_ALT
+#define CMDCTRL_MOD(a) (a & GLFW_MOD_CONTROL)
+#endif
 
 #endif // ADEPTIDE_H_INCLUDED

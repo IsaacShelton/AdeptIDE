@@ -49,14 +49,14 @@ void Message::render(Matrix4f& projectionMatrix, Shader *fontShader, Shader *sol
     Vector4f color(0.13, 0.14, 0.15, 1.0f);
 
     solidShader->bind();
-    transformationMatrix.translateFromIdentity(x, y, 0.79f);
+    transformationMatrix.translateFromIdentity(x, y, 0.92f);
     solidShader->giveMatrix4f("projection_matrix", projectionMatrix);
     solidShader->giveMatrix4f("transformation_matrix", transformationMatrix);
     solidShader->giveVector4f("color", color);
     container->draw();
 
     fontShader->bind();
-    transformationMatrix.translateFromIdentity(x + 10.0f, y + 10.0f, 0.8f);
+    transformationMatrix.translateFromIdentity(x + 10.0f, y + 10.0f, 0.921f);
     fontShader->giveMatrix4f("projection_matrix", projectionMatrix);
     fontShader->giveMatrix4f("transformation_matrix", transformationMatrix);
     fontShader->giveFloat("edge", 0.4f);
