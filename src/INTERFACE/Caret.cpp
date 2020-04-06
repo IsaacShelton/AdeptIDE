@@ -333,14 +333,25 @@ size_t Caret::getBeginningOfSubWord(const std::string& text){
 
     if(isOperator(text[i - 1])) return i - 1;
 
-    while(i > 0 && text[i - 1] == '_') i--;
+    while(i > 0 && (text[i - 1] == '_' || isdigit(text[i - 1]))) i--;
 
-    while(i > 0 && (
-        !isWhitespace(text[i - 1]) && !isOperator(text[i - 1]) && text[i - 1] != '_'
-        && !isupper(text[i - 1])
-    )) i--;
-
-    if(isupper(text[i - 1]) && i > 0) i--;
+    if(isupper(text[i - 1])){
+        // SubwordSUBWORDSubword
+        //        ^<~~~~~|
+        while(i > 0 && (
+            !isWhitespace(text[i - 1]) && !isOperator(text[i - 1]) && text[i - 1] != '_'
+            && !islower(text[i - 1])
+        )) i--;
+        
+    } else {
+        // SubwordSubwordSubword
+        //        ^<~~~~~|
+        while(i > 0 && (
+            !isWhitespace(text[i - 1]) && !isOperator(text[i - 1]) && text[i - 1] != '_'
+            && !isupper(text[i - 1])
+        )) i--;
+        if(isupper(text[i - 1]) && i > 0) i--;
+    }
 
     return i;
 }
@@ -355,14 +366,25 @@ size_t Caret::getEndOfSubWord(const std::string& text){
 
     if(isOperator(text[i])) return i + 1;
 
-    while(i < text.length() && text[i] == '_') i++;
+    while(i < text.length() && (text[i] == '_' || isdigit(text[i - 1]))) i++;
 
-    if(i < text.length() && isupper(text[i])) i++;
+    if(i + 1 < text.length() && isupper(text[i]) && isupper(text[i + 1])){
+        // SubwordSUBWORDSubword
+        //        |~~~~~>^
+        while(i < text.length() && (
+            !isWhitespace(text[i]) && !isOperator(text[i]) && text[i] != '_'
+            && !(i + 1 < text.length() && islower(text[i + 1]))
+        )) i++;
+    } else {
+        // SubwordSubwordSubword
+        //        |~~~~~>^
+        if(i < text.length() && isupper(text[i])) i++;
 
-    while(i < text.length() && (
-        !isWhitespace(text[i]) && !isOperator(text[i]) && text[i] != '_'
-        && !isupper(text[i])
-    )) i++;
+        while(i < text.length() && (
+            !isWhitespace(text[i]) && !isOperator(text[i]) && text[i] != '_'
+            && !isupper(text[i])
+        )) i++;
+    }
 
     return i;
 }
