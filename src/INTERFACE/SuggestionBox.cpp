@@ -28,6 +28,7 @@ void SuggestionBox::generate(const std::string& text, size_t lines, size_t longe
 }
 
 void SuggestionBox::render(Matrix4f& projectionMatrix, Shader *shader, Shader *fontShader, Shader *solidShader, AdeptIDEAssets *assets, float x, float y){
+    if(settings->ide_suggestions_max == 0) return;
     if(this->boxModel == NULL) this->generate("No Insight", 1, 10);
 
     Matrix4f transformationMatrix;
@@ -49,7 +50,7 @@ void SuggestionBox::render(Matrix4f& projectionMatrix, Shader *shader, Shader *f
 
     size_t i = 0;
     for(const SymbolWeight& s : this->symbolWeights){
-        if(i++ == 5) break;
+        if(i++ == settings->ide_suggestions_max) break;
 
         Model *model = NULL;
         switch(s.kind){

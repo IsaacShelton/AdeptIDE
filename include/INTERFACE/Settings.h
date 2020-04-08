@@ -27,6 +27,7 @@ public:
     int ide_default_fps;
     bool ide_quicktype;
     bool ide_suggestions;
+    size_t ide_suggestions_max;
     bool ide_debug_fps;
     bool ide_emblem;
     bool ide_scroll_fixed;

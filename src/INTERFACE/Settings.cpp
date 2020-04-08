@@ -154,6 +154,7 @@ void Settings::defaults(){
     this->ide_default_fps = 60;
     this->ide_quicktype = true;
     this->ide_suggestions = true;
+    this->ide_suggestions_max = 5;
     this->ide_debug_fps = false;
     this->ide_emblem = true;
     this->ide_scroll_fixed = true;
@@ -210,6 +211,7 @@ bool objectIntoSettings(Settings *settings, nlohmann::json object){
         }
         if(setting(it, "ide.quicktype", &settings->ide_quicktype)) continue;
         if(setting(it, "ide.suggestions", &settings->ide_suggestions)) continue;
+        if(setting(it, "ide.suggestions.max", &settings->ide_suggestions_max)) continue;
         if(setting(it, "ide.debug.fps", &settings->ide_debug_fps)) continue;
         if(setting(it, "ide.emblem", &settings->ide_emblem)) continue;
         if(setting(it, "ide.scroll.fixed", &settings->ide_scroll_fixed)) continue;

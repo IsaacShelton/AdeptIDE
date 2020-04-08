@@ -4,6 +4,7 @@
     "ide.default.height": 480,
     "ide.default.fps": 60,
     "ide.suggestions": true,
+    "ide.suggestions.max": 3,
     "ide.debug.fps": false,
     "ide.emblem": true,
     "ide.scroll.fixed": false,

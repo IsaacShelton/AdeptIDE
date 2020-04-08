@@ -1170,7 +1170,7 @@ void TextEditor::generateSuggestions(){
     // Grab our best suggestions into a single string and record the longest length
     size_t lines = 0;
     size_t longest = 0;
-    for(size_t i = 0; i != 5 && i != possibleNewSymbolWeights.size(); i++){
+    for(size_t i = 0; i != settings->ide_suggestions_max && i != possibleNewSymbolWeights.size(); i++){
         list += possibleNewSymbolWeights[i].label + "\n";
         if(possibleNewSymbolWeights[i].label.length() > longest) longest = possibleNewSymbolWeights[i].label.length();
         lines++;

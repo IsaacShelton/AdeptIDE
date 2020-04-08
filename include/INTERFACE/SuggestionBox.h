@@ -22,6 +22,7 @@ private:
     SolidModel *boxModel;
     TextModel textModel;
     int heightInLines;
+    size_t maxSuggestions;
 
     void generateBoxModel();
 
@@ -33,6 +34,7 @@ public:
     void load(Settings *settings, Font *font, Texture *fontTexture);
     void generate(const std::string& text, size_t lines, size_t longest);
     void render(Matrix4f& projectionMatrix, Shader *shader, Shader *fontShader, Shader *solidShader, AdeptIDEAssets *assets, float x, float y);
+    void setMaxSuggestions(size_t amount);
 };
 
 #endif // SUGGESTION_BOX_H
