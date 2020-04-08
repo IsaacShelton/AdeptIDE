@@ -51,8 +51,8 @@ void TextEditor::load(Settings *settings, Font *font, Texture *fontTexture, floa
     this->hasFilenameModel = false;
     this->textWidth = 0.43f;
     this->textEdge = 0.275f;
-    this->caret.generate(settings, this->font);
-    this->caret.set(this->richText.text.length());
+    this->mainCaret.generate(settings, this->font);
+    this->mainCaret.set(this->richText.text.length());
     this->xOffset = 4.0f;
     this->yOffset = 4.0f;
     this->selection = NULL;
@@ -125,9 +125,9 @@ void TextEditor::render(Matrix4f& projectionMatrix, Shader *shader, Shader *font
 
     this->richText.getTextModel()->draw();
 
-    this->caret.getTransformationMatrix(this->richText.text, this->xOffset + this->textXOffset, this->yOffset - this->scrollYOffset, &transformationMatrix);
+    this->mainCaret.getTransformationMatrix(this->richText.text, this->xOffset + this->textXOffset, this->yOffset - this->scrollYOffset, &transformationMatrix);
     fontShader->giveMatrix4f("transformation_matrix", this->transformationMatrix);
-    this->caret.draw();
+    this->mainCaret.draw();
 
     for(Caret *additionalCaret : this->additionalCarets){
         additionalCaret->getTransformationMatrix(this->richText.text, this->xOffset + this->textXOffset, this->yOffset - this->scrollYOffset, &transformationMatrix);
@@ -148,7 +148,7 @@ void TextEditor::render(Matrix4f& projectionMatrix, Shader *shader, Shader *font
     }    
 
     if(this->showSuggestionBox){
-        this->suggestionBox.render(projectionMatrix, shader, fontShader, solidShader, assets, this->caret.getX(), this->caret.getY() + this->font->line_height * FONT_SCALE);
+        this->suggestionBox.render(projectionMatrix, shader, fontShader, solidShader, assets, this->mainCaret.getX(), this->mainCaret.getY() + this->font->line_height * FONT_SCALE);
     }
 }
 
@@ -167,7 +167,7 @@ void TextEditor::resize(float width, float height){
 }
 
 void TextEditor::snapCaretToPosition(float x, float y){
-    this->caret.snapToPosition(x, y);
+    this->mainCaret.snapToPosition(x, y);
 }
 
 void TextEditor::setFileType(const FileType& type){
@@ -207,9 +207,9 @@ void TextEditor::type(const std::string& characters){
     if(this->additionalCarets.size() != 0)
         this->changeRecord.startGroup();
 
-    this->changeRecord.addInsertion(this->caret.getPosition(), characters);
-    this->relationallyIncreaseCaret(&this->caret, characters.length());
-    this->richText.insert(this->caret.getPosition() - characters.length(), characters);
+    this->changeRecord.addInsertion(this->mainCaret.getPosition(), characters);
+    this->relationallyIncreaseCaret(&this->mainCaret, characters.length());
+    this->richText.insert(this->mainCaret.getPosition() - characters.length(), characters);
 
     for(Caret *additionalCaret : this->additionalCarets){
         this->changeRecord.addInsertion(additionalCaret->getPosition(), characters);
@@ -241,9 +241,9 @@ void TextEditor::type(char character){
     if(this->additionalCarets.size() != 0)
         this->changeRecord.startGroup();
 
-    this->changeRecord.addInsertion(this->caret.getPosition(), character);
-    this->relationallyIncreaseCaret(&this->caret, 1);
-    this->richText.insert(this->caret.getPosition() - 1, character);
+    this->changeRecord.addInsertion(this->mainCaret.getPosition(), character);
+    this->relationallyIncreaseCaret(&this->mainCaret, 1);
+    this->richText.insert(this->mainCaret.getPosition() - 1, character);
 
     for(Caret *additionalCaret : this->additionalCarets){
         this->changeRecord.addInsertion(additionalCaret->getPosition(), character);
@@ -277,7 +277,7 @@ void TextEditor::type(char character){
 }
 
 void TextEditor::typeBlock(){
-    size_t whitespaceCount = this->caret.countLeadingWhitespace(this->richText.text);
+    size_t whitespaceCount = this->mainCaret.countLeadingWhitespace(this->richText.text);
 
     std::string initialWhitespace(whitespaceCount, ' ');
 
@@ -307,11 +307,7 @@ void TextEditor::typeCString(){
 }
 
 void TextEditor::backspace(){
-    this->backspaceForCaret(&this->caret);
-
-    for(Caret *additionalCaret : this->additionalCarets)
-        this->backspaceForCaret(additionalCaret);
-
+    this->forEachCaret([this](Caret *caret){ this->backspaceForCaret(caret); });
     this->adjustViewForCaret();
 }
 
@@ -350,7 +346,7 @@ void TextEditor::backspaceForCaret(Caret *caret){
 }
 
 void TextEditor::del(){
-    size_t i = this->caret.getPosition();
+    size_t i = this->mainCaret.getPosition();
 
     if(this->selection != NULL){
         this->deleteSelected();
@@ -404,7 +400,7 @@ bool TextEditor::smartRemove(){
     // Performs a smart remove operation if possible.
     // Returns whether an operator was performed
  
-    size_t i = this->caret.getPosition();
+    size_t i = this->mainCaret.getPosition();
 
     if(i > 0 && i < this->richText.text.length()){
         if((richText.text[i - 1] == '(' && richText.text[i] == ')')
@@ -412,7 +408,7 @@ bool TextEditor::smartRemove(){
         || (richText.text[i - 1] == '{' && richText.text[i] == '}')){
             this->changeRecord.addDeletion(i - 1, this->richText.text.substr(i - 1, 2), false);
             this->richText.remove(i - 1, 2);
-            this->caret.decrease(1);
+            this->mainCaret.decrease(1);
             this->adjustViewForCaret();
             return true;
         }
@@ -422,8 +418,8 @@ bool TextEditor::smartRemove(){
 }
 
 void TextEditor::backspaceLine(){
-    size_t beginning = this->caret.getLineBeginning(this->richText.text);
-    size_t end = this->caret.getLineEndAfterNewline(this->richText.text);
+    size_t beginning = this->mainCaret.getLineBeginning(this->richText.text);
+    size_t end = this->mainCaret.getLineEndAfterNewline(this->richText.text);
     this->deleteAdditionalCarets();
     this->destroySelection();
 
@@ -434,7 +430,7 @@ void TextEditor::backspaceLine(){
 
     this->changeRecord.addDeletion(beginning, this->richText.text.substr(beginning, end - beginning), true);
     this->richText.remove(beginning, end - beginning);
-    this->caret.set(beginning);
+    this->mainCaret.set(beginning);
 
     this->moveCaretUp();
     this->moveCaretEndOfLine();
@@ -443,8 +439,8 @@ void TextEditor::backspaceLine(){
 }
 
 void TextEditor::delLine(){
-    size_t beginning = this->caret.getLineBeginning(this->richText.text);
-    size_t end = this->caret.getLineEndAfterNewline(this->richText.text);
+    size_t beginning = this->mainCaret.getLineBeginning(this->richText.text);
+    size_t end = this->mainCaret.getLineEndAfterNewline(this->richText.text);
     this->deleteAdditionalCarets();
     this->destroySelection();
 
@@ -455,7 +451,7 @@ void TextEditor::delLine(){
 
     this->changeRecord.addDeletion(beginning, this->richText.text.substr(beginning, end - beginning), false);
     this->richText.remove(beginning, end - beginning);
-    this->caret.set(beginning);
+    this->mainCaret.set(beginning);
 
     this->moveCaretEndOfLine();
 }
@@ -465,8 +461,8 @@ void TextEditor::startSelection(bool snapSelectionCaret){
         if(this->selection) this->destroySelection();
 
         this->selecting = true;
-        this->selection = new Selection(this->caret.getPosition(), this->caret.getPosition());
-        this->selectionStartCaret.set(this->caret.getPosition());
+        this->selection = new Selection(this->mainCaret.getPosition(), this->mainCaret.getPosition());
+        this->selectionStartCaret.set(this->mainCaret.getPosition());
         if(snapSelectionCaret){
             this->selectionStartCaret.snapToTargetPosition(this->richText.text, this->xOffset + this->textXOffset, this->yOffset - this->calculateScrollOffset());
         }
@@ -513,10 +509,10 @@ void TextEditor::deleteRange(size_t beginning, size_t end){
     this->richText.remove(beginning, end - beginning);
     this->destroySelection();
 
-    if(this->caret.getPosition() == end){
-        this->relationallyDecreaseCaret(&this->caret, end - beginning);
+    if(this->mainCaret.getPosition() == end){
+        this->relationallyDecreaseCaret(&this->mainCaret, end - beginning);
     } else {
-        this->relationallyMaintainDecrease(&this->caret, end - beginning);
+        this->relationallyMaintainDecrease(&this->mainCaret, end - beginning);
     }
 }
 
@@ -546,18 +542,18 @@ void TextEditor::paste(GLFWwindow *window){
 }
 
 void TextEditor::tab(){
-    size_t home = this->caret.getAfterWhitespaceInLine(this->richText.text, this->caret.getLineBeginning(this->richText.text));
+    size_t home = this->mainCaret.getAfterWhitespaceInLine(this->richText.text, this->mainCaret.getLineBeginning(this->richText.text));
 
-    if(this->caret.getPosition() <= home)
+    if(this->mainCaret.getPosition() <= home)
         this->type("    ");
     else
         this->moveCaretOutside();
 }
 
 void TextEditor::nextLine(){
-    size_t whitespaceCount = this->caret.countLeadingWhitespace(this->richText.text);
+    size_t whitespaceCount = this->mainCaret.countLeadingWhitespace(this->richText.text);
 
-    size_t position = this->caret.getPosition();
+    size_t position = this->mainCaret.getPosition();
     if(position - 1 >= 0 && (this->richText.text[position - 1] == '{' || this->richText.text[position - 1] == ',')){
         whitespaceCount += 4;
     }
@@ -568,7 +564,7 @@ void TextEditor::nextLine(){
 }
 
 void TextEditor::nextPrecedingLine(){
-    size_t whitespaceCount = this->caret.countLeadingWhitespace(this->richText.text);
+    size_t whitespaceCount = this->mainCaret.countLeadingWhitespace(this->richText.text);
 
     std::string initialWhitespace(whitespaceCount, ' ');
     this->moveCaretBeginningOfLine();
@@ -610,7 +606,7 @@ void TextEditor::finishSuggestion(){
 
 void TextEditor::moveCaretToPosition(size_t position){
     this->deleteAdditionalCarets();
-    this->caret.set(position);
+    this->mainCaret.set(position);
     this->adjustViewForCaret();
     this->showSuggestionBox = false;
 }
@@ -620,17 +616,16 @@ void TextEditor::moveCaret(double xpos, double ypos){
 
     int row, column;
     this->getRowAndColumnAt(xpos, ypos, &row, &column);
-    this->caret.moveTo(this->richText.text, row, column);
+    this->mainCaret.moveTo(this->richText.text, row, column);
     this->adjustViewForCaret();
     this->handleSelection();
     this->showSuggestionBox = false;
 }
 
 void TextEditor::moveCaretLeft(){
-    this->caret.moveLeft(this->richText.text);
-
-    for(Caret *additionalCaret : this->additionalCarets)
-        additionalCaret->moveLeft(this->richText.text);
+    this->forEachCaret([this](Caret *caret){
+        caret->moveLeft(this->richText.text);
+    });
 
     this->adjustViewForCaret();
     this->handleSelection();
@@ -638,10 +633,9 @@ void TextEditor::moveCaretLeft(){
 }
 
 void TextEditor::moveCaretRight(){
-    this->caret.moveRight(this->richText.text);
-
-    for(Caret *additionalCaret : this->additionalCarets)
-        additionalCaret->moveRight(this->richText.text);
+    this->forEachCaret([this](Caret *caret){
+        caret->moveRight(this->richText.text);
+    });
 
     this->adjustViewForCaret();
     this->handleSelection();
@@ -649,10 +643,9 @@ void TextEditor::moveCaretRight(){
 }
 
 void TextEditor::moveCaretUp(){
-    this->caret.moveUp(this->richText.text);
-
-    for(Caret *additionalCaret : this->additionalCarets)
-        additionalCaret->moveUp(this->richText.text);
+    this->forEachCaret([this](Caret *caret){
+        caret->moveUp(this->richText.text);
+    });
 
     this->adjustViewForCaret();
     this->handleSelection();
@@ -660,10 +653,9 @@ void TextEditor::moveCaretUp(){
 }
 
 void TextEditor::moveCaretDown(){
-    this->caret.moveDown(this->richText.text);
-
-    for(Caret *additionalCaret : this->additionalCarets)
-        additionalCaret->moveDown(this->richText.text);
+    this->forEachCaret([this](Caret *caret){
+        caret->moveDown(this->richText.text);
+    });
 
     this->adjustViewForCaret();
     this->handleSelection();
@@ -671,21 +663,19 @@ void TextEditor::moveCaretDown(){
 }
 
 void TextEditor::moveCaretBeginningOfLine(){
-    this->caret.moveBeginningOfLine(this->richText.text);
-
-    for(Caret *additionalCaret : this->additionalCarets)
-        additionalCaret->moveBeginningOfLine(this->richText.text);
-
+    this->forEachCaret([this](Caret *caret){
+        caret->moveBeginningOfLine(this->richText.text);
+    });
+    
     this->adjustViewForCaret();
     this->handleSelection();
     this->showSuggestionBox = false;
 }
 
 void TextEditor::moveCaretEndOfLine(){
-    this->caret.moveEndOfLine(this->richText.text);
-
-    for(Caret *additionalCaret : this->additionalCarets)
-        additionalCaret->moveEndOfLine(this->richText.text);
+    this->forEachCaret([this](Caret *caret){
+        caret->moveEndOfLine(this->richText.text);
+    });
 
     this->adjustViewForCaret();
     this->handleSelection();
@@ -693,10 +683,9 @@ void TextEditor::moveCaretEndOfLine(){
 }
 
 void TextEditor::moveCaretBeginningOfWord(){
-    this->caret.moveBeginningOfWord(this->richText.text);
-
-    for(Caret *additionalCaret : this->additionalCarets)
-        additionalCaret->moveBeginningOfWord(this->richText.text);
+    this->forEachCaret([this](Caret *caret){
+        caret->moveBeginningOfWord(this->richText.text);
+    });
 
     this->adjustViewForCaret();
     this->handleSelection();
@@ -704,10 +693,9 @@ void TextEditor::moveCaretBeginningOfWord(){
 }
 
 void TextEditor::moveCaretEndOfWord(){
-    this->caret.moveEndOfWord(this->richText.text);
-
-    for(Caret *additionalCaret : this->additionalCarets)
-        additionalCaret->moveEndOfWord(this->richText.text);
+    this->forEachCaret([this](Caret *caret){
+        caret->moveEndOfWord(this->richText.text);
+    });
 
     this->adjustViewForCaret();
     this->handleSelection();
@@ -715,10 +703,9 @@ void TextEditor::moveCaretEndOfWord(){
 }
 
 void TextEditor::moveCaretBeginningOfSubWord(){
-    this->caret.moveBeginningOfSubWord(this->richText.text);
-
-    for(Caret *additionalCaret : this->additionalCarets)
-        additionalCaret->moveBeginningOfSubWord(this->richText.text);
+    this->forEachCaret([this](Caret *caret){
+        caret->moveBeginningOfSubWord(this->richText.text);
+    });
 
     this->adjustViewForCaret();
     this->handleSelection();
@@ -726,10 +713,9 @@ void TextEditor::moveCaretBeginningOfSubWord(){
 }
 
 void TextEditor::moveCaretEndOfSubWord(){
-    this->caret.moveEndOfSubWord(this->richText.text);
-
-    for(Caret *additionalCaret : this->additionalCarets)
-        additionalCaret->moveEndOfSubWord(this->richText.text);
+    this->forEachCaret([this](Caret *caret){
+        caret->moveEndOfSubWord(this->richText.text);
+    });
 
     this->adjustViewForCaret();
     this->handleSelection();
@@ -737,10 +723,9 @@ void TextEditor::moveCaretEndOfSubWord(){
 }
 
 void TextEditor::moveCaretOutside(){
-    this->caret.moveOutside(this->richText.text);
-
-    for(Caret *additionalCaret : this->additionalCarets)
-        additionalCaret->moveOutside(this->richText.text);
+    this->forEachCaret([this](Caret *caret){
+        caret->moveOutside(this->richText.text);
+    });
 
     this->adjustViewForCaret();
     this->handleSelection();
@@ -773,7 +758,7 @@ void TextEditor::pageDown(){
 void TextEditor::adjustViewForCaret(){
     if(this->maxHeight < 0) return;
 
-    size_t currentLine = this->caret.getLine(this->richText.text);
+    size_t currentLine = this->mainCaret.getLine(this->richText.text);
     size_t linesViewable = (size_t) (this->maxHeight / this->calculateScrollOffset(1));
     size_t maxSeenLine = linesViewable + this->scroll;
 
@@ -788,7 +773,7 @@ void TextEditor::adjustViewForCaret(){
 void TextEditor::focusViewForCaret(){
     if(this->maxHeight < 0) return;
 
-    size_t currentLine = this->caret.getLine(this->richText.text);
+    size_t currentLine = this->mainCaret.getLine(this->richText.text);
     size_t linesViewable = (size_t) (this->maxHeight / this->calculateScrollOffset(1));
 
     this->scroll = currentLine - 1 - linesViewable / 2;
@@ -802,13 +787,13 @@ void TextEditor::selectAll(){
     this->deleteAdditionalCarets();
 
     if(this->richText.text.length() != 0){
-        this->selectionStartCaret.set(this->caret.getPosition());
+        this->selectionStartCaret.set(this->mainCaret.getPosition());
         this->selectionStartCaret.snapToTargetPosition(this->richText.text, this->xOffset + this->textXOffset, this->yOffset - this->calculateScrollOffset());
 
-        this->caret.set(this->richText.text.length());
+        this->mainCaret.set(this->richText.text.length());
         this->startSelection(false);
-        this->caret.set(0);
-        this->selection->adjustEnd(this->caret.getPosition());
+        this->mainCaret.set(0);
+        this->selection->adjustEnd(this->mainCaret.getPosition());
         this->endSelection();
     }
 }
@@ -817,80 +802,50 @@ void TextEditor::selectLine(){
     this->deleteAdditionalCarets();
 
     if(this->richText.text.length() != 0){
-        size_t lineHome = this->caret.getAfterWhitespaceInLine(this->richText.text, this->caret.getLineBeginning(this->richText.text));
-        size_t lineEnd = this->caret.getLineEnd(this->richText.text);
+        size_t lineHome = this->mainCaret.getAfterWhitespaceInLine(this->richText.text, this->mainCaret.getLineBeginning(this->richText.text));
+        size_t lineEnd = this->mainCaret.getLineEnd(this->richText.text);
 
         if(lineHome == lineEnd) return;
 
-        this->selectionStartCaret.set(this->caret.getPosition());
+        this->selectionStartCaret.set(this->mainCaret.getPosition());
         this->selectionStartCaret.snapToTargetPosition(this->richText.text, this->xOffset + this->textXOffset, this->yOffset - this->calculateScrollOffset());
 
-        this->caret.set(lineEnd);
+        this->mainCaret.set(lineEnd);
         this->startSelection(false);
-        this->caret.set(lineHome);
-        this->selection->adjustEnd(this->caret.getPosition());
+        this->mainCaret.set(lineHome);
+        this->selection->adjustEnd(this->mainCaret.getPosition());
         this->endSelection();
     }
 }
 
-void TextEditor::relationallyIncreaseCaret(Caret *caret, size_t amount){
-    // WARNING: caret is not the same as this->caret
-
-    if(caret != &this->caret && this->caret.getPosition() > caret->getPosition()){
-        this->caret.increase(amount);
-    }
-
-    for(Caret *additionalCaret : this->additionalCarets){
-        if(caret != additionalCaret && additionalCaret->getPosition() > caret->getPosition()){
-            additionalCaret->increase(amount);
-        }
-    }
-
-    caret->increase(amount);
+void TextEditor::relationallyIncreaseCaret(Caret *targetCaret, size_t amount){
+    // Moves targetCaret ahead 'amount' and retains other carets positions
+    this->relationallyMaintainIncrease(targetCaret, amount);
+    targetCaret->increase(amount);
 }
 
-void TextEditor::relationallyDecreaseCaret(Caret *caret, size_t amount){
-    // WARNING: caret is not the same as this->caret
-
-    if(caret != &this->caret && this->caret.getPosition() >= caret->getPosition()){
-        this->caret.decrease(amount);
-    }
-
-    for(Caret *additionalCaret : this->additionalCarets){
-        if(caret != additionalCaret && additionalCaret->getPosition() >= caret->getPosition()){
-            additionalCaret->decrease(amount);
-        }
-    }
-
-    caret->decrease(amount);
+void TextEditor::relationallyDecreaseCaret(Caret *targetCaret, size_t amount){
+    // Moves targetCaret back 'amount' and retains other carets positions
+    this->relationallyMaintainDecrease(targetCaret, amount);
+    targetCaret->decrease(amount);
 }
 
-void TextEditor::relationallyMaintainIncrease(Caret *caret, size_t amount){
-    // WARNING: caret is not the same as this->caret
-
-    if(caret != &this->caret && this->caret.getPosition() > caret->getPosition()){
-        this->caret.increase(amount);
-    }
-
-    for(Caret *additionalCaret : this->additionalCarets){
-        if(caret != additionalCaret && additionalCaret->getPosition() > caret->getPosition()){
-            additionalCaret->increase(amount);
-        }
-    }
+void TextEditor::relationallyMaintainIncrease(Caret *targetCaret, size_t amount){
+    // Retains other carets positions when targetCaret moves ahead 'amount'
+    this->forEachCaret([targetCaret, amount](Caret *caret){
+        if(caret != targetCaret && caret->getPosition() > targetCaret->getPosition())
+            caret->increase(amount);
+    });
 }
 
-void TextEditor::relationallyMaintainDecrease(Caret *caret, size_t amount){
-    // WARNING: caret is not the same as this->caret
-
-    if(caret != &this->caret && this->caret.getPosition() > caret->getPosition()){
-        this->caret.decrease(amount);
-    }
-
-    for(Caret *additionalCaret : this->additionalCarets){
-        if(caret != additionalCaret && additionalCaret->getPosition() > caret->getPosition()){
-            additionalCaret->decrease(amount);
-        }
-    }
+void TextEditor::relationallyMaintainDecrease(Caret *targetCaret, size_t amount){
+    // Retains other carets positions when targetCaret moves back 'amount'
+    // NOTE: '>=' is used instead of '>' like in relationallyMaintainIncrease in
+    // order to prevent carets being left behind
+    this->forEachCaret([targetCaret, amount](Caret *caret){
+        if(caret != targetCaret && caret->getPosition() >= targetCaret->getPosition())
+            caret->decrease(amount);
+    });
 }
 
 void TextEditor::gotoLine(int lineNumber){
@@ -908,21 +863,26 @@ void TextEditor::gotoLine(int lineNumber){
     this->focusViewForCaret();
 }
 
+void TextEditor::forEachCaret(std::function<void (Caret *)> lambda_function){
+    lambda_function(&this->mainCaret);
+    for(Caret *caret : this->additionalCarets) lambda_function(caret);
+}
+
 void TextEditor::duplicateCaretUp(){
     Caret *newCaret = new Caret();
     newCaret->generate(this->settings, this->font);
-    newCaret->set(this->caret.getPosition());
+    newCaret->set(this->mainCaret.getPosition());
     newCaret->snapToTargetPosition(this->richText.text, this->xOffset + this->textXOffset, this->yOffset - this->calculateScrollOffset());
-    caret.moveUp(this->richText.text);
+    mainCaret.moveUp(this->richText.text);
     this->additionalCarets.push_back(newCaret);
 }
 
 void TextEditor::duplicateCaretDown(){
     Caret *newCaret = new Caret();
     newCaret->generate(this->settings, this->font);
-    newCaret->set(this->caret.getPosition());
+    newCaret->set(this->mainCaret.getPosition());
     newCaret->snapToTargetPosition(this->richText.text, this->xOffset + this->textXOffset, this->yOffset - this->calculateScrollOffset());
-    caret.moveDown(this->richText.text);
+    mainCaret.moveDown(this->richText.text);
     this->additionalCarets.push_back(newCaret);
 }
 
@@ -954,7 +914,7 @@ void TextEditor::loadTextFromFile(const std::string& filename){
     this->richText.loadFromFile(filename);
     this->makeAst();
 
-    this->caret.set(0);
+    this->mainCaret.set(0);
     this->scroll = 0;
     this->lineNumbersUpdated = true;
 }
@@ -1064,7 +1024,7 @@ void TextEditor::handleSelection(){
     if(!this->selecting && this->selection != NULL){
         this->destroySelection();
     } else if(this->selection != NULL){
-        this->selection->adjustEnd(this->caret.getPosition());
+        this->selection->adjustEnd(this->mainCaret.getPosition());
     }
 }
 
@@ -1317,7 +1277,7 @@ void TextEditor::makeAst(bool storeCreationResult, bool fromMemory){
 }
 
 size_t TextEditor::getCaretPosition(){
-    return this->caret.getPosition();
+    return this->mainCaret.getPosition();
 }
 
 TextEditor* TextEditor::asTextEditor(){

@@ -36,7 +36,7 @@ class TextEditor : public GenericEditor {
 
     Matrix4f transformationMatrix;
 
-    Caret caret;
+    Caret mainCaret;
     Selection *selection;
     Caret selectionStartCaret;
     std::vector<Caret*> additionalCarets;
@@ -48,12 +48,6 @@ class TextEditor : public GenericEditor {
     float textXOffset;
 
     // Fields in this grouping are controled by the mutex 'astMutex'
-    /*
-    ast_t ast;
-    tokenlist_t preserveTokenlist;
-    char *preserveBuffer;
-    bool hasAst;
-    */
     std::thread astCreationThread;
     bool hasCompiler;
     compiler_t compiler;
@@ -140,11 +134,12 @@ public:
     void focusViewForCaret();
     void selectAll();
     void selectLine();
-    void relationallyIncreaseCaret(Caret *caret, size_t amount);
-    void relationallyDecreaseCaret(Caret *caret, size_t amount);
-    void relationallyMaintainIncrease(Caret *caret, size_t amount);
-    void relationallyMaintainDecrease(Caret *caret, size_t amount);
+    void relationallyIncreaseCaret(Caret *targetCaret, size_t amount);
+    void relationallyDecreaseCaret(Caret *targetCaret, size_t amount);
+    void relationallyMaintainIncrease(Caret *targetCaret, size_t amount);
+    void relationallyMaintainDecrease(Caret *targetCaret, size_t amount);
     void gotoLine(int lineNumber);
+    void forEachCaret(std::function<void (Caret *)> lambda_function);
 
     void duplicateCaretUp();
     void duplicateCaretDown();
