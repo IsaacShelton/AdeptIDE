@@ -9,8 +9,7 @@ ImageEditor::~ImageEditor(){
 }
 
 void ImageEditor::updateFilenameModel(){
-    if (this->hasFilenameModel)
-        this->filenameModel.free();
+    if(this->hasFilenameModel) this->filenameModel.free();
 
     this->displayFilename = (this->filename == "") ? "Untitled" : filename_name(this->filename);
 
@@ -32,7 +31,7 @@ void ImageEditor::load(Settings *settings, Font *font, Texture *fontTexture, flo
     this->dragging = false;
     this->scale = 1;
 
-    this->loadImageFromFile("/Users/isaac/Downloads/test.png");
+    this->loadImageFromFile("/Users/isaac/Downloads/catmcree.jpg");
 }
 
 void ImageEditor::render(Matrix4f &projectionMatrix, Shader *shader, Shader *fontShader, Shader *solidShader, AdeptIDEAssets *assets){
@@ -61,7 +60,7 @@ void ImageEditor::render(Matrix4f &projectionMatrix, Shader *shader, Shader *fon
 
         shader->bind();
         shader->giveMatrix4f("projection_matrix", projectionMatrix);
-        transformationMatrix.translateFromIdentity(imgX + offsetX, imgY + offsetY + 24.0f, 0.5f);
+        transformationMatrix.translateFromIdentity(imgX + offsetX, imgY + offsetY + 24.0f, -0.9f);
         transformationMatrix.scale(scale, scale, 0.0f);
         //transformationMatrix.translateFromIdentity(0.0f - halfWidth, 0.0f - halfHeight, 0.0f);
         shader->giveMatrix4f("transformation_matrix", this->transformationMatrix);
@@ -74,7 +73,7 @@ void ImageEditor::loadImageFromFile(const std::string& filename){
     delete this->texture;
     this->texture = new Texture(filename, TextureLoadOptions::ALPHA_BLEND);
 
-    this->image = new Image("/Users/isaac/Downloads/test.bmp");
+    this->image = new Image(filename);
     delete this->texture;
     this->texture = new Texture(this->image);
 
@@ -86,8 +85,13 @@ FileType ImageEditor::getFileType(){
 }
 
 TextModel *ImageEditor::getFilenameModel(){
-    if (!this->hasFilenameModel) this->updateFilenameModel();
+    if(!this->hasFilenameModel) this->updateFilenameModel();
     return &this->filenameModel;
+}
+
+size_t ImageEditor::getDisplayFilenameLength(){
+    if(!this->hasFilenameModel) this->updateFilenameModel();
+    return this->displayFilename.length();
 }
 
 void ImageEditor::startDrag(double x, double y){
@@ -119,6 +123,7 @@ void ImageEditor::zoomIn(int lineCount){
 
 void ImageEditor::zoomOut(int lineCount){
     this->scale -= 0.01 * lineCount;
+    if(this->scale < 0.005) this->scale = 0.005;
 }
 
 void ImageEditor::setOffset(float xOffset, float yOffset){

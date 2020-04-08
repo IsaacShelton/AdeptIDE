@@ -24,6 +24,8 @@ private:
     void handleInput();
     void update();
     void renderEditorFilenames();
+    void renderEmblem();
+    void renderCurrentEditor();
     void loadSettings();
 
 public:

@@ -20,11 +20,11 @@
 
 #include "INSIGHT/insight.h"
 
-typedef char AstCreationResult;
-#define AstCreationResultNothingNew 0
-#define AstCreationResultSuccess 1
-#define AstCreationResultFailure 2
-#define AstCreationResultNotAdept 3
+typedef char InsightCreationResult;
+#define InsightCreationResultNothingNew 0
+#define InsightCreationResultSuccess 1
+#define InsightCreationResultFailure 2
+#define InsightCreationResultNotAdept 3
 
 class TextEditor : public GenericEditor {
     SyntaxColorPalette palette;
@@ -47,8 +47,8 @@ class TextEditor : public GenericEditor {
     int scroll;
     float textXOffset;
 
-    // Fields in this grouping are controled by the mutex 'astMutex'
-    std::thread astCreationThread;
+    // Fields in this grouping are controled by the mutex 'insightMutex'
+    std::thread insightThread;
     bool hasCompiler;
     compiler_t compiler;
 
@@ -66,17 +66,18 @@ class TextEditor : public GenericEditor {
 public:
     bool showSuggestionBox;
     
-    void makeAst(bool storeCreationResult = false, bool fromMemory = false);
+    void makeInsight(bool storeCreationResult = false, bool fromMemory = false);
 
-    // Fields in this grouping are controled by the mutex 'astMutex'
-    std::mutex astMutex;
-    AstCreationResult astCreationResult;
+    // Fields in this grouping are controled by the mutex 'insightMutex'
+    std::mutex insightMutex;
+    InsightCreationResult insightCreationResult;
 
     ~TextEditor();
     void load(Settings *settings, Font *font, Texture *fontTexture, float maxWidth, float maxHeight);
     void render(Matrix4f &projectionMatrix, Shader *shader, Shader *fontShader, Shader *solidShader, AdeptIDEAssets *assets);
     TextModel *getFilenameModel();
     void updateFilenameModel();
+    size_t getDisplayFilenameLength();
     FileType getFileType();
     void setFileType(const FileType &type);
     void setSyntaxColorPalette(const SyntaxColorPalette &palette);

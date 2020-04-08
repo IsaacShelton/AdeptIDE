@@ -63,6 +63,9 @@ void SuggestionBox::render(Matrix4f& projectionMatrix, Shader *shader, Shader *f
         case SymbolWeight::Kind::GLOBAL:
             model = assets->globalModel;
             break;
+        case SymbolWeight::Kind::CONSTANT:
+            model = assets->constantModel;
+            break;
         default:
             model = assets->functionModel;
         }

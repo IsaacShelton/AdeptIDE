@@ -309,37 +309,37 @@ int AdeptIDE::main(int argc, const char **argv){
         GenericEditor *currentEditor = this->getCurrentEditor();
 
         if(TextEditor *textEditor = this->getCurrentEditorAsTextEditor()){
-            if(textEditor->astMutex.try_lock()){
+            if(textEditor->insightMutex.try_lock()){
 
-                switch(textEditor->astCreationResult){
-                case AstCreationResultNothingNew:
+                switch(textEditor->insightCreationResult){
+                case InsightCreationResultNothingNew:
                     break;
-                case AstCreationResultFailure:
+                case InsightCreationResultFailure:
                     this->createMessage("Failed to update insight due to syntax error(s)", 3.0);
-                    textEditor->astCreationResult = AstCreationResultNothingNew;
+                    textEditor->insightCreationResult = InsightCreationResultNothingNew;
                     break;
-                case AstCreationResultSuccess:
+                case InsightCreationResultSuccess:
                     this->createMessage("Successfully updated insight", 2.0);
-                    textEditor->astCreationResult = AstCreationResultNothingNew;
+                    textEditor->insightCreationResult = InsightCreationResultNothingNew;
                     break;
-                case AstCreationResultNotAdept:
+                case InsightCreationResultNotAdept:
                     this->createMessage("Can't gain insight into non-Adept source code", 3.0);
-                    textEditor->astCreationResult = AstCreationResultNothingNew;
+                    textEditor->insightCreationResult = InsightCreationResultNothingNew;
                     break;
                 }
 
-                textEditor->astMutex.unlock();
+                textEditor->insightMutex.unlock();
             }
         }
 
         // Prepare render
         glClearColor(0.07, 0.09, 0.1, 1.0f);
-        //glClearColor(1.0, 1.0, 1.0, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
         glfwGetFramebufferSize(this->window, &this->width, &this->height);
         glViewport(0, 0, this->width, this->height);
         this->projectionMatrix.ortho(0.0f, this->width, this->height, 0.0f, -1.0f, 1.0f);
 
+        // Tell sub-panels to adjust accordingly to any window resizing that occured
         if(this->explorer) this->explorer->resize(this->height);
         if(this->terminal) this->terminal->resize(this->width);
 
@@ -355,35 +355,20 @@ int AdeptIDE::main(int argc, const char **argv){
         // Render filenames and current editor
         if(currentEditor){
             this->renderEditorFilenames();
-
-            float offsetByExplorer = this->explorer ? this->explorer->containerX + 256.0f : 0.0f;
-            float xOffset = offsetByExplorer + 4.0f;
-            float yOffset = 20.0f + 32.0f + 4.0f;
-
-            currentEditor->setOffset(xOffset, yOffset);
-            currentEditor->render(this->projectionMatrix, this->shader, this->fontShader, this->solidShader, (AdeptIDEAssets*) this);
+            this->renderCurrentEditor();
         } else if(this->settings.ide_emblem){
-            // Render emblem
-            this->shader->bind();
-            this->shader->giveMatrix4f("projection_matrix", this->projectionMatrix);
-
-            float offsetByExplorer = this->explorer ? this->explorer->containerX + 256.0f : 0.0f;
-            this->transformationMatrix.translateFromIdentity((this->width - offsetByExplorer) / 2 - 128.0f + offsetByExplorer, this->height / 2 - 128.0f, -0.99f);
-            this->shader->giveMatrix4f("transformation_matrix", this->transformationMatrix);
-            renderModel(this->emblemModel);
+            this->renderEmblem();
         }
 
         if(global_background_output.updated.load()){
             global_background_output.mutex.lock();
-            // Use data that was processed in the background
-            
+            // UNUSED: ... Use data that was processed in the background ...
             global_background_output.updated.store(false);
             global_background_output.mutex.unlock();
         }
         
-        if(this->rootWatcher.changeOccured()){
-            this->loadSettings();
-        }
+        // Reload settings if settings file might've changed
+        if(this->rootWatcher.changeOccured()) this->loadSettings();
 
         if(this->explorer){
             this->shader->bind();
@@ -455,15 +440,15 @@ void AdeptIDE::handleInput(){
     double mouseX, mouseY;
     glfwGetCursorPos(window, &mouseX, &mouseY);
 
-    if(this->explorer){
-        this->explorer->update();
-    }
+    // Have explorer update itself
+    if(this->explorer) this->explorer->update();
 
     if(TextEditor *currentTextEditor = this->getCurrentEditorAsTextEditor()){
         if(!this->mouseReleased && distance(mouseX + currentTextEditor->getNetXOffset(), mouseY + currentTextEditor->getNetYOffset(),
-                    this->mouseDownX + this->mouseDownNetXOffset , this->mouseDownY + this->mouseDownNetYOffset) > 5.0f
+                    this->mouseDownX + this->mouseDownNetXOffset, this->mouseDownY + this->mouseDownNetYOffset) > 5.0f
+                    /*&& currentTextEditor->xOffset < mouseX*/ && currentTextEditor->yOffset < mouseY){
             
-            /*&& currentTextEditor->xOffset < mouseX*/ && currentTextEditor->yOffset < mouseY){
+            // Move and/or Select with caret via mouse click
             currentTextEditor->moveCaretToPosition(this->mouseDownCaretPosition);
             this->startSelection();
             this->moveCaret(mouseX, mouseY);
@@ -603,16 +588,35 @@ void AdeptIDE::renderEditorFilenames(){
         this->fontShader->giveMatrix4f("transformation_matrix", this->transformationMatrix);
         this->fontShader->giveFloat("width", 0.4f);
         this->fontShader->giveFloat("edge", 0.4f);
+
         glActiveTexture(GL_TEXTURE0);
         glBindTexture(GL_TEXTURE_2D, this->fontTexture->getID());
 
-        TextModel *editorFilenameTextModel = editor->getFilenameModel();
-        if(editorFilenameTextModel) editorFilenameTextModel->draw();
+        if(TextModel *filename = editor->getFilenameModel()) filename->draw();
         
-        float advance = (editor->displayFilename.length() * (FONT_SCALE * this->font.mono_character_width)) + 16.0f;
+        float advance = (editor->getDisplayFilenameLength() * (FONT_SCALE * this->font.mono_character_width)) + 16.0f;
         this->transformationMatrix.translate(advance, 0.0f, 0.0f);
         index++;
     }
+}
+
+void AdeptIDE::renderEmblem(){
+    this->shader->bind();
+    this->shader->giveMatrix4f("projection_matrix", this->projectionMatrix);
+    float offsetByExplorer = this->explorer ? this->explorer->containerX + 256.0f : 0.0f;
+    this->transformationMatrix.translateFromIdentity((this->width - offsetByExplorer) / 2 - 128.0f + offsetByExplorer, this->height / 2 - 128.0f, -0.99f);
+    this->shader->giveMatrix4f("transformation_matrix", this->transformationMatrix);
+    renderModel(this->emblemModel);
+}
+
+void AdeptIDE::renderCurrentEditor(){
+    float offsetByExplorer = this->explorer ? this->explorer->containerX + 256.0f : 0.0f;
+    float xOffset = offsetByExplorer + 4.0f;
+    float yOffset = 20.0f + 32.0f + 4.0f;
+
+    GenericEditor *currentEditor = this->getCurrentEditor();
+    currentEditor->setOffset(xOffset, yOffset);
+    currentEditor->render(this->projectionMatrix, this->shader, this->fontShader, this->solidShader, (AdeptIDEAssets*) this);
 }
 
 void AdeptIDE::loadSettings(){
@@ -796,7 +800,7 @@ void AdeptIDE::setCurrentEditor(size_t index){
 
 void AdeptIDE::updateInsight(){
     if(TextEditor *textEditor = this->getCurrentEditorAsTextEditor())
-        textEditor->makeAst(true, true);
+        textEditor->makeInsight(true, true);
 }
 
 void AdeptIDE::scrollDown(int lineCount){

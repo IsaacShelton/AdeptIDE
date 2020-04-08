@@ -25,13 +25,13 @@ public:
     float textEdge;
     float maxWidth;
     float maxHeight;
-    std::string displayFilename;
 
 protected:
     Font *font;
     Texture *fontTexture;
     TextModel filenameModel;
     bool hasFilenameModel;
+    std::string displayFilename;
 
 public:
     void load(Settings *settings, Font *font, Texture *fontTexture, float maxWidth, float maxHeight);
@@ -43,6 +43,7 @@ public:
 
     virtual FileType getFileType() = 0;
     virtual TextModel *getFilenameModel() = 0;
+    virtual size_t getDisplayFilenameLength() = 0;
 
     virtual void render(Matrix4f &projectionMatrix, Shader *shader, Shader *fontShader, Shader *solidShader, AdeptIDEAssets *assets) = 0;
 

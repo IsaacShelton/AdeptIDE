@@ -29,6 +29,7 @@ public:
 
     FileType getFileType();
     TextModel *getFilenameModel();
+    size_t getDisplayFilenameLength();
 
     void startDrag(double x, double y);
     void updateDrag(double x, double y);

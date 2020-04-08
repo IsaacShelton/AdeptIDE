@@ -326,7 +326,7 @@ bool MenuBar::leftClick(double xpos, double ypos, size_t *outCurrentEditorIndex)
         float displayNameX = this->xOffset + padding;
 
         for(size_t i = 0; i != this->editors->size(); i++){
-            float advance = ((*this->editors)[i]->displayFilename.length() * (FONT_SCALE * this->font->mono_character_width)) + 16.0f;
+            float advance = ((*this->editors)[i]->getDisplayFilenameLength() * (FONT_SCALE * this->font->mono_character_width)) + 16.0f;
 
             if(xpos >= displayNameX && xpos <= displayNameX + advance){
                 *outCurrentEditorIndex = i;
@@ -366,10 +366,10 @@ void MenuBar::underlineTab(size_t tab){
     float startX = padding;
 
     for(size_t i = 0; i != tab; i++){
-        float advance = ((*this->editors)[i]->displayFilename.length() * (FONT_SCALE * this->font->mono_character_width)) + 16.0f;
+        float advance = ((*this->editors)[i]->getDisplayFilenameLength() * (FONT_SCALE * this->font->mono_character_width)) + 16.0f;
         startX += advance + spacing;
     }
 
     this->targetTabUnderlineBeginX = startX;
-    this->targetTabUnderlineEndX = startX + ((*this->editors)[tab]->displayFilename.length() * (FONT_SCALE * this->font->mono_character_width)) + spacing;
+    this->targetTabUnderlineEndX = startX + ((*this->editors)[tab]->getDisplayFilenameLength() * (FONT_SCALE * this->font->mono_character_width)) + spacing;
 }

@@ -38,7 +38,7 @@ TextEditor::~TextEditor(){
         compiler_free(&this->compiler);
     }
 
-    if(this->astCreationThread.joinable()) this->astCreationThread.join();
+    if(this->insightThread.joinable()) this->insightThread.join();
 }
 
 void TextEditor::load(Settings *settings, Font *font, Texture *fontTexture, float maxWidth, float maxHeight){
@@ -70,7 +70,7 @@ void TextEditor::load(Settings *settings, Font *font, Texture *fontTexture, floa
     this->showSuggestionBox = false;
 
     this->hasCompiler = false;
-    this->astCreationResult = AstCreationResultNothingNew;
+    this->insightCreationResult = InsightCreationResultNothingNew;
 }
 
 void TextEditor::render(Matrix4f& projectionMatrix, Shader *shader, Shader *fontShader, Shader *solidShader, AdeptIDEAssets *assets){
@@ -155,6 +155,11 @@ void TextEditor::render(Matrix4f& projectionMatrix, Shader *shader, Shader *font
 TextModel* TextEditor::getFilenameModel(){
     if(!this->hasFilenameModel) this->updateFilenameModel();
     return &this->filenameModel;
+}
+
+size_t TextEditor::getDisplayFilenameLength(){
+    if(!this->hasFilenameModel) this->updateFilenameModel();
+    return this->displayFilename.length();
 }
 
 FileType TextEditor::getFileType(){
@@ -912,7 +917,7 @@ void TextEditor::loadTextFromFile(const std::string& filename){
     
     this->richText.setFont(this->font);
     this->richText.loadFromFile(filename);
-    this->makeAst();
+    this->makeInsight();
 
     this->mainCaret.set(0);
     this->scroll = 0;
@@ -933,7 +938,7 @@ void TextEditor::saveFile(){
     out << this->richText.text;
     out.close();
 
-    this->makeAst();
+    this->makeInsight();
 }
 
 void TextEditor::undo(){
@@ -1056,10 +1061,13 @@ void TextEditor::generateLineNumbersText(){
 void TextEditor::generateSuggestions(){
     size_t end = this->getCaretPosition();
 
-    this->astMutex.lock();
+    // Lock down insight
+    this->insightMutex.lock();
 
+    // Can't generate suggestions, because we don't have insight or
+    // our caret is at the beginning of the file!
     if(!this->hasCompiler || end == 0){
-        this->astMutex.unlock();
+        this->insightMutex.unlock();
         return;
     }
 
@@ -1107,25 +1115,29 @@ void TextEditor::generateSuggestions(){
         std::string label = std::string(name) + "(" + args + ") " + r;
         ::free(r);
 
-        possibleNewSymbolWeights.push_back(SymbolWeight(name, label, levenshtein(last.c_str(), name), SymbolWeight::Kind::FUNCTION));
+        possibleNewSymbolWeights.push_back(SymbolWeight(name, label, levenshtein_overlapping(last.c_str(), name), SymbolWeight::Kind::FUNCTION));
     }
     for(size_t i = 0; i != ast->structs_length; i++){
         const char *name = ast->structs[i].name;
         if(strlen(name) < last.length() || strncmp(name, last.c_str(), last.length()) != 0) continue;
         // Is a struct
-        possibleNewSymbolWeights.push_back(SymbolWeight(name, name, levenshtein(last.c_str(), name), SymbolWeight::Kind::STRUCT));
+        possibleNewSymbolWeights.push_back(SymbolWeight(name, name, levenshtein_overlapping(last.c_str(), name), SymbolWeight::Kind::STRUCT));
     }
     for(size_t i = 0; i != ast->globals_length; i++){
         const char *name = ast->globals[i].name;
         if(strlen(name) < last.length() || strncmp(name, last.c_str(), last.length()) != 0) continue;
 
-        possibleNewSymbolWeights.push_back(SymbolWeight(name, name, levenshtein(last.c_str(), name), SymbolWeight::Kind::GLOBAL));
-        
-        //weights.push_back(StringWeightPair(name, "g " + std::string(name), levenshtein(last.c_str(), name)));
+        possibleNewSymbolWeights.push_back(SymbolWeight(name, name, levenshtein_overlapping(last.c_str(), name), SymbolWeight::Kind::GLOBAL));
+    }
+    for(size_t i = 0; i != ast->constants_length; i++){
+        const char *name = ast->constants[i].name;
+        if(strlen(name) < last.length() || strncmp(name, last.c_str(), last.length()) != 0) continue;
+        // Is a constant expression
+        possibleNewSymbolWeights.push_back(SymbolWeight(name, name, levenshtein_overlapping(last.c_str(), name), SymbolWeight::Kind::CONSTANT));
     }
     
     // Sort the possible new symbol weights by weight
-    std::sort(possibleNewSymbolWeights.begin(), possibleNewSymbolWeights.end());
+    std::stable_sort(possibleNewSymbolWeights.begin(), possibleNewSymbolWeights.end());
 
     // Grab our best suggestions into a single string and record the longest length
     size_t lines = 0;
@@ -1142,12 +1154,12 @@ void TextEditor::generateSuggestions(){
         this->suggestionBox.generate(list, lines, longest);
     }
 
-    this->astMutex.unlock();
+    this->insightMutex.unlock();
 }
 
-void TextEditor::makeAst(bool storeCreationResult, bool fromMemory){
+void TextEditor::makeInsight(bool storeCreationResult, bool fromMemory){
     if(this->richText.fileType == FileType::ADEPT){
-        if(this->astCreationThread.joinable()) this->astCreationThread.join();
+        if(this->insightThread.joinable()) this->insightThread.join();
 
         if(fromMemory){
             char *astFromMemoryBuffer = new char[this->richText.text.length() + 2];
@@ -1155,8 +1167,8 @@ void TextEditor::makeAst(bool storeCreationResult, bool fromMemory){
             astFromMemoryBuffer[this->richText.text.length()] = '\n';
             astFromMemoryBuffer[this->richText.text.length() + 1] = '\0';
 
-            this->astCreationThread = std::thread([this] (std::string filename, std::string adept_root, bool storeCreationResult, char *buffer) {
-                this->astMutex.lock();
+            this->insightThread = std::thread([this] (std::string filename, std::string adept_root, bool storeCreationResult, char *buffer) {
+                this->insightMutex.lock();
                 insight_buffer_index = 0;
                 insight_buffer[0] = '\0';
                 compiler_t compiler;
@@ -1176,10 +1188,10 @@ void TextEditor::makeAst(bool storeCreationResult, bool fromMemory){
                     // Failed to lex
 
                     if(storeCreationResult)
-                        this->astCreationResult = AstCreationResultFailure;
+                        this->insightCreationResult = InsightCreationResultFailure;
                     
                     compiler_free(&compiler);
-                    this->astMutex.unlock();
+                    this->insightMutex.unlock();
                     return;
                 }
 
@@ -1187,7 +1199,7 @@ void TextEditor::makeAst(bool storeCreationResult, bool fromMemory){
                     // Failed to parse
 
                     if(storeCreationResult)
-                        this->astCreationResult = compiler.result_flags & COMPILER_RESULT_SUCCESS ? AstCreationResultSuccess : AstCreationResultFailure;
+                        this->insightCreationResult = compiler.result_flags & COMPILER_RESULT_SUCCESS ? InsightCreationResultSuccess : InsightCreationResultFailure;
                     
                     if(compiler.result_flags & COMPILER_RESULT_SUCCESS){
                         if(this->hasCompiler){
@@ -1199,7 +1211,7 @@ void TextEditor::makeAst(bool storeCreationResult, bool fromMemory){
                         compiler_free(&compiler);
                     }
 
-                    this->astMutex.unlock();
+                    this->insightMutex.unlock();
                     return;
                 }
 
@@ -1211,13 +1223,13 @@ void TextEditor::makeAst(bool storeCreationResult, bool fromMemory){
                 this->hasCompiler = true;
 
                 if(storeCreationResult)
-                    this->astCreationResult = AstCreationResultSuccess;
+                    this->insightCreationResult = InsightCreationResultSuccess;
                 
-                this->astMutex.unlock();
+                this->insightMutex.unlock();
             }, this->filename, this->settings->adept_root, storeCreationResult, astFromMemoryBuffer);
         } else {
-            this->astCreationThread = std::thread([this] (std::string filename, std::string adept_root, bool storeCreationResult) {
-                this->astMutex.lock();
+            this->insightThread = std::thread([this] (std::string filename, std::string adept_root, bool storeCreationResult) {
+                this->insightMutex.lock();
                 insight_buffer_index = 0;
                 insight_buffer[0] = '\0';
                 compiler_t compiler;
@@ -1231,10 +1243,10 @@ void TextEditor::makeAst(bool storeCreationResult, bool fromMemory){
                     // Failed to lex
 
                     if(storeCreationResult)
-                        this->astCreationResult = AstCreationResultFailure;
+                        this->insightCreationResult = InsightCreationResultFailure;
                     
                     compiler_free(&compiler);
-                    this->astMutex.unlock();
+                    this->insightMutex.unlock();
                     return;
                 }
 
@@ -1242,7 +1254,7 @@ void TextEditor::makeAst(bool storeCreationResult, bool fromMemory){
                     // Failed to parse
 
                     if(storeCreationResult)
-                        this->astCreationResult = compiler.result_flags & COMPILER_RESULT_SUCCESS ? AstCreationResultSuccess : AstCreationResultFailure;
+                        this->insightCreationResult = compiler.result_flags & COMPILER_RESULT_SUCCESS ? InsightCreationResultSuccess : InsightCreationResultFailure;
                     
                     if(compiler.result_flags & COMPILER_RESULT_SUCCESS){
                         if(this->hasCompiler){
@@ -1254,7 +1266,7 @@ void TextEditor::makeAst(bool storeCreationResult, bool fromMemory){
                         compiler_free(&compiler);
                     }
 
-                    this->astMutex.unlock();
+                    this->insightMutex.unlock();
                     return;
                 }
                 
@@ -1266,13 +1278,13 @@ void TextEditor::makeAst(bool storeCreationResult, bool fromMemory){
                 this->hasCompiler = true;
 
                 if(storeCreationResult)
-                    this->astCreationResult = AstCreationResultSuccess;
+                    this->insightCreationResult = InsightCreationResultSuccess;
                 
-                this->astMutex.unlock();
+                this->insightMutex.unlock();
             }, this->filename, this->settings->adept_root, storeCreationResult);
         }
     } else if(storeCreationResult){
-        this->astCreationResult = AstCreationResultNotAdept;
+        this->insightCreationResult = InsightCreationResultNotAdept;
     }
 }
 

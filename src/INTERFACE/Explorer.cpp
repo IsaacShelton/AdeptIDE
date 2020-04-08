@@ -62,7 +62,7 @@ void Explorer::render(Matrix4f &projectionMatrix, Shader *shader, Shader *fontSh
 
     // Draw container
     Vector4f color(0.17f * 0.8, 0.19 * 0.8, 0.2 * 0.8, 1.0f);
-    this->transformationMatrix.translateFromIdentity(this->containerX, 0.0f, -0.9f);
+    this->transformationMatrix.translateFromIdentity(this->containerX, 0.0f, -0.4f);
     solidShader->bind();
     solidShader->giveMatrix4f("projection_matrix", projectionMatrix);
     solidShader->giveMatrix4f("transformation_matrix", this->transformationMatrix);
@@ -76,7 +76,7 @@ void Explorer::render(Matrix4f &projectionMatrix, Shader *shader, Shader *fontSh
             child->draw(settings, font, fontTexture, projectionMatrix, shader, fontShader, assets, x, &y, this->containerX, this->containerWidth);
         }
     } else {
-        transformationMatrix.translateFromIdentity(this->containerX + this->containerWidth / 2.0f - 8.0f, this->containerHeight / 2.0f - 8.0f, -0.899f);
+        transformationMatrix.translateFromIdentity(this->containerX + this->containerWidth / 2.0f - 8.0f, this->containerHeight / 2.0f - 8.0f, -0.399f);
 
         shader->bind();
         shader->giveMatrix4f("projection_matrix", projectionMatrix);
@@ -87,7 +87,7 @@ void Explorer::render(Matrix4f &projectionMatrix, Shader *shader, Shader *fontSh
 
 void ExplorerNode::draw(Settings *settings, Font *font, Texture *fontTexture, Matrix4f &projectionMatrix, Shader *shader, Shader *fontShader, AdeptIDEAssets *assets, float drawOffsetX, float *drawOffsetY, float containerX, float containerWidth){
     Matrix4f transformationMatrix;
-    transformationMatrix.translateFromIdentity(drawOffsetX + 8.0f, 32.0f + 4.0f + *drawOffsetY, 0.0f);
+    transformationMatrix.translateFromIdentity(drawOffsetX + 8.0f, 32.0f + 4.0f + *drawOffsetY, -0.2f);
 
     if(settings->explorer_show_icons){
         shader->bind();
@@ -138,6 +138,8 @@ bool Explorer::leftClick(AdeptIDE *adeptide, double x, double y){
             char *path = filename_path(textEditor->filename.c_str());
             this->setRootFolder(path);
             free(path);
+        } else {
+            adeptide->openFolder();
         }
 
         return true;
