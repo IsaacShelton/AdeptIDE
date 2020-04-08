@@ -35,7 +35,7 @@ void SuggestionBox::render(Matrix4f& projectionMatrix, Shader *shader, Shader *f
     //Vector4f color(1.0, 0.19, 0.2, 1.0f);
     Vector4f color(0.13, 0.14, 0.15, 1.0f);
 
-    transformationMatrix.translateFromIdentity(x, y, 0.9f);
+    transformationMatrix.translateFromIdentity(x, y, 0.6f);
 
     solidShader->bind();
     solidShader->giveMatrix4f("projection_matrix", projectionMatrix);
@@ -43,7 +43,7 @@ void SuggestionBox::render(Matrix4f& projectionMatrix, Shader *shader, Shader *f
     solidShader->giveVector4f("color", color);
     this->boxModel->draw();
     
-    transformationMatrix.translateFromIdentity(x + 10.0f, y + 10.0f, 0.99f);
+    transformationMatrix.translateFromIdentity(x + 10.0f, y + 10.0f, 0.69f);
     shader->bind();
     shader->giveMatrix4f("projection_matrix", projectionMatrix);
     shader->giveMatrix4f("transformation_matrix", transformationMatrix);
@@ -73,7 +73,7 @@ void SuggestionBox::render(Matrix4f& projectionMatrix, Shader *shader, Shader *f
         shader->giveMatrix4f("transformation_matrix", transformationMatrix);
     }
 
-    transformationMatrix.translateFromIdentity(x + 10.0f + (symbolWeights.size() == 0 ? 0.0f : 26.0f), y + 10.0f, 0.99f);
+    transformationMatrix.translateFromIdentity(x + 10.0f + (symbolWeights.size() == 0 ? 0.0f : 26.0f), y + 10.0f, 0.69f);
     fontShader->bind();
     fontShader->giveMatrix4f("projection_matrix", projectionMatrix);
     fontShader->giveMatrix4f("transformation_matrix", transformationMatrix);
