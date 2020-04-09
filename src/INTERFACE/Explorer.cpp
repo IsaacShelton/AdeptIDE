@@ -10,6 +10,8 @@
 #include "UTIL/animationMath.h"
 
 Explorer::Explorer(){
+    this->folderPath = "";
+    this->rootNode = NULL;
     this->container = NULL;
     this->fileLooker = NULL;
     this->folderWatcher = NULL;
@@ -406,7 +408,7 @@ bool ExplorerNode::generateChildren(Settings *settings, Font *font, int *nodesAl
         cf_read_file(&dir, &file);
 
         if( (settings->explorer_show_files && !file.is_dir) || (settings->explorer_show_folders && file.is_dir) ){
-            if(settings->explorer_show_hidden || file.name[0] != '.'){
+            if((settings->explorer_show_hidden && strcmp(file.name, ".") != 0 && strcmp(file.name, "..") != 0) || file.name[0] != '.'){
                 ExplorerNode *child = new ExplorerNode(file.name, file.is_dir ? ExplorerNode::Kind::FOLDER : ExplorerNode::Kind::FILE, font);
                 
                 this->addChild(child);

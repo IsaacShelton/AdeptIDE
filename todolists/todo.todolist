@@ -13,4 +13,5 @@ COMPLETED:
 + goto line
 + add globals to suggestions
 + append / or \\ on end of "adept.root" setting if missing
++ don't follow ./ and ../ symlinks when creating explorer nodes
 

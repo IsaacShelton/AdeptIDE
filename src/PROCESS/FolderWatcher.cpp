@@ -13,7 +13,16 @@
 #include <unistd.h>    // for close()
 #endif
 
+FolderWatcher::FolderWatcher(){
+    #ifdef _WIN32
+    this->hasHandle = false;
+    #endif
+    this->isWatching = false;
+}
+
 void FolderWatcher::target(const std::string& folder){
+    if(this->isWatching) this->stopWatching();
+
     #ifdef _WIN32
     if(hasHandle) FindCloseChangeNotification(notificationHandle);
     notificationHandle = FindFirstChangeNotificationA(folder.c_str(), false, FILE_NOTIFY_CHANGE_LAST_WRITE);
@@ -62,9 +71,16 @@ void FolderWatcher::target(const std::string& folder){
     });
 
     #endif
+
+    this->isWatching = true;
 }
 
 FolderWatcher::~FolderWatcher(){
+    this->stopWatching();
+}
+
+void FolderWatcher::stopWatching(){
+    if(!this->isWatching) return;
     #ifdef _WIN32
     if(hasHandle) FindCloseChangeNotification(notificationHandle);
     #elif defined(__APPLE__)
@@ -72,6 +88,7 @@ FolderWatcher::~FolderWatcher(){
     thread.join();
     close(kq);
     #endif
+    this->isWatching = false;
 }
 
 bool FolderWatcher::changeOccured(){

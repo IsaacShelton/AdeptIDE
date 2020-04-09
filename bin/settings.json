@@ -2,7 +2,7 @@
     "ide.default.maximized": true,
     "ide.default.width": 960,
     "ide.default.height": 480,
-    "ide.default.fps": 0,
+    "ide.default.fps": 60,
     "ide.suggestions": true,
     "ide.suggestions.max": 5,
     "ide.debug.fps": false,
@@ -25,7 +25,7 @@
     "explorer.prefer.code": true,
     "terminal.show": false,
     "terminal.transparent": false,
-
+    
     "windows": {
         "ide.scroll.fixed": true,
         "terminal.shell": "C:\\Windows\\System32\\cmd.exe",
@@ -33,7 +33,7 @@
         "adept.root": "C:\\Users\\isaac\\Projects\\Adept\\bin\\",
         "adept.compiler": "C:\\Users\\isaac\\Projects\\Adept\\bin\\adept"
     },
-
+    
     "macos": {
         "ide.scroll.fixed": false,
         "terminal.shell": "/bin/bash",

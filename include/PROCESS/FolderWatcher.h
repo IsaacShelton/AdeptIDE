@@ -16,7 +16,7 @@
 class FolderWatcher {
 private:
     #ifdef _WIN32
-    bool hasHandle = false;
+    bool hasHandle;
     HANDLE notificationHandle;
     #elif defined(__APPLE__)
     int kq, dirfd;
@@ -25,8 +25,12 @@ private:
     std::atomic_bool shouldStopWatching;
     std::atomic_bool changed;
     #endif
+    
+    bool isWatching;
+    void stopWatching();
 
-  public:
+public:
+    FolderWatcher();
     ~FolderWatcher();
     void target(const std::string& folder);
     bool changeOccured();
