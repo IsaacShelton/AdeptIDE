@@ -6,8 +6,12 @@
 #include "INTERFACE/TextBar.h"
 
 class SymbolNavigator : public TextBar {
+private:
+    void *adeptideRef;
+    
 public:
-    SymbolNavigator();
+    SymbolNavigator(void *adeptideRef);
+    void onType();
     void getWhere(compiler_t *compiler, int *outLineNumber, std::string *outFilename);
 };
 

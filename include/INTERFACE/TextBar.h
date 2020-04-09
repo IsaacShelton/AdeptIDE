@@ -24,11 +24,19 @@ protected:
     SolidModel *container;
     Matrix4f transformationMatrix;
     RichText inputRichText;
+    RichText additionalRichText;
     std::string constantText;
-public:
     float containerWidth, containerHeight;
+    float initialContainerWidth, initialContainerHeight;
     float containerX, containerY;
+    size_t additionalLines;
 
+    virtual void resizeContainer(float width, float height);
+    virtual void resizeContainer(int totalAdditionalLines);
+    virtual void setAdditionalText(const std::string &additionalText);
+    virtual void onType();
+
+public:
     virtual ~TextBar();
     virtual void load(Settings *settings, Font *font, Texture *fontTexture, float containerWidth, float containerHeight);
     virtual void render(Matrix4f &projectionMatrix, Shader *shader, Shader *fontShader, Shader *solidShader, AdeptIDEAssets *assets);
@@ -43,6 +51,12 @@ public:
     virtual bool type(unsigned int codepoint);
     virtual bool backspace();
     virtual std::string getInput();
+    virtual float getContainerWidth();
+    virtual float getContainerHeight();
+    virtual void setContainerX(float x);
+    virtual void setContainerY(float y);
+    virtual void setContainerPosition(float x, float y);
+    void setContainerPositionStandard(float windowWidth);
 };
 
 #endif // TEXT_BAR_H_INCLUDED

@@ -249,7 +249,7 @@ int AdeptIDE::main(int argc, const char **argv){
     this->menubar.menus[6]->dropdownMenu->menus.push_back(new Menu("About", this->menubar.font, about_menu, this));
 
     this->fileLooker = new FileLooker();
-    this->fileLooker->load(&this->settings, &this->font, this->fontTexture, 512, 32); // 320 h
+    this->fileLooker->load(&this->settings, &this->font, this->fontTexture, 512, 32);
 
     this->lineNavigator = new LineNavigator();
     this->lineNavigator->load(&this->settings, &this->font, this->fontTexture, 512, 32);
@@ -257,7 +257,7 @@ int AdeptIDE::main(int argc, const char **argv){
     this->commandRunner = new CommandRunner();
     this->commandRunner->load(&this->settings, &this->font, this->fontTexture, 512, 32);
 
-    this->symbolNavigator = new SymbolNavigator();
+    this->symbolNavigator = new SymbolNavigator(this);
     this->symbolNavigator->load(&this->settings, &this->font, this->fontTexture, 512, 32);
 
     this->message = NULL;
@@ -403,26 +403,22 @@ int AdeptIDE::main(int argc, const char **argv){
         }
 
         if(this->fileLooker){
-            this->fileLooker->containerX = this->width / 2 - this->fileLooker->containerWidth / 2;
-            this->fileLooker->containerY = 52;
+            this->fileLooker->setContainerPositionStandard(this->width);
             this->fileLooker->render(projectionMatrix, shader, fontShader, solidShader, (AdeptIDEAssets*) this);
         }
 
         if(this->lineNavigator){
-            this->lineNavigator->containerX = this->width / 2 - this->fileLooker->containerWidth / 2;
-            this->lineNavigator->containerY = 52;
+            this->lineNavigator->setContainerPositionStandard(this->width);
             this->lineNavigator->render(projectionMatrix, shader, fontShader, solidShader, (AdeptIDEAssets*) this);
         }
 
         if(this->commandRunner){
-            this->commandRunner->containerX = this->width / 2 - this->fileLooker->containerWidth / 2;
-            this->commandRunner->containerY = 52;
+            this->commandRunner->setContainerPositionStandard(this->width);
             this->commandRunner->render(projectionMatrix, shader, fontShader, solidShader, (AdeptIDEAssets*) this);
         }
 
         if(this->symbolNavigator){
-            this->symbolNavigator->containerX = this->width / 2 - this->fileLooker->containerWidth / 2;
-            this->symbolNavigator->containerY = 52;
+            this->symbolNavigator->setContainerPositionStandard(this->width);
             this->symbolNavigator->render(projectionMatrix, shader, fontShader, solidShader, (AdeptIDEAssets*) this);
         }
 
@@ -632,6 +628,8 @@ void AdeptIDE::renderEditorFilenames(){
         this->fontShader->giveMatrix4f("transformation_matrix", this->transformationMatrix);
         this->fontShader->giveFloat("width", 0.4f);
         this->fontShader->giveFloat("edge", 0.4f);
+        this->fontShader->giveFloat("y_upper_clip", 0.0f);
+        this->fontShader->giveFloat("x_right_clip", 0.0f);
 
         glActiveTexture(GL_TEXTURE0);
         glBindTexture(GL_TEXTURE_2D, this->fontTexture->getID());
