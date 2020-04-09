@@ -13,6 +13,7 @@
 #include "INTERFACE/FileLooker.h"
 #include "INTERFACE/LineNavigator.h"
 #include "INTERFACE/CommandRunner.h"
+#include "INTERFACE/SymbolNavigator.h"
 #include "INTERFACE/Terminal.h"
 #include "PROCESS/FolderWatcher.h"
 
@@ -53,6 +54,7 @@ public:
     FileLooker *fileLooker;
     LineNavigator *lineNavigator;
     CommandRunner *commandRunner;
+    SymbolNavigator *symbolNavigator;
 
     AdeptIDE();
     ~AdeptIDE();
@@ -128,6 +130,7 @@ public:
     void lookForFile();
     void gotoLine();
     void runCommand();
+    void gotoSymbol();
     bool cdFile();
 
     void hideAnyTextBars();

@@ -785,7 +785,7 @@ void TextEditor::focusViewForCaret(){
     if(this->scroll < 0) this->scroll = 0;
     
     int totalLines = std::count(this->richText.text.begin(), this->richText.text.end(), '\n') + 1;
-    if(this->scroll > totalLines - (int) linesViewable) this->scroll = totalLines - (int) linesViewable;
+    if(totalLines > linesViewable && this->scroll > totalLines - (int) linesViewable) this->scroll = totalLines - (int) linesViewable;
 }
 
 void TextEditor::selectAll(){
@@ -1084,62 +1084,13 @@ void TextEditor::generateSuggestions(){
     }
 
     // Store last word
-    std::string last = this->richText.text.substr(beginning, end - beginning);
+    std::string lastword = this->richText.text.substr(beginning, end - beginning);
 
-    // Symbol weights that may or may not replace our current symbol weights
     std::vector<SymbolWeight> possibleNewSymbolWeights;
-    ast_t *ast = &this->compiler.objects[0]->ast;
-
-    // Generate possible new list of symbol weights
-    std::string list;
-    for(size_t i = 0; i != ast->funcs_length; i++){
-        const char *name = ast->funcs[i].name;
-        if(strlen(name) < last.length() || strncmp(name, last.c_str(), last.length()) != 0) continue;
-
-        std::string args;
-
-        for(size_t j = 0; j != ast->funcs[i].arity; j++){
-            if (ast->funcs[i].arg_names)
-                args += std::string(ast->funcs[i].arg_names[j]) + " ";
-
-            char *a = ast_type_str(&ast->funcs[i].arg_types[j]);
-            args += std::string(a);
-            ::free(a);
-            if(j + 1 != ast->funcs[i].arity) args += ", ";
-        }
-
-        if(ast->funcs[i].traits & AST_FUNC_VARARG) args += ", ...";
-
-        char *r = ast_type_str(&ast->funcs[i].return_type);
-        // Is a function
-        std::string label = std::string(name) + "(" + args + ") " + r;
-        ::free(r);
-
-        possibleNewSymbolWeights.push_back(SymbolWeight(name, label, levenshtein_overlapping(last.c_str(), name), SymbolWeight::Kind::FUNCTION));
-    }
-    for(size_t i = 0; i != ast->structs_length; i++){
-        const char *name = ast->structs[i].name;
-        if(strlen(name) < last.length() || strncmp(name, last.c_str(), last.length()) != 0) continue;
-        // Is a struct
-        possibleNewSymbolWeights.push_back(SymbolWeight(name, name, levenshtein_overlapping(last.c_str(), name), SymbolWeight::Kind::STRUCT));
-    }
-    for(size_t i = 0; i != ast->globals_length; i++){
-        const char *name = ast->globals[i].name;
-        if(strlen(name) < last.length() || strncmp(name, last.c_str(), last.length()) != 0) continue;
-
-        possibleNewSymbolWeights.push_back(SymbolWeight(name, name, levenshtein_overlapping(last.c_str(), name), SymbolWeight::Kind::GLOBAL));
-    }
-    for(size_t i = 0; i != ast->constants_length; i++){
-        const char *name = ast->constants[i].name;
-        if(strlen(name) < last.length() || strncmp(name, last.c_str(), last.length()) != 0) continue;
-        // Is a constant expression
-        possibleNewSymbolWeights.push_back(SymbolWeight(name, name, levenshtein_overlapping(last.c_str(), name), SymbolWeight::Kind::CONSTANT));
-    }
-    
-    // Sort the possible new symbol weights by weight
-    std::stable_sort(possibleNewSymbolWeights.begin(), possibleNewSymbolWeights.end());
+    nearestSymbols(&this->compiler, lastword, &possibleNewSymbolWeights);
 
     // Grab our best suggestions into a single string and record the longest length
+    std::string list;
     size_t lines = 0;
     size_t longest = 0;
     for(size_t i = 0; i != settings->ide_suggestions_max && i != possibleNewSymbolWeights.size(); i++){
@@ -1290,6 +1241,16 @@ void TextEditor::makeInsight(bool storeCreationResult, bool fromMemory){
 
 size_t TextEditor::getCaretPosition(){
     return this->mainCaret.getPosition();
+}
+
+compiler_t *TextEditor::borrowCompiler(){
+    this->insightMutex.lock();
+    return this->hasCompiler ? &this->compiler : NULL;
+}
+
+void TextEditor::returnCompiler(){
+    // NOTE: Must be called regardless of what textEditor->borrowCompiler() returns
+    this->insightMutex.unlock();
 }
 
 TextEditor* TextEditor::asTextEditor(){

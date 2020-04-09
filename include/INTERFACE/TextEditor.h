@@ -161,6 +161,9 @@ public:
     void getRowAndColumnAt(double xpos, double ypos, int *out_row, int *out_column);
     size_t getCaretPosition();
 
+    compiler_t *borrowCompiler();
+    void returnCompiler();
+
     TextEditor *asTextEditor();
     ImageEditor *asImageEditor();
 };
