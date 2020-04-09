@@ -7,6 +7,7 @@ TODO:
 * fix issue with view focusing on cursor after 'go to line' in which no text is visible after going to the line
 * make goto file by name better to avoid overlaps
 * make insight popup less annoying, only show when helpful
+* goto symbol
 
 COMPLETED:
 + paste in terminal
@@ -14,4 +15,3 @@ COMPLETED:
 + add globals to suggestions
 + append / or \\ on end of "adept.root" setting if missing
 + don't follow ./ and ../ symlinks when creating explorer nodes
-
