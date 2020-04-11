@@ -1253,6 +1253,10 @@ void TextEditor::returnCompiler(){
     this->insightMutex.unlock();
 }
 
+const std::string &TextEditor::getText(){
+    return this->richText.text;
+}
+
 TextEditor* TextEditor::asTextEditor(){
     return this;
 }

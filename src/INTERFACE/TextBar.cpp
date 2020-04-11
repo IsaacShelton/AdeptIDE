@@ -26,6 +26,7 @@ void TextBar::load(Settings *settings, Font *font, Texture *fontTexture, float c
     this->initialContainerWidth = containerWidth;
     this->initialContainerHeight = containerHeight;
     this->additionalLines = 0;
+    this->clearInputOnOpen = true;
 }
 
 void TextBar::render(Matrix4f &projectionMatrix, Shader *shader, Shader *fontShader, Shader *solidShader, AdeptIDEAssets *assets){
@@ -95,8 +96,12 @@ void TextBar::setVisibility(bool visibility){
 
     if(this->visible){
         this->additionalRichText.remove(0, this->additionalRichText.text.length());
-        this->inputRichText.remove(this->constantText.length(), this->inputRichText.text.length() - this->constantText.length());
-        this->onType();
+
+        if(this->clearInputOnOpen){
+            this->inputRichText.remove(this->constantText.length(), this->inputRichText.text.length() - this->constantText.length());
+        }
+
+        if(this->clearInputOnOpen) this->onType();
     }
 }
 

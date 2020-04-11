@@ -46,6 +46,7 @@ AdeptIDE::AdeptIDE() : AdeptIDEAssets() {
     this->lineNavigator = NULL;
     this->commandRunner = NULL;
     this->symbolNavigator = NULL;
+    this->finder = NULL;
 }
 
 AdeptIDE::~AdeptIDE(){
@@ -66,6 +67,7 @@ AdeptIDE::~AdeptIDE(){
     delete this->lineNavigator;
     delete this->commandRunner;
     delete this->symbolNavigator;
+    delete this->finder;
 }
 
 int AdeptIDE::main(int argc, const char **argv){
@@ -260,6 +262,9 @@ int AdeptIDE::main(int argc, const char **argv){
     this->symbolNavigator = new SymbolNavigator(this);
     this->symbolNavigator->load(&this->settings, &this->font, this->fontTexture, 512, 32);
 
+    this->finder = new Finder();
+    this->finder->load(&this->settings, &this->font, this->fontTexture, 512, 32);
+
     this->message = NULL;
     this->explorer = new Explorer();
     this->explorer->load(&this->settings, &this->font, this->fontTexture, 256, this->height, this->fileLooker);
@@ -422,6 +427,11 @@ int AdeptIDE::main(int argc, const char **argv){
             this->symbolNavigator->render(projectionMatrix, shader, fontShader, solidShader, (AdeptIDEAssets*) this);
         }
 
+        if(this->finder){
+            this->finder->setContainerPositionStandard(this->width);
+            this->finder->render(projectionMatrix, shader, fontShader, solidShader, (AdeptIDEAssets*) this);
+        }
+
         if(this->message){
             this->message->render(projectionMatrix, fontShader, solidShader, fontTexture, width, height);
             if(this->message->shouldClose(this->width)){
@@ -501,7 +511,7 @@ void AdeptIDE::handleEnterKey(int mods){
         return;
     }
     
-    // Handle enter for line navigator
+    // Handle 'enter' for line navigator
     if(this->lineNavigator && this->lineNavigator->isVisible()){
         int line = this->lineNavigator->getLineNumber();
         this->lineNavigator->setVisibility(false);
@@ -515,7 +525,7 @@ void AdeptIDE::handleEnterKey(int mods){
         return;
     }
     
-    // Handle enter for command runner
+    // Handle 'enter' for command runner
     if(this->commandRunner && this->commandRunner->isVisible()){
         CommandResult result = this->commandRunner->run(this);
         this->commandRunner->setVisibility(false);
@@ -529,7 +539,7 @@ void AdeptIDE::handleEnterKey(int mods){
         return;
     }
     
-    // Handle enter for symbol navigator
+    // Handle 'enter' for symbol navigator
     if(this->symbolNavigator && this->symbolNavigator->isVisible()){
         int line = 0;
         std::string filename;
@@ -552,6 +562,18 @@ void AdeptIDE::handleEnterKey(int mods){
         }
         
         this->symbolNavigator->setVisibility(false);
+        return;
+    }
+    
+    // Handle 'enter' for finder
+    if(this->finder && this->finder->isVisible()){
+        if(TextEditor *currentTextEditor = this->getCurrentEditorAsTextEditor()){
+            int line = this->finder->getLineNumber(currentTextEditor->getText());
+
+            if(line == 0) this->createMessage("No occurrences found", 1);
+            else          currentTextEditor->gotoLine(line);
+        }
+
         return;
     }
     
@@ -586,6 +608,12 @@ void AdeptIDE::handleEscapeKey(int mods){
     // Handle 'escape' for symbol navigator
     if(this->symbolNavigator && this->symbolNavigator->isVisible()){
         this->symbolNavigator->setVisibility(false);
+        return;
+    }
+    
+    // Handle 'escape' for finder
+    if(this->finder && this->finder->isVisible()){
+        this->finder->setVisibility(false);
         return;
     }
     
@@ -937,6 +965,7 @@ void AdeptIDE::type(const std::string& text){
     if(this->lineNavigator && this->lineNavigator->type(text)) return;
     if(this->commandRunner && this->commandRunner->type(text)) return;
     if(this->symbolNavigator && this->symbolNavigator->type(text)) return;
+    if(this->finder && this->finder->type(text)) return;
     if(this->terminal && this->terminal->type(text)) return;
 
     TextEditor *currentTextEditor = this->getCurrentEditorAsTextEditor();
@@ -948,6 +977,7 @@ void AdeptIDE::type(char character){
     if(this->lineNavigator && this->lineNavigator->type(character)) return;
     if(this->commandRunner && this->commandRunner->type(character)) return;
     if(this->symbolNavigator && this->symbolNavigator->type(character)) return;
+    if(this->finder && this->finder->type(character)) return;
     if(this->terminal && this->terminal->type(character)) return;
 
     TextEditor *currentTextEditor = this->getCurrentEditorAsTextEditor();
@@ -997,6 +1027,11 @@ void AdeptIDE::backspace(){
 
     if(this->symbolNavigator && this->symbolNavigator->isVisible()){
         this->symbolNavigator->backspace();
+        return;
+    }
+    
+    if(this->finder && this->finder->isVisible()){
+        this->finder->backspace();
         return;
     }
     
@@ -1232,6 +1267,12 @@ void AdeptIDE::gotoSymbol(){
     this->symbolNavigator->toggleVisibility();
 }
 
+void AdeptIDE::findInFile(){
+    if(!this->finder) return;
+    this->hideAnyTextBarsExcept(this->finder);
+    this->finder->toggleVisibility();
+}
+
 bool AdeptIDE::cdFile(){
     if(TextEditor *textEditor = this->getCurrentEditorAsTextEditor()){
         if(this->terminal){
@@ -1256,10 +1297,11 @@ void AdeptIDE::hideAnyTextBars(){
 }
 
 void AdeptIDE::hideAnyTextBarsExcept(TextBar *textbar){
-    if(this->fileLooker    && textbar != this->fileLooker)    this->fileLooker->setVisibility(false);
-    if(this->lineNavigator && textbar != this->lineNavigator) this->lineNavigator->setVisibility(false);
-    if(this->commandRunner && textbar != this->commandRunner) this->commandRunner->setVisibility(false);
+    if(this->fileLooker    && textbar != this->fileLooker)        this->fileLooker->setVisibility(false);
+    if(this->lineNavigator && textbar != this->lineNavigator)     this->lineNavigator->setVisibility(false);
+    if(this->commandRunner && textbar != this->commandRunner)     this->commandRunner->setVisibility(false);
     if(this->symbolNavigator && textbar != this->symbolNavigator) this->symbolNavigator->setVisibility(false);
+    if(this->finder && textbar != this->finder)                   this->finder->setVisibility(false);
 }
 
 void AdeptIDE::createMessage(const std::string& message, double seconds){
@@ -1512,6 +1554,10 @@ void key_callback(GLFWwindow *window, int key, int scancode, int action, int mod
         case GLFW_KEY_A:
             adeptide->hideAnyTextBars();
             adeptide->selectAll();
+            adeptide->menubar.loseFocus();
+            break;
+        case GLFW_KEY_F:
+            adeptide->findInFile();
             adeptide->menubar.loseFocus();
             break;
         case GLFW_KEY_L:

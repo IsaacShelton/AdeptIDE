@@ -30,6 +30,7 @@ protected:
     float initialContainerWidth, initialContainerHeight;
     float containerX, containerY;
     size_t additionalLines;
+    bool clearInputOnOpen;
 
     virtual void resizeContainer(float width, float height);
     virtual void resizeContainer(int totalAdditionalLines);

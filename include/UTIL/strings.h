@@ -40,7 +40,7 @@ std::string string_delete_until_or(const std::string& a, const std::string& b);
 std::string string_delete_amount(const std::string& a, int b);
 std::string string_get_until_last(const std::string& text, const std::string& character_set);
 
-unsigned int string_count(const std::string& a, const std::string& b);
+size_t string_count(const std::string& a, const std::string& b);
 size_t string_count_char(const std::string& a, char character);
 std::string string_replace(std::string a, const std::string& b, const std::string& c);
 std::string string_replace_all(std::string a, const std::string& b, const std::string& c);
@@ -58,5 +58,7 @@ std::string filename_name(std::string a);
 std::string filename_path(std::string a);
 std::string filename_change_ext(std::string a, std::string b);
 std::ifstream::pos_type file_size(std::string a);
+
+size_t string_find_nth(const std::string &haystack, const std::string &needle, size_t n_starting_at_zero);
 
 #endif // STRINGUTIL_H_INCLUDED

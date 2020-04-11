@@ -164,6 +164,8 @@ public:
     compiler_t *borrowCompiler();
     void returnCompiler();
 
+    const std::string &getText();
+
     TextEditor *asTextEditor();
     ImageEditor *asImageEditor();
 };

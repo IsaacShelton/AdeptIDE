@@ -14,6 +14,7 @@
 #include "INTERFACE/LineNavigator.h"
 #include "INTERFACE/CommandRunner.h"
 #include "INTERFACE/SymbolNavigator.h"
+#include "INTERFACE/Finder.h"
 #include "INTERFACE/Terminal.h"
 #include "PROCESS/FolderWatcher.h"
 
@@ -55,6 +56,7 @@ public:
     LineNavigator *lineNavigator;
     CommandRunner *commandRunner;
     SymbolNavigator *symbolNavigator;
+    Finder *finder;
 
     AdeptIDE();
     ~AdeptIDE();
@@ -131,6 +133,7 @@ public:
     void gotoLine();
     void runCommand();
     void gotoSymbol();
+    void findInFile();
     bool cdFile();
 
     void hideAnyTextBars();

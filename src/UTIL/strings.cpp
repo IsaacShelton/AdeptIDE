@@ -209,12 +209,19 @@ std::string string_delete_amount(const std::string& str, int num){
     return str.substr(num,str.length()-num);
 }
 
-unsigned int string_count(const std::string& a, const std::string& character){
-    unsigned int char_count = 0;
-    for(unsigned int i = 0; i < a.length(); i++){
-        if(a.substr(i,1)==character) char_count++;
+size_t string_count(const std::string& a, const std::string& b){
+    size_t count = 0;
+    const char *a_data = a.data();
+    const char *b_data = b.data();
+    size_t len = b.length();
+
+    if(a.length() < b.length()) return 0;
+
+    for(size_t i = 0; i < a.length() - b.length() + 1; i++){
+        // Low level comparison so we don't have to copy memory a ton of times
+        if(strncmp(&a_data[i], b_data, len) == 0) count++;
     }
-    return char_count;
+    return count;
 }
 size_t string_count_char(const std::string& a, char character){
     size_t char_count = 0;
@@ -376,4 +383,23 @@ std::ifstream::pos_type file_size(std::string size_filename){
     unsigned int size_of_file = file_stream.tellg();
     file_stream.close();
     return size_of_file;
+}
+
+size_t string_find_nth(const std::string &haystack, const std::string &needle, size_t n_starting_at_zero){
+    if(needle.length() > haystack.length()) return std::string::npos;
+
+    const char *h = haystack.data();
+    const char *n = needle.data();
+    size_t len = needle.length();
+    size_t current = 0;
+
+    for(size_t i = 0; i != haystack.length() - needle.length() + 1; i++){
+        // Lower level comparision to avoid copying memory a ton of times
+        if(strncmp(&h[i], n, len) == 0){
+            // An occurrence was found
+            if(current++ == n_starting_at_zero) return i;
+        }
+    }
+
+    return std::string::npos;
 }
