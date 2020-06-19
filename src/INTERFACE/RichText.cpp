@@ -204,6 +204,7 @@ void RichText::updateSpecials(){
         {"continue", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.keyword},
         {"external", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.keyword},
         {"typeinfo", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.keyword},
+        {"verbatim", WHITESPACE, WHITESPACE, &palette.keyword},
         {"__types__", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.number},
         {"dangerous", WHITESPACE, WHITESPACE, &palette.keyword},
         {"AnyPtrType", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.type},

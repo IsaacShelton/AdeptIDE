@@ -61,10 +61,6 @@ class Font {
     AttributeEntry* getAttribute(const std::string& name);
     TextModel generatePlainTextModel(const std::string& text, float scale, Vector3f color = Vector3f(0.83, 0.83, 0.83));
 
-    TextModel generateAdeptTextModel(const std::string& text, float scale, const SyntaxColorPalette& palette);
-    TextModel generateJavaTextModel(const std::string& text, float scale, const SyntaxColorPalette& palette);
-    TextModel generateHtmlTextModel(const std::string& text, float scale, const SyntaxColorPalette& palette);
-
     void highlightCharacters(const std::string&, size_t&, size_t, const Vector3f&,
                              std::vector<unsigned int>&, std::vector<float>&, std::vector<float>&, std::vector<float>&, size_t&, float&, float&, float);
     void print();

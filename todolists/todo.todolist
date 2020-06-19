@@ -5,6 +5,8 @@ TODO:
 * better integration with bash
 * make goto file by name better to avoid overlaps
 * make insight popup less annoying, only show when helpful
+* re-add html highlighting
+* add json highlighting
 
 COMPLETED:
 + paste in terminal
