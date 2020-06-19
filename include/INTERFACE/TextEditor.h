@@ -5,6 +5,7 @@
 #include <string>
 #include <thread>
 #include <mutex>
+#include <functional>
 
 #include "OPENGL/Shader.h"
 #include "INTERFACE/Font.h"

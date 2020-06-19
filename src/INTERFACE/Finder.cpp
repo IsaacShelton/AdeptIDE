@@ -51,7 +51,7 @@ int Finder::getNextLineNumber(const std::string& documentText){
     if(count == 0) return 0;
 
     // Increament occurrence
-    if(++this->occurrence >= count) this->occurrence = 0;
+    if(++this->occurrence >= (long long) count) this->occurrence = 0;
 
     size_t index = string_find_nth(documentText, needle, this->occurrence);
     std::string upto = documentText.substr(0, index);
