@@ -423,7 +423,8 @@ errorcode_t parse_op_expr(parse_ctx_t *ctx, int precedence, ast_expr_t **inout_l
             break;
         case TOKEN_MAYBE: {
                 (*i)++;
-
+                if(parse_ignore_newlines(ctx, "Unexpected end of expression")) return FAILURE;
+                if(parse_ignore_newlines(ctx, "Unexpected end of expression")) return FAILURE;
                 ast_expr_t *expr_a, *expr_b;
                 if(parse_expr(ctx, &expr_a)) return FAILURE;
 
@@ -433,6 +434,8 @@ errorcode_t parse_op_expr(parse_ctx_t *ctx, int precedence, ast_expr_t **inout_l
                     ast_expr_free_fully(expr_a);
                     return FAILURE;
                 }
+
+                if(parse_ignore_newlines(ctx, "Unexpected end of expression")) return FAILURE;
 
                 if(parse_expr(ctx, &expr_b)){
                     ast_expr_free_fully(*inout_left);
@@ -614,6 +617,7 @@ int parse_expr_func_address(parse_ctx_t *ctx, ast_expr_t **out_expr){
     func_addr_expr->match_args = NULL;
     func_addr_expr->match_args_length = 0;
     func_addr_expr->tentative = false;
+    func_addr_expr->has_match_args = false;
 
     // Optionally enable tentative function lookup: 'func null &functionName'
     if(tokens[*i].id == TOKEN_NULL){
@@ -639,7 +643,8 @@ int parse_expr_func_address(parse_ctx_t *ctx, ast_expr_t **out_expr){
 
         ast_type_t *args = NULL;
         length_t arity = 0;
-
+        
+        func_addr_expr->has_match_args = true;
         (*i)++;
 
         while(*i != ctx->tokenlist->length && tokens[*i].id != TOKEN_CLOSE){

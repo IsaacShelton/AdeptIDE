@@ -25,7 +25,7 @@ int levenshtein(const char *s1, const char *s2) {
     return(matrix[s2len][s1len]);
 }
 
-int levenshtein_overlapping(const char *s1, const char *s2) {
+int levenshtein_overlapping(const char *s1, const char *s2){
     unsigned int x, y, s1len, s2len;
     s1len = strlen(s1);
     s2len = strlen(s2);
