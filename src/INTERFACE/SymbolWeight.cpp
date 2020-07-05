@@ -1,4 +1,6 @@
 
+#include <algorithm>
+
 #include "UTIL/levenshtein.h"
 #include "INTERFACE/SymbolWeight.h"
 

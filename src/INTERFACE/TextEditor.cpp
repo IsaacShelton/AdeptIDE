@@ -784,8 +784,8 @@ void TextEditor::focusViewForCaret(){
     this->scroll = currentLine - 1 - linesViewable / 2;
     if(this->scroll < 0) this->scroll = 0;
     
-    int totalLines = std::count(this->richText.text.begin(), this->richText.text.end(), '\n') + 1;
-    if(totalLines > linesViewable && this->scroll > totalLines - (int) linesViewable) this->scroll = totalLines - (int) linesViewable;
+    long long totalLines = std::count(this->richText.text.begin(), this->richText.text.end(), '\n') + 1;
+    if(totalLines > (long long) linesViewable && this->scroll > totalLines - (long long) linesViewable) this->scroll = totalLines - (long long) linesViewable;
 }
 
 void TextEditor::selectAll(){

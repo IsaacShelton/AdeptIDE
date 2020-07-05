@@ -172,9 +172,9 @@ void TextBar::resizeContainer(int totalAdditionalLines){
 }
 
 void TextBar::setAdditionalText(const std::string &additionalText){
-    int totalLines = std::count(additionalText.begin(), additionalText.end(), '\n') + (additionalText.length() != 0 ? 1 : 0);
+    std::ptrdiff_t totalLines = std::count(additionalText.begin(), additionalText.end(), '\n') + (additionalText.length() != 0 ? 1 : 0);
 
-    if(totalLines != this->additionalLines){
+    if(totalLines != (std::ptrdiff_t) this->additionalLines){
         // Resize container to fit non-input lines
         this->resizeContainer(totalLines);
         this->additionalLines = totalLines;
