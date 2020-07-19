@@ -34,12 +34,19 @@ void nearestSymbols(compiler_t *compiler, std::string target, std::vector<Symbol
         std::string args;
 
         for(size_t j = 0; j != ast->funcs[i].arity; j++){
-            if (ast->funcs[i].arg_names)
-                args += std::string(ast->funcs[i].arg_names[j]) + " ";
+            if(ast->funcs[i].arg_names){
+                args += std::string(ast->funcs[i].arg_names[j]) + (ast->funcs[i].arg_defaults && ast->funcs[i].arg_defaults[j] ? "? " : " ");
+            }
 
             char *a = ast_type_str(&ast->funcs[i].arg_types[j]);
             args += std::string(a);
             ::free(a);
+
+            // Put question mark after type if no name to put it after
+            if(!ast->funcs[i].arg_names && ast->funcs[i].arg_defaults && ast->funcs[i].arg_defaults[j]){
+                args += "?";
+            }
+
             if(j + 1 != ast->funcs[i].arity) args += ", ";
         }
 
