@@ -27,7 +27,7 @@ void SymbolNavigator::onType(){
 
     if(TextEditor *textEditor = adeptide->getCurrentEditorAsTextEditor()){
         compiler_t *compiler = textEditor->borrowCompiler();
-        nearestSymbols(compiler, this->getInput(), &potentialSymbols);
+        nearestSymbols(compiler, "", this->getInput(), &potentialSymbols);
         textEditor->returnCompiler();
     }
 
@@ -48,7 +48,7 @@ void SymbolNavigator::getWhere(compiler_t *compiler, int *outLineNumber, std::st
     // NOTE: Returns 0 when not valid line number
     
     std::vector<SymbolWeight> potentialSymbols;
-    nearestSymbols(compiler, this->getInput(), &potentialSymbols);
+    nearestSymbols(compiler, "", this->getInput(), &potentialSymbols);
 
     if(potentialSymbols.size() == 0){
         *outLineNumber = 0;

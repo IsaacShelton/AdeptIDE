@@ -16,7 +16,7 @@ bool SymbolWeight::operator<(const SymbolWeight& other) const {
     return weight < other.weight;
 }
 
-void nearestSymbols(compiler_t *compiler, std::string target, std::vector<SymbolWeight> *outSymbols){
+void nearestSymbols(compiler_t *compiler, std::string optional_object_string, std::string target, std::vector<SymbolWeight> *outSymbols){
     if(outSymbols == NULL) return;
     outSymbols->clear();
 

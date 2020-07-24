@@ -1072,6 +1072,7 @@ void TextEditor::generateSuggestions(){
     }
 
     // Find beginning of word being typed
+    // TODO: Clean up this messy code
     size_t beginning = end - 1;
     while(true){
         if(!isIdentifier(this->richText.text[beginning])){
@@ -1086,8 +1087,32 @@ void TextEditor::generateSuggestions(){
     // Store last word
     std::string lastword = this->richText.text.substr(beginning, end - beginning);
 
+    /*
+    std::string object_string = "";
+
+    // TODO: Clean up this messy code
+    if(beginning > 1 && this->richText.text[beginning - 1] == '.' && isIdentifier(this->richText.text[beginning - 2])){
+        size_t object_end = beginning - 1;
+        size_t object_beginning = object_end - 1;
+
+        while(true){
+            if(!isIdentifier(this->richText.text[object_beginning])){
+                object_beginning++;
+                break;
+            }
+
+            if(object_beginning == 0) break;
+            object_beginning--;
+        }
+
+        object_string = this->richText.text.substr(object_beginning, object_end - object_beginning);
+    }
+
+    // TODO: Find object_beginning's associated scope to get the AST type of object_string
+    */
+
     std::vector<SymbolWeight> possibleNewSymbolWeights;
-    nearestSymbols(&this->compiler, lastword, &possibleNewSymbolWeights);
+    nearestSymbols(&this->compiler, "" /*object_string*/, lastword, &possibleNewSymbolWeights);
 
     // Grab our best suggestions into a single string and record the longest length
     std::string list;

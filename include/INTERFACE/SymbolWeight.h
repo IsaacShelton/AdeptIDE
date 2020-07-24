@@ -21,6 +21,6 @@ struct SymbolWeight {
     bool operator<(const SymbolWeight& other) const;
 };
 
-void nearestSymbols(compiler_t *compiler, std::string target, std::vector<SymbolWeight> *outSymbols);
+void nearestSymbols(compiler_t *compiler, std::string optional_object_string, std::string target, std::vector<SymbolWeight> *outSymbols);
 
 #endif // SYMBOL_WEIGHT_H
