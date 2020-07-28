@@ -6,6 +6,11 @@
 #include <mach-o/dyld.h>
 #endif
 
+#ifdef __linux__
+#include <unistd.h>
+#include <linux/limits.h>
+#endif
+
 #include <stdarg.h>
 
 #include "LEX/lex.h"
@@ -53,12 +58,34 @@ void compiler_invoke(compiler_t *compiler, int argc, char **argv){
         }
     }
     #else
-	if(argv == NULL || argv[0] == NULL || strcmp(argv[0], "") == 0){
-		redprintf("EXTERNAL ERROR: Compiler was invoked with NULL or empty argv[0]\n");
-		return;
-	}
-	
-	compiler->location = filename_absolute(argv[0]);
+
+    compiler->location = NULL;
+
+    #ifdef __linux__
+
+    // Avoid using calloc so as not to interfere with TRACK_MEMORY_USAGE
+    compiler->location = malloc(PATH_MAX + 1);
+    memset(compiler->location, 0, PATH_MAX + 1);
+
+    if(readlink("/proc/self/exe", compiler->location, PATH_MAX) < 0){
+        // We failed to locate ourself using /proc/self/exe
+        free(compiler->location);
+        compiler->location = NULL;
+    }
+    #endif
+
+    if(compiler->location == NULL){
+        if(argv == NULL || argv[0] == NULL || strcmp(argv[0], "") == 0){
+    		redprintf("EXTERNAL ERROR: Compiler was invoked with NULL or empty argv[0]\n");
+    	} else {
+            compiler->location = filename_absolute(argv[0]);
+        }
+    }
+
+    if(compiler->location == NULL){
+        redprintf("INTERNAL ERROR: Compiler failed to locate itself\n");
+        exit(1);
+    }
     #endif
 
     compiler->root = filename_path(compiler->location);
@@ -122,6 +149,14 @@ void compiler_init(compiler_t *compiler){
     compiler->optimization = OPTIMIZATION_NONE;
     compiler->checks = TRAIT_NONE;
 
+    #if __linux__
+    compiler->use_pic = TROOLEAN_TRUE;
+    #else
+    compiler->use_pic = TROOLEAN_FALSE;
+    #endif
+
+    compiler->use_libm = TROOLEAN_FALSE;
+
     #ifdef ENABLE_DEBUG_FEATURES
     compiler->debug_traits = TRAIT_NONE;
     #endif // ENABLE_DEBUG_FEATURES
@@ -140,35 +175,24 @@ void compiler_free(compiler_t *compiler){
         object_t *object = compiler->objects[i];
 
         switch(object->compilation_stage){
-        case COMPILATION_STAGE_NONE:
-            break; // Nothing to free yet so yeah
-        case COMPILATION_STAGE_FILENAME:
-            free(object->filename);
-            free(object->full_filename);
-            break;
-        case COMPILATION_STAGE_TOKENLIST:
-            free(object->filename);
-            free(object->full_filename);
-            free(object->buffer);
-            tokenlist_free(&object->tokenlist);
-            break;
-        case COMPILATION_STAGE_AST:
-            free(object->filename);
-            free(object->full_filename);
-            free(object->buffer);
-            tokenlist_free(&object->tokenlist);
-            ast_free(&object->ast);
-            break;
         case COMPILATION_STAGE_IR_MODULE:
-            free(object->filename);
-            free(object->full_filename);
-            free(object->buffer);
-            tokenlist_free(&object->tokenlist);
-            ast_free(&object->ast);
-            
             #ifndef ADEPT_INSIGHT_BUILD
             ir_module_free(&object->ir_module);
             #endif
+            // [fallthrough]
+        case COMPILATION_STAGE_AST:    
+            ast_free(&object->ast);
+            // [fallthrough]
+        case COMPILATION_STAGE_TOKENLIST:
+            free(object->buffer);
+            tokenlist_free(&object->tokenlist);
+            // [fallthrough]
+        case COMPILATION_STAGE_FILENAME:
+            free(object->filename);
+            free(object->full_filename);
+            // [fallthrough]
+        case COMPILATION_STAGE_NONE:
+            // Nothing to free up
             break;
         default:
             printf("INTERNAL ERROR: Failed to delete object that has an invalid compilation stage\n");
@@ -263,6 +287,27 @@ errorcode_t parse_arguments(compiler_t *compiler, object_t *object, int argc, ch
                 compiler->traits |= COMPILER_UNSAFE_NEW;
             } else if(strcmp(argv[arg_index], "--null-checks") == 0){
                 compiler->checks |= COMPILER_NULL_CHECKS;
+            } else if(strcmp(argv[arg_index], "--pic") == 0 || strcmp(argv[arg_index], "-fPIC") == 0 ||
+                        strcmp(argv[arg_index], "-fpic") == 0){
+                // Accessibility versions of --PIC
+                yellowprintf("WARNING: Flag '%s' is not valid, assuming you meant to use --PIC\n", argv[arg_index]);
+                compiler->use_pic = TROOLEAN_TRUE;
+            } else if(strcmp(argv[arg_index], "--PIC") == 0){
+                compiler->use_pic = TROOLEAN_TRUE;
+            } else if(strcmp(argv[arg_index], "--noPIC") == 0 || strcmp(argv[arg_index], "--no-pic") == 0 ||
+                        strcmp(argv[arg_index], "--nopic") == 0 || strcmp(argv[arg_index], "-fno-pic") == 0 ||
+                        strcmp(argv[arg_index], "-fno-PIC") == 0){
+                // Accessibility versions of --no-PIC
+                yellowprintf("WARNING: Flag '%s' is not valid, assuming you meant to use --no-PIC\n", argv[arg_index]);
+                compiler->use_pic = TROOLEAN_FALSE;
+            } else if(strcmp(argv[arg_index], "--no-PIC") == 0){
+                compiler->use_pic = TROOLEAN_FALSE;
+            } else if(strcmp(argv[arg_index], "-lm") == 0){
+                // Accessibility versions of --libm
+                yellowprintf("WARNING: Flag '%s' is not valid, assuming you meant to use --libm\n", argv[arg_index]);
+                compiler->use_libm = true;
+            } else if(strcmp(argv[arg_index], "--libm") == 0){
+                compiler->use_libm = true;
             }
 
             #ifdef ENABLE_DEBUG_FEATURES //////////////////////////////////
