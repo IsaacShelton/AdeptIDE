@@ -223,6 +223,9 @@ void Explorer::setVisibility(bool visibility){
 void Explorer::update(){
     if(this->folderWatcher && this->folderWatcher->changeOccured()){
         this->refreshNodes();
+
+        if(this->fileLooker)
+            this->fileLooker->setFiles(this->rootNode);
     }
 }
 

@@ -404,3 +404,24 @@ size_t string_find_nth(const std::string &haystack, const std::string &needle, s
 
     return std::string::npos;
 }
+
+std::string string_ending_with_slash(std::string maybe_with_slash){
+    #ifdef __WIN32__
+        const std::string& slash = "\\";
+    #else
+        const std::string& slash = "/";
+    #endif
+
+    // If empty, return just plain slash
+    if(maybe_with_slash.length() == 0) return slash;
+
+    char last_char = maybe_with_slash[maybe_with_slash.length() - 1];
+    if(last_char == '\\' || last_char == '/') return maybe_with_slash;
+
+    return maybe_with_slash + slash;
+}
+
+std::string string_without_prefix(std::string string, std::string prefix){
+    if(string.length() < prefix.length() || string.substr(0, prefix.length()) != prefix) return string;
+    return string_delete_amount(string, prefix.length());
+}

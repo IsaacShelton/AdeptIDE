@@ -61,4 +61,7 @@ std::ifstream::pos_type file_size(std::string a);
 
 size_t string_find_nth(const std::string &haystack, const std::string &needle, size_t n_starting_at_zero);
 
+std::string string_ending_with_slash(std::string maybe_with_slash);
+std::string string_without_prefix(std::string string, std::string prefix);
+
 #endif // STRINGUTIL_H_INCLUDED

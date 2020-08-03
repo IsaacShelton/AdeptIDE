@@ -29,8 +29,6 @@ void nearestSymbols(compiler_t *compiler, std::string optional_object_string, st
     // Generate possible symbol weights
     for(size_t i = 0; i != ast->funcs_length; i++){
         const char *name = ast->funcs[i].name;
-        if(strlen(name) < target.length() || strncmp(name, target.c_str(), target.length()) != 0) continue;
-
         std::string args;
 
         for(size_t j = 0; j != ast->funcs[i].arity; j++){
@@ -57,9 +55,12 @@ void nearestSymbols(compiler_t *compiler, std::string optional_object_string, st
         std::string label = std::string(name) + "(" + args + ") " + r;
         ::free(r);
 
+        // Select by label mode
+        if(label.length() < target.length() || strncmp(label.c_str(), target.c_str(), target.length()) != 0) continue;
+
         outSymbols->push_back(SymbolWeight(name, label, levenshtein_overlapping(target.c_str(), name), SymbolWeight::Kind::FUNCTION, ast->funcs[i].source));
     }
-
+    
     for(size_t i = 0; i != ast->structs_length; i++){
         const char *name = ast->structs[i].name;
         if(strlen(name) < target.length() || strncmp(name, target.c_str(), target.length()) != 0) continue;
