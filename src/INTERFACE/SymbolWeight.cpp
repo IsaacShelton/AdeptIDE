@@ -83,6 +83,14 @@ void nearestSymbols(compiler_t *compiler, std::string optional_object_string, st
         // Is a constant expression
         outSymbols->push_back(SymbolWeight(name, name, levenshtein_overlapping(target.c_str(), name), SymbolWeight::Kind::CONSTANT, ast->constants[i].source));
     }
+
+    for(size_t i = 0; i != ast->enums_length; i++){
+        const char *name = ast->enums[i].name;
+        if(strlen(name) < target.length() || strncmp(name, target.c_str(), target.length()) != 0) continue;
+        
+        // Is an enum
+        outSymbols->push_back(SymbolWeight(name, name, levenshtein_overlapping(target.c_str(), name), SymbolWeight::Kind::ENUM, ast->enums[i].source));
+    }
     
     // Sort the possible new symbol weights by weight
     std::stable_sort(outSymbols->begin(), outSymbols->end());

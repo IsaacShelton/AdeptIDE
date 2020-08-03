@@ -16,6 +16,7 @@ AdeptIDEAssets::~AdeptIDEAssets(){
     delete structureModel;
     delete globalModel;
     delete constantModel;
+    delete enumModel;
     delete cdModel;
 
     delete emblemTexture;
@@ -32,6 +33,7 @@ AdeptIDEAssets::~AdeptIDEAssets(){
     delete structureTexture;
     delete globalTexture;
     delete constantTexture;
+    delete enumTexture;
     delete cdTexture;
 }
 
@@ -50,6 +52,7 @@ void AdeptIDEAssets::loadAdeptIDEAssets(const std::string& assetsFolder){
     texture(assetsFolder, "structure.png", &structureTexture);
     texture(assetsFolder, "global.png", &globalTexture);
     texture(assetsFolder, "constant.png", &constantTexture);
+    texture(assetsFolder, "enum.png", &enumTexture);
     texture(assetsFolder, "cd.png", &cdTexture);
     
     model(256, emblemTexture, &emblemModel);
@@ -66,6 +69,6 @@ void AdeptIDEAssets::loadAdeptIDEAssets(const std::string& assetsFolder){
     model(16, structureTexture, &structureModel);
     model(16, globalTexture, &globalModel);
     model(16, constantTexture, &constantModel);
+    model(16, enumTexture, &enumModel);
     model(16, cdTexture, &cdModel);
 }
-

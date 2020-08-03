@@ -20,6 +20,7 @@ struct AdeptIDEAssets {
     Model *structureModel = NULL;
     Model *globalModel = NULL;
     Model *constantModel = NULL;
+    Model *enumModel = NULL;
     Model *cdModel = NULL;
 
     Texture *fontTexture = NULL;
@@ -37,6 +38,7 @@ struct AdeptIDEAssets {
     Texture *structureTexture = NULL;
     Texture *globalTexture = NULL;
     Texture *constantTexture = NULL;
+    Texture *enumTexture = NULL;
     Texture *cdTexture = NULL;
 
     ~AdeptIDEAssets();
