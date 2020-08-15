@@ -1,6 +1,6 @@
 
-#ifndef COMPILER_H
-#define COMPILER_H
+#ifndef _ISAAC_COMPILER_H
+#define _ISAAC_COMPILER_H
 
 #ifdef __cplusplus
 extern "C" {
@@ -14,6 +14,7 @@ extern "C" {
 
 #include "UTIL/trait.h"
 #include "UTIL/ground.h"
+#include "DRVR/config.h"
 #include "DRVR/object.h"
 
 // Possible compiler trait options
@@ -34,6 +35,14 @@ extern "C" {
 #define COMPILER_NULL_CHECKS      TRAIT_1
 #define COMPILER_LEAK_CHECKS      TRAIT_2
 #define COMPILER_BOUNDS_CHECKS    TRAIT_3
+
+// Possible compiler errors/warning to ignore
+#define COMPILER_IGNORE_DEPRECATION             TRAIT_1
+#define COMPILER_IGNORE_PARTIAL_SUPPORT         TRAIT_2
+#define COMPILER_IGNORE_EARLY_RETURN            TRAIT_3
+#define COMPILER_IGNORE_UNRECOGNIZED_DIRECTIVES TRAIT_3
+#define COMPILER_IGNORE_OBSOLETE                TRAIT_4
+#define COMPILER_IGNORE_ALL                     TRAIT_ALL
 
 // Possible optimization levels
 #define OPTIMIZATION_NONE       0x00
@@ -63,12 +72,16 @@ typedef struct compiler {
     length_t objects_length;
     length_t objects_capacity;
 
+    // Compiler persistent configuration options
+    config_t config;
+
     // Compiler command-line configuration options
     trait_t traits;            // COMPILER_* options
     char *output_filename;     // owned c-string
     unsigned int optimization; // 0 - 3 using OPTIMIZATION_* constants
     trait_t result_flags;      // Results flag (for internal use)
     trait_t checks;
+    trait_t ignore;
     troolean use_pic;          // Generate using PIC relocation model
     bool use_libm;             // Link to libm using '-lm'
     
@@ -110,7 +123,7 @@ void break_into_arguments(const char *s, int *out_argc, char ***out_argv);
 
 // ---------------- show_help ----------------
 // Displays program help information
-void show_help();
+void show_help(bool show_advanced_options);
 
 // ---------------- compiler_get_string ----------------
 // Gets the string identifier of the compiler
@@ -171,4 +184,4 @@ void object_panicf_plain(object_t *object, const char *message, ...);
 }
 #endif
 
-#endif // COMPILER_H
+#endif // _ISAAC_COMPILER_H

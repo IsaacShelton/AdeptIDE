@@ -1,6 +1,6 @@
 
-#ifndef AST_H
-#define AST_H
+#ifndef _ISAAC_AST_H
+#define _ISAAC_AST_H
 
 #ifdef __cplusplus
 extern "C" {
@@ -102,7 +102,7 @@ typedef struct {
 // ---------------- ast_global_t ----------------
 // A global variable within the root AST
 typedef struct {
-    const char *name;
+    weak_cstr_t name;
     ast_type_t type;
     ast_expr_t *initial;
     trait_t traits;
@@ -134,7 +134,7 @@ typedef struct {
 typedef struct {
     weak_cstr_t name;
     length_t ast_func_id;
-    char is_beginning_of_group; // 1 == yes, 0 == no, -1 == uncalculated
+    signed char is_beginning_of_group; // 1 == yes, 0 == no, -1 == uncalculated
 } ast_polymorphic_func_t;
 
 // ---------------- ast_t ----------------
@@ -324,4 +324,4 @@ int ast_polymorphic_funcs_cmp(const void *a, const void *b);
 }
 #endif
 
-#endif // AST_H
+#endif // _ISAAC_AST_H

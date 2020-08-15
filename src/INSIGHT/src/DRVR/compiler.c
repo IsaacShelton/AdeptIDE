@@ -90,6 +90,18 @@ void compiler_invoke(compiler_t *compiler, int argc, char **argv){
 
     compiler->root = filename_path(compiler->location);
 
+    {
+        // Read persistent config file
+        strong_cstr_t config_filename = mallocandsprintf("%sadept.config", compiler->root);
+        weak_cstr_t config_warning = NULL;
+
+        if(!config_read(&compiler->config, config_filename, &config_warning) && config_warning){
+            yellowprintf("%s\n", config_warning);
+        }
+
+        free(config_filename);
+    }
+
     if(parse_arguments(compiler, object, argc, argv)) return;
 
     #ifndef ADEPT_INSIGHT_BUILD
@@ -144,7 +156,9 @@ void compiler_init(compiler_t *compiler){
     compiler->objects = malloc(sizeof(object_t*) * 4);
     compiler->objects_length = 0;
     compiler->objects_capacity = 4;
+    config_prepare(&compiler->config);
     compiler->traits = TRAIT_NONE;
+    compiler->ignore = TRAIT_NONE;
     compiler->output_filename = NULL;
     compiler->optimization = OPTIMIZATION_NONE;
     compiler->checks = TRAIT_NONE;
@@ -202,6 +216,7 @@ void compiler_free(compiler_t *compiler){
     }
 
     free(compiler->objects);
+    config_free(&compiler->config);
 }
 
 object_t* compiler_new_object(compiler_t *compiler){
@@ -232,7 +247,10 @@ errorcode_t parse_arguments(compiler_t *compiler, object_t *object, int argc, ch
     while(arg_index != argc){
         if(argv[arg_index][0] == '-'){
             if(strcmp(argv[arg_index], "-h") == 0 || strcmp(argv[arg_index], "--help") == 0){
-                show_help();
+                show_help(false);
+                return FAILURE;
+            } else if(strcmp(argv[arg_index], "-H") == 0 || strcmp(argv[arg_index], "--help-advanced") == 0){
+                show_help(true);
                 return FAILURE;
             } else if(strcmp(argv[arg_index], "-p") == 0 || strcmp(argv[arg_index], "--package") == 0){
                 compiler->traits |= COMPILER_MAKE_PACKAGE;
@@ -287,6 +305,18 @@ errorcode_t parse_arguments(compiler_t *compiler, object_t *object, int argc, ch
                 compiler->traits |= COMPILER_UNSAFE_NEW;
             } else if(strcmp(argv[arg_index], "--null-checks") == 0){
                 compiler->checks |= COMPILER_NULL_CHECKS;
+            } else if(strcmp(argv[arg_index], "--ignore-all") == 0){
+                compiler->ignore |= COMPILER_IGNORE_ALL;
+            } else if(strcmp(argv[arg_index], "--ignore-deprecation") == 0){
+                compiler->ignore |= COMPILER_IGNORE_DEPRECATION;
+            } else if(strcmp(argv[arg_index], "--ignore-early-return") == 0){
+                compiler->ignore |= COMPILER_IGNORE_EARLY_RETURN;
+            } else if(strcmp(argv[arg_index], "--ignore-obsolete") == 0){
+                compiler->ignore |= COMPILER_IGNORE_OBSOLETE;
+            } else if(strcmp(argv[arg_index], "--ignore-partial-support") == 0){
+                compiler->ignore |= COMPILER_IGNORE_PARTIAL_SUPPORT;
+            } else if(strcmp(argv[arg_index], "--ignore-unrecognized-directives") == 0){
+                compiler->ignore |= COMPILER_IGNORE_UNRECOGNIZED_DIRECTIVES;
             } else if(strcmp(argv[arg_index], "--pic") == 0 || strcmp(argv[arg_index], "-fPIC") == 0 ||
                         strcmp(argv[arg_index], "-fpic") == 0){
                 // Accessibility versions of --PIC
@@ -384,7 +414,7 @@ errorcode_t parse_arguments(compiler_t *compiler, object_t *object, int argc, ch
                 return FAILURE;
             }
         } else {
-            show_help();
+            show_help(false);
             return FAILURE;
         }
     }
@@ -465,28 +495,56 @@ void break_into_arguments(const char *s, int *out_argc, char ***out_argv){
     }
 }
 
-void show_help(){
+void show_help(bool show_advanced_options){
     printf("The Adept Compiler v%s - (c) 2016-2020 Isaac Shelton\n\n", ADEPT_VERSION_STRING);
-    printf("Usage: adept [options] <filename>\n\n");
+    printf("Usage: adept [options] [filename]\n\n");
     printf("Options:\n");
     printf("    -h, --help        Display this message\n");
-    printf("    -n FILENAME       Write output to FILENAME (relative to file)\n");
-    printf("    -o FILENAME       Write output to FILENAME (relative to working directory)\n");
     printf("    -e                Execute resulting executable\n");
-    printf("    -p, --package     Output a package\n");
-    printf("    -d                Include debugging symbols\n");
-    printf("    -w                Disable all compiler warnings\n");
-    printf("    -j                Preserve generated object file\n");
-    printf("    -O                Set optimization level\n");
-    printf("    --fussy           Show typically insignificant warnings\n");
-    printf("    --version         Display compiler version information\n");
+    printf("    -w                Disable compiler warnings\n");
+    printf("    -o FILENAME       Output to FILENAME (relative to working directory)\n");
+    printf("    -n FILENAME       Output to FILENAME (relative to file)\n");
 
-    printf("\nLanguage Options:\n");
-    printf("    --no-type-info    Disable runtime type information\n");
-    printf("    --no-undef        Force initialize for 'undef'\n");
-    printf("    --unsafe-meta     Allow unsafe usage of meta constructs\n");
-    printf("    --unsafe-new      Disables zero-initialization of memory allocated with 'new'\n");
-    printf("    --null-checks     Enable runtime null-checks\n");
+    if(show_advanced_options){
+        printf("    -p, --package     Output a package [OBSOLETE]\n");
+        printf("    -d                Include debugging symbols [UNIMPLEMENTED]\n");
+    }
+
+
+    if(show_advanced_options)
+        printf("    -j                Preserve generated object file\n");
+    
+    printf("    -O0,-O1,-O2,-O3   Set optimization level\n");
+
+    if(show_advanced_options)
+        printf("    --fussy           Show insignificant warnings\n");
+    
+    printf("    --version         Display compiler version\n");
+    printf("    --help-advanced   Show lesser used compiler flags\n");
+
+    if(show_advanced_options){
+        printf("\nLanguage Options:\n");
+        printf("    --no-type-info    Disable runtime type information\n");
+        printf("    --no-undef        Force initialize for 'undef'\n");
+        printf("    --unsafe-meta     Allow unsafe usage of meta constructs\n");
+        printf("    --unsafe-new      Disables zero-initialization of memory allocated with new\n");
+        printf("    --null-checks     Enable runtime null-checks\n");
+
+        printf("\nMachine Code Options:\n");
+        printf("    --PIC             Forces PIC relocation model\n");
+        printf("    --no-PIC          Forbids PIC relocation model\n");
+
+        printf("\nLinker Options:\n");
+        printf("    --libm            Forces linking against libc math library\n");
+
+        printf("\nIgnore Options:\n");
+        printf("    --ignore-all                      Enables all ignore options\n");
+        printf("    --ignore-deprecation              Ignore deprecation warnings\n");
+        printf("    --ignore-early-return             Ignore early return warnings\n");
+        printf("    --ignore-obsolete                 Ignore obsolete feature warnings\n");
+        printf("    --ignore-partial-support          Ignore partial compiler support warnings\n");
+        printf("    --ignore-unrecognized-directives  Ignore unrecognized pragma directives\n");
+    }
 
     #ifdef ENABLE_DEBUG_FEATURES
     printf("--------------------------------------------------\n");

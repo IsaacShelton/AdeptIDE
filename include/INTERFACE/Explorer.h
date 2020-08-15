@@ -17,6 +17,8 @@ class FileLooker;
 #include "INTERFACE/FileLooker.h"
 #include "PROCESS/FolderWatcher.h"
 
+#define MAX_EXPLORER_NODES_GENERATED 750
+
 class ExplorerNode;
 
 class ExplorerNode {

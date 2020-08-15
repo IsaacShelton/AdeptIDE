@@ -110,3 +110,64 @@ char *mallocandsprintf(const char *format, ...){
     va_end(args);
     return destination;
 }
+
+strong_cstr_t string_to_escaped_string(char *array, length_t length){
+    length_t put_index = 1;
+    length_t special_characters = 0;
+
+    // Count number of special characters (\n, \t, \b, etc.)
+    for(length_t i = 0; i != length; i++){
+        if(array[i] <= 0x1F || array[i] == '\\') special_characters++;
+    }
+
+    strong_cstr_t string = malloc(length + special_characters + 3);
+    string[0] = '\"';
+    
+    for(length_t i = 0; i != length; i++){
+        if(array[i] <= 0x1F || array[i] == '\\'){
+            // Escape special character
+            string[put_index++] = '\\';
+        } else {
+            // Put regular character
+        }
+        switch(array[i]){
+        case '\0': string[put_index++] =  '0'; break;
+        case '\t': string[put_index++] =  't'; break;
+        case '\n': string[put_index++] =  'n'; break;
+        case '\r': string[put_index++] =  'r'; break;
+        case '\b': string[put_index++] =  'b'; break;
+        case '\e': string[put_index++] =  'e'; break;
+        case '\\': string[put_index++] = '\\'; break;
+        case '"':  string[put_index++] =  '"'; break;
+        default:
+            // Unrecognized special character, don't escape
+            string[put_index - 1] = array[i];
+        }
+    }
+
+    string[put_index++] = '"';
+    string[put_index++] = '\0';
+    return string;
+}
+
+length_t string_count_character(weak_cstr_t string, length_t length, char character){
+    length_t count = 0;
+    for(length_t i = 0; i != length; i++) if(string[i] == character) count++;
+    return count;
+}
+
+length_t find_insert_position(void *array, length_t length, int(*compare)(const void*, const void*), void *object_reference, length_t object_size){
+    maybe_index_t first, middle, last, comparison;
+    first = 0; last = length - 1;
+
+    while(first <= last){
+        middle = (first + last) / 2;
+        comparison = compare((char*) array + (middle * object_size), object_reference);
+        
+        if(comparison == 0) return middle;
+        else if(comparison > 0) last = middle - 1;
+        else first = middle + 1;
+    }
+
+    return first;
+}

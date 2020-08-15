@@ -401,8 +401,6 @@ void ExplorerNode::sortChildren(Settings *settings){
 bool ExplorerNode::generateChildren(Settings *settings, Font *font, int *nodesAlreadyGenerated){
     // Returns whether too many nodes
 
-    #define MAX_EXPLORER_NODES_GENERATED 500
-
     cf_dir_t dir;
     cf_dir_open(&dir, this->getFilename().c_str());
 
