@@ -1865,7 +1865,7 @@ void about_menu(void *data){
     
     std::string about_string;
     about_string += "VERSION:  AdpetIDE " + std::string(__DATE__) + " " + std::string(__TIME__) + "\n";
-    about_string += "INSIGHT:  Adept 2.3 (in development)\n";
+    about_string += "INSIGHT:  Adept 2.4 (in development)\n";
     about_string += "PLATFORM: ";
 
     #if _WIN32

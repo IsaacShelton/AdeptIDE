@@ -155,7 +155,7 @@ errorcode_t parse_primary_expr(parse_ctx_t *ctx, ast_expr_t **out_expr){
             }
 
             // Parse name of transcendant variable to get
-            weak_cstr_t transcendant_name = parse_take_word(ctx, "Expected transcendant variable name after '#get'");
+            weak_cstr_t transcendant_name = parse_eat_word(ctx, "Expected transcendant variable name after '#get'");
             if(transcendant_name == NULL) return FAILURE;
 
             meta_expr_t *value;
@@ -174,7 +174,6 @@ errorcode_t parse_primary_expr(parse_ctx_t *ctx, ast_expr_t **out_expr){
                 value = definition->value;
             }
 
-            
             if(!IS_META_EXPR_ID_COLLAPSED(value->id)){
                 compiler_panicf(ctx->compiler, sources[*i - 1], "INTERNAL ERROR: Meta expression expected to be collapsed");
                 return FAILURE;
@@ -499,9 +498,11 @@ errorcode_t parse_op_expr(parse_ctx_t *ctx, int precedence, ast_expr_t **inout_l
         case TOKEN_MAYBE: {
                 (*i)++;
                 if(parse_ignore_newlines(ctx, "Unexpected end of expression")) return FAILURE;
-                if(parse_ignore_newlines(ctx, "Unexpected end of expression")) return FAILURE;
+                
                 ast_expr_t *expr_a, *expr_b;
                 if(parse_expr(ctx, &expr_a)) return FAILURE;
+
+                if(parse_ignore_newlines(ctx, "Unexpected end of expression")) return FAILURE;
 
                 if(tokens[(*i)++].id != TOKEN_COLON){
                     compiler_panic(ctx->compiler, sources[*i - 1], "Ternary operator expected ':' after expression");
