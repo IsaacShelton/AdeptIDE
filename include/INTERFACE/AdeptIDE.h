@@ -193,6 +193,8 @@ void theme_one_dark(void *data);
 
 void about_menu(void *data);
 
+void toggle_explorer(void *data);
+void toggle_terminal(void *data);
 void maximize(void *data);
 
 void build_adept_project(void *data);

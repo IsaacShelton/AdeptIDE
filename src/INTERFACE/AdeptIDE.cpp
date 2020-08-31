@@ -229,7 +229,9 @@ int AdeptIDE::main(int argc, const char **argv){
     changeThemeDropdown->menus.push_back(new Menu("Island Campfire      Ctrl+Shift+3", this->menubar.font, theme_island_campfire, this));
     changeThemeDropdown->menus.push_back(new Menu("One Dark             Ctrl+Shift+4", this->menubar.font, theme_one_dark, this));
     changeThemeDropdown->menus.push_back(new Menu("Fruit Smoothie (Legacy)         ", this->menubar.font, theme_fruit_smoothie, this));
-    this->menubar.menus[2]->dropdownMenu->menus.push_back(new Menu("Maximize                         ", this->menubar.font, maximize, this));
+    this->menubar.menus[2]->dropdownMenu->menus.push_back(new Menu("Toggle Explorer        Ctrl+/", this->menubar.font, toggle_explorer, this));
+    this->menubar.menus[2]->dropdownMenu->menus.push_back(new Menu("Toggle Terminal        Ctrl+_", this->menubar.font, toggle_terminal, this));
+    this->menubar.menus[2]->dropdownMenu->menus.push_back(new Menu("Maximize                     ", this->menubar.font, maximize, this));
 
     selectionDropDownX = 8.0f + this->menubar.menus[0]->textWidth + this->menubar.menus[1]->textWidth + this->menubar.menus[2]->textWidth + 16.0f * 3;
     this->menubar.menus[3]->dropdownMenu = new DropdownMenu(&this->font, selectionDropDownX, 20.0f, 32);
@@ -1943,6 +1945,20 @@ void about_menu(void *data){
     #endif
 
     adeptide->createMessage(about_string, 4.0);
+    adeptide->menubar.loseFocus();
+}
+
+void toggle_explorer(void *data){
+    AdeptIDE *adeptide = static_cast<AdeptIDE *>(data);
+    if(adeptide->explorer)
+        adeptide->explorer->toggleVisibility();
+    adeptide->menubar.loseFocus();
+}
+
+void toggle_terminal(void *data){
+    AdeptIDE *adeptide = static_cast<AdeptIDE *>(data);
+    if(adeptide->terminal)
+        adeptide->terminal->toggleVisibility();
     adeptide->menubar.loseFocus();
 }
 
