@@ -179,6 +179,7 @@ int AdeptIDE::main(int argc, const char **argv){
     newFileMenu->dropdownMenu = newFileDropdown;
     newFileDropdown->menus.push_back(new Menu("Adept File                Ctrl+N", this->menubar.font, new_adept_file, this));
     newFileDropdown->menus.push_back(new Menu("Java File                       ", this->menubar.font, new_java_file, this));
+    newFileDropdown->menus.push_back(new Menu("JSON FIle                       ", this->menubar.font, new_json_file, this));
     newFileDropdown->menus.push_back(new Menu("Plain Text File                 ", this->menubar.font, new_plain_text_file, this));
     newFileDropdown->menus.push_back(new Menu("Painting                        ", this->menubar.font, new_painting_file, this));
 
@@ -267,7 +268,7 @@ int AdeptIDE::main(int argc, const char **argv){
 
     this->message = NULL;
     this->explorer = new Explorer();
-    this->explorer->load(&this->settings, &this->font, this->fontTexture, 256, this->height, this->fileLooker);
+    this->explorer->load(&this->settings, &this->font, this->fontTexture, 256, this->height, this->fileLooker, (AdeptIDEAssets*) this);
 
     this->terminal = new Terminal();
     this->terminal->load(&this->settings, &this->font, this->fontTexture, this->width, 256);    
@@ -473,7 +474,7 @@ void AdeptIDE::handleInput(){
     glfwGetCursorPos(window, &mouseX, &mouseY);
 
     // Have explorer update itself
-    if(this->explorer) this->explorer->update();
+    if(this->explorer) this->explorer->update((AdeptIDEAssets*) this);
 
     if(TextEditor *currentTextEditor = this->getCurrentEditorAsTextEditor()){
         if(!this->mouseReleased && distance(mouseX + currentTextEditor->getNetXOffset(), mouseY + currentTextEditor->getNetYOffset(),
@@ -659,11 +660,12 @@ void AdeptIDE::renderEditorFilenames(){
             this->shader->giveMatrix4f("transformation_matrix", this->transformationMatrix);
 
             switch(editor->getFileType()){
-            case PLAIN_TEXT: renderModel(this->plainTextModel); break;
-            case ADEPT:      renderModel(this->adeptModel);     break;
-            case JAVA:       renderModel(this->javaModel);      break;
-            case HTML:       renderModel(this->htmlModel);      break;
-            case PAINTING:   renderModel(this->paintingModel);  break;
+            case FileType::PLAIN_TEXT: renderModel(this->plainTextModel); break;
+            case FileType::ADEPT:      renderModel(this->adeptModel);     break;
+            case FileType::JAVA:       renderModel(this->javaModel);      break;
+            case FileType::HTML:       renderModel(this->htmlModel);      break;
+            case FileType::JSON:       renderModel(this->jsonModel);      break;
+            case FileType::PAINTING:   renderModel(this->paintingModel);  break;
             }
 
             this->transformationMatrix.translate(24.0f, 0.0f, 0.0f);
@@ -716,7 +718,7 @@ void AdeptIDE::loadSettings(){
     }
 
     // Refresh explorer
-    if(this->explorer && this->explorer->refreshNodes() && this->fontTexture)
+    if(this->explorer && this->explorer->refreshNodes((AdeptIDEAssets*) this) && this->fontTexture)
         this->createMessage("Too many files in directory! Some files omitted!", 3.0);
     
     // Refresh import folder, but only if assets have been loaded
@@ -754,7 +756,7 @@ void AdeptIDE::openFolder(){
         std::string folder;
 
         if(openFolderDialog(this->window, folder)){
-            if(this->explorer->setRootFolder(folder))
+            if(this->explorer->setRootFolder(folder, (AdeptIDEAssets*) this))
                 this->createMessage("Too many files in directory! Some files omitted!", 3.0);
             this->explorer->setVisibility(true);
         }
@@ -762,11 +764,28 @@ void AdeptIDE::openFolder(){
 }
 
 void AdeptIDE::openEditor(const std::string& filename){
-    TextEditor *newEditor = this->addTextEditor();
+    GenericEditor *newEditor = NULL;
 
-    newEditor->filename = filename;
-    newEditor->updateFilenameModel();
-    newEditor->loadTextFromFile(filename);
+    if(string_ends_with(filename, ".png") || string_ends_with(filename, ".jpg") || string_ends_with(filename, ".jpeg")){
+        ImageEditor *newImageEditor = this->addImageEditor();
+        newImageEditor->loadImageFromFile(filename);
+        newImageEditor->updateFilenameModel();
+
+        float offsetByExplorer = this->explorer ? this->explorer->containerX + 256.0f : 0.0f;
+        float x = (this->width - offsetByExplorer) / 2 + offsetByExplorer;
+        float y = this->height / 2;
+
+        newImageEditor->setImagePosition(x, y);
+        newEditor = newImageEditor;
+    } else {
+        TextEditor *newTextEditor = this->addTextEditor();
+        newTextEditor->loadTextFromFile(filename);
+        newTextEditor->filename = filename;
+        newTextEditor->updateFilenameModel();
+
+        newEditor = newTextEditor;
+    }
+
     this->updateTitle();
 
     // Re-underline the tab because we changed the filename model
@@ -1763,6 +1782,12 @@ void new_plain_text_file(void *data){
 void new_java_file(void *data){
     AdeptIDE *adeptide = static_cast<AdeptIDE*>(data);
     adeptide->newFile(FileType::JAVA);
+    adeptide->menubar.loseFocus();
+}
+
+void new_json_file(void *data){
+    AdeptIDE *adeptide = static_cast<AdeptIDE*>(data);
+    adeptide->newFile(FileType::JSON);
     adeptide->menubar.loseFocus();
 }
 

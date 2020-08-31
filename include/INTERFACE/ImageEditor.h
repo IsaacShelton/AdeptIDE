@@ -16,7 +16,6 @@ class ImageEditor : public GenericEditor {
     bool dragging;
     double scale;
 
-    void updateFilenameModel();
 
 public:
     ~ImageEditor();
@@ -30,6 +29,7 @@ public:
     FileType getFileType();
     TextModel *getFilenameModel();
     size_t getDisplayFilenameLength();
+    void updateFilenameModel();
 
     void startDrag(double x, double y);
     void updateDrag(double x, double y);
@@ -39,6 +39,7 @@ public:
     void zoomOut(int lineCount);
 
     void setOffset(float xOffset, float yOffset);
+    void setImagePosition(float x, float y);
 };
 
 #endif // IMAGE_EDITOR_H_INCLUDED

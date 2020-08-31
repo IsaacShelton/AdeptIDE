@@ -4,7 +4,7 @@
 
 enum FileType {
     // Text Formats
-    PLAIN_TEXT, ADEPT, JAVA, HTML,
+    PLAIN_TEXT, ADEPT, JAVA, HTML, JSON,
 
     PAINTING
 };

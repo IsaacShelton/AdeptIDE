@@ -425,3 +425,7 @@ std::string string_without_prefix(std::string string, std::string prefix){
     if(string.length() < prefix.length() || string.substr(0, prefix.length()) != prefix) return string;
     return string_delete_amount(string, prefix.length());
 }
+
+bool string_ends_with(const std::string& string, const std::string& ending){
+    return string.length() >= ending.length() && string.substr(string.length() - ending.length(), ending.length()) == ending;
+}

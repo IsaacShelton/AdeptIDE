@@ -39,6 +39,7 @@ class RichText {
 
     std::vector<Special> adeptSpecials;
     std::vector<Special> javaSpecials;
+    std::vector<Special> jsonSpecials;
 
 public:
     // NOTE: 'text' shouldn't be modified directly when possible

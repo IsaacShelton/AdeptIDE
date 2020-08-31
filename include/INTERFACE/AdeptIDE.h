@@ -167,6 +167,7 @@ void help_menu(void *data);
 void new_adept_file(void *data);
 void new_plain_text_file(void *data);
 void new_java_file(void *data);
+void new_json_file(void *data);
 void new_painting_file(void *data);
 
 void open_playground_menu(void *data);

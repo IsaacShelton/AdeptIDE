@@ -30,6 +30,7 @@ private:
     std::string filenameWithoutPath;
     Kind kind;
     TextModel textModel;
+    Model *icon;
 
     std::string cachedFilenameExtension;
     bool hasCachedFilenameExtension;
@@ -38,7 +39,7 @@ public:
     ExplorerNode *parent;
     std::vector<ExplorerNode*> children;
 
-    ExplorerNode(const std::string &name, Kind kind, Font *fontUsedToCreateTextModel);
+    ExplorerNode(const std::string &name, Kind kind, Font *fontUsedToCreateTextModel, AdeptIDEAssets *assets);
     ~ExplorerNode();
     
     bool isFolder();
@@ -51,8 +52,8 @@ public:
 
     void addChild(ExplorerNode *child);
     void sortChildren(Settings *settings);
-    bool generateChildren(Settings *settings, Font *font, int *nodesAlreadyGenerated);
-    bool generateAndSortChildren(Settings *settings, Font *font, int *nodesAlreadyGenerated);
+    bool generateChildren(Settings *settings, Font *font, int *nodesAlreadyGenerated, AdeptIDEAssets *assets);
+    bool generateAndSortChildren(Settings *settings, Font *font, int *nodesAlreadyGenerated, AdeptIDEAssets *assets);
     int countDescendants();
 
     void draw(Settings *settings, Font *font, Texture *fontTexture, Matrix4f &projectionMatrix, Shader *shader, Shader *fontShader, AdeptIDEAssets *assets, float drawOffsetX, float *drawOffsetY, float containerX, float containerWidth);
@@ -84,7 +85,7 @@ class Explorer {
 
     Explorer();
     ~Explorer();
-    void load(Settings *settings, Font *font, Texture *fontTexture, float containerWidth, float containerHeight, FileLooker *fileLooker);
+    void load(Settings *settings, Font *font, Texture *fontTexture, float containerWidth, float containerHeight, FileLooker *fileLooker, AdeptIDEAssets *assets);
     void render(Matrix4f &projectionMatrix, Shader *shader, Shader *fontShader, Shader *solidShader, AdeptIDEAssets *assets);
     void resize(float height);
     bool leftClick(AdeptIDE* adeptide, double x, double y);
@@ -95,11 +96,11 @@ class Explorer {
     bool isVisible();
     void toggleVisibility();
     void setVisibility(bool visibility);
-    void update();
+    void update(AdeptIDEAssets *assets);
 
-    bool setRootFolder(const std::string& path);
-    bool generateNodes();
-    bool refreshNodes();
+    bool setRootFolder(const std::string& path, AdeptIDEAssets *assets);
+    bool generateNodes(AdeptIDEAssets *assets);
+    bool refreshNodes(AdeptIDEAssets *assets);
     std::string getFolderPath();
 };
 

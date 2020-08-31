@@ -7,6 +7,7 @@ AdeptIDEAssets::~AdeptIDEAssets(){
     delete adeptModel;
     delete javaModel;
     delete htmlModel;
+    delete jsonModel;
     delete paintingModel;
     delete folderModel;
     delete explorerToggleModel;
@@ -26,6 +27,7 @@ AdeptIDEAssets::~AdeptIDEAssets(){
     delete adeptTexture;
     delete javaTexture;
     delete htmlTexture;
+    delete jsonTexture;
     delete paintingTexture;
     delete folderTexture;
     delete explorerToggleTexture;
@@ -46,6 +48,7 @@ void AdeptIDEAssets::loadAdeptIDEAssets(const std::string& assetsFolder){
     texture(assetsFolder, "adept.png", &adeptTexture);
     texture(assetsFolder, "java.png", &javaTexture);
     texture(assetsFolder, "html.png", &htmlTexture);
+    texture(assetsFolder, "json.png", &jsonTexture);
     texture(assetsFolder, "painting.png", &paintingTexture);
     texture(assetsFolder, "folder.png", &folderTexture);
     texture(assetsFolder, "explorer.png", &explorerToggleTexture);
@@ -64,6 +67,7 @@ void AdeptIDEAssets::loadAdeptIDEAssets(const std::string& assetsFolder){
     model(16, adeptTexture, &adeptModel);
     model(16, javaTexture, &javaModel);
     model(16, htmlTexture, &htmlModel);
+    model(16, jsonTexture, &jsonModel);
     model(16, paintingTexture, &paintingModel);
     model(16, folderTexture, &folderModel);
     model(16, explorerToggleTexture, &explorerToggleModel);

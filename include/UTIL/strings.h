@@ -64,4 +64,6 @@ size_t string_find_nth(const std::string &haystack, const std::string &needle, s
 std::string string_ending_with_slash(std::string maybe_with_slash);
 std::string string_without_prefix(std::string string, std::string prefix);
 
+bool string_ends_with(const std::string& string, const std::string& ending);
+
 #endif // STRINGUTIL_H_INCLUDED

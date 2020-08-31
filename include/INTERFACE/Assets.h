@@ -12,6 +12,7 @@ struct AdeptIDEAssets {
     Model *adeptModel = NULL;
     Model *javaModel = NULL;
     Model *htmlModel = NULL;
+    Model *jsonModel = NULL;
     Model *paintingModel = NULL;
     Model *folderModel = NULL;
     Model *explorerToggleModel = NULL;
@@ -32,6 +33,7 @@ struct AdeptIDEAssets {
     Texture *adeptTexture = NULL;
     Texture *javaTexture = NULL;
     Texture *htmlTexture = NULL;
+    Texture *jsonTexture = NULL;
     Texture *paintingTexture = NULL;
     Texture *folderTexture = NULL;
     Texture *explorerToggleTexture = NULL;

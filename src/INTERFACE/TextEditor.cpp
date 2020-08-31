@@ -212,10 +212,14 @@ void TextEditor::updateFilenameModel(){
 
     this->displayFilename = (this->filename == "") ? "Untitled" : filename_name(this->filename);
 
-    if(this->displayFilename.length() >= 5 && this->displayFilename.substr(this->displayFilename.length() - 5, 5) == ".java"){
+    if(string_ends_with(this->displayFilename, ".adept")){
+        this->richText.fileType = FileType::ADEPT;
+    } else if(string_ends_with(this->displayFilename, ".java")){
         this->richText.fileType = FileType::JAVA;
-    } else if(this->displayFilename.length() >= 5 && this->displayFilename.substr(this->displayFilename.length() - 5, 5) == ".html"){
+    } else if(string_ends_with(this->displayFilename, ".html")){
         this->richText.fileType = FileType::HTML;
+    } else if(string_ends_with(this->displayFilename, ".json")){
+        this->richText.fileType = FileType::JSON;
     } else {
         this->richText.fileType = FileType::ADEPT;
     }

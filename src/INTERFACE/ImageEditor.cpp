@@ -30,8 +30,6 @@ void ImageEditor::load(Settings *settings, Font *font, Texture *fontTexture, flo
     this->endDragY = 0;
     this->dragging = false;
     this->scale = 1;
-
-    this->loadImageFromFile("/Users/isaac/Downloads/catmcree.jpg");
 }
 
 void ImageEditor::render(Matrix4f &projectionMatrix, Shader *shader, Shader *fontShader, Shader *solidShader, AdeptIDEAssets *assets){
@@ -70,11 +68,9 @@ void ImageEditor::render(Matrix4f &projectionMatrix, Shader *shader, Shader *fon
 
 void ImageEditor::loadImageFromFile(const std::string& filename){
     this->filename = filename;
-    delete this->texture;
-    this->texture = new Texture(filename, TextureLoadOptions::ALPHA_BLEND);
-
+    if(this->texture) delete this->texture;
+    
     this->image = new Image(filename);
-    delete this->texture;
     this->texture = new Texture(this->image);
 
     if(this->model) this->model->texture = this->texture;
@@ -129,6 +125,12 @@ void ImageEditor::zoomOut(int lineCount){
 void ImageEditor::setOffset(float xOffset, float yOffset){
     this->xOffset = xOffset;
     this->yOffset = yOffset;
+}
+
+void ImageEditor::setImagePosition(float x, float y){
+    if(this->dragging) this->dragging = false;
+    this->imgX = x;
+    this->imgY = y;
 }
 
 TextEditor *ImageEditor::asTextEditor(){

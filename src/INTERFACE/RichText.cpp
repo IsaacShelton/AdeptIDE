@@ -28,7 +28,7 @@ void RichText::setFont(Font *font){
     this->forwardLineState.push_back(PLAIN); // Forward state from line 1
     this->fileType = FileType::PLAIN_TEXT;
 }
-
+#include <iostream>
 void RichText::loadFromFile(const std::string& filename){
     std::ifstream stream(filename);
     std::string everything;
@@ -42,12 +42,14 @@ void RichText::loadFromFile(const std::string& filename){
             this->setFileType(PLAIN_TEXT);
             everything = "AdeptIDE Error: Failed to open file, file was too large...\n\nSorry about that :\\\n";
         } else {
-            if(filename.length() >= 6 && filename.substr(filename.length() - 6, 6) == ".adept"){
-                this->setFileType(ADEPT);
-            } else if(filename.length() >= 5 && filename.substr(filename.length() - 5, 5) == ".java"){
-                this->setFileType(JAVA);
-            } else if(filename.length() >= 5 && filename.substr(filename.length() - 5, 5) == ".html"){
-                this->setFileType(HTML);
+            if(string_ends_with(filename, ".adept")){
+                this->setFileType(FileType::ADEPT);
+            } else if(string_ends_with(filename, ".java")){
+                this->setFileType(FileType::JAVA);
+            } else if(string_ends_with(filename, ".html")){
+                this->setFileType(FileType::HTML);
+            } else if(string_ends_with(filename, ".json")){
+                this->setFileType(FileType::JSON);
             }
 
             everything = string_replace_all(everything, "\t", "    ");
@@ -304,6 +306,12 @@ void RichText::updateSpecials(){
         {"BufferedOutputStream", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.type},
         {"ByteArrayInputStream", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.type},
         {"ByteArrayOutputStream", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.type},
+    };
+
+    this->jsonSpecials = {
+        {"true", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.keyword},
+        {"false", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.keyword},
+        {"null", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.keyword}
     };
 }
 
@@ -651,6 +659,9 @@ size_t RichText::tryHighlightKeyword(size_t index){
     } else if(this->fileType == FileType::JAVA){
         specials = javaSpecials.data();
         specials_length = javaSpecials.size();
+    } else if(this->fileType == FileType::JSON){
+        specials = jsonSpecials.data();
+        specials_length = jsonSpecials.size();
     } else {
         return index;
     }

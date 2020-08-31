@@ -8,6 +8,7 @@
 #include "INTERFACE/Explorer.h"
 #include "UTIL/filename.h"
 #include "UTIL/animationMath.h"
+#include "UTIL/strings.h"
 
 Explorer::Explorer(){
     this->folderPath = "";
@@ -22,7 +23,7 @@ Explorer::~Explorer(){
     delete this->folderWatcher;
 }
 
-void Explorer::load(Settings *settings, Font *font, Texture *fontTexture, float containerWidth, float containerHeight, FileLooker *fileLooker){
+void Explorer::load(Settings *settings, Font *font, Texture *fontTexture, float containerWidth, float containerHeight, FileLooker *fileLooker, AdeptIDEAssets *assets){
     this->settings = settings;
     this->font = font;
     this->fontTexture = fontTexture;
@@ -40,7 +41,7 @@ void Explorer::load(Settings *settings, Font *font, Texture *fontTexture, float 
     this->containerX = this->visible ? 0.0f : -256.0f;
     this->fileLooker = fileLooker;
 
-    this->setRootFolder(settings->explorer_default_folder);
+    this->setRootFolder(settings->explorer_default_folder, assets);
 }
 
 void Explorer::render(Matrix4f &projectionMatrix, Shader *shader, Shader *fontShader, Shader *solidShader, AdeptIDEAssets *assets){
@@ -95,7 +96,7 @@ void ExplorerNode::draw(Settings *settings, Font *font, Texture *fontTexture, Ma
         shader->bind();
         shader->giveMatrix4f("projection_matrix", projectionMatrix);
         shader->giveMatrix4f("transformation_matrix", transformationMatrix);
-        renderModel(this->kind == ExplorerNode::Kind::FILE ? assets->plainTextModel : assets->folderModel);
+        renderModel(icon);
 
         transformationMatrix.translate(24.0f, 0.0f, 0.0f);
     }
@@ -138,7 +139,7 @@ bool Explorer::leftClick(AdeptIDE *adeptide, double x, double y){
             }
         } else if(TextEditor *textEditor = adeptide->getCurrentEditorAsTextEditor()){
             char *path = filename_path(textEditor->filename.c_str());
-            this->setRootFolder(path);
+            this->setRootFolder(path, (AdeptIDEAssets*) adeptide);
             free(path);
         } else {
             adeptide->openFolder();
@@ -220,16 +221,16 @@ void Explorer::setVisibility(bool visibility){
     this->visible = visibility;
 }
 
-void Explorer::update(){
+void Explorer::update(AdeptIDEAssets *assets){
     if(this->folderWatcher && this->folderWatcher->changeOccured()){
-        this->refreshNodes();
+        this->refreshNodes(assets);
 
         if(this->fileLooker)
             this->fileLooker->setFiles(this->rootNode);
     }
 }
 
-bool Explorer::setRootFolder(const std::string& path){
+bool Explorer::setRootFolder(const std::string& path, AdeptIDEAssets *assets){
     // NOTE: Returns whether too many files
 
     delete this->rootNode;
@@ -243,10 +244,10 @@ bool Explorer::setRootFolder(const std::string& path){
     }
 
     this->folderPath = path;
-    this->rootNode = new ExplorerNode(path, ExplorerNode::Kind::FOLDER, this->font);
+    this->rootNode = new ExplorerNode(path, ExplorerNode::Kind::FOLDER, this->font, assets);
     this->rootNode->parent = NULL;
     this->scroll = 0;
-    bool too_many_files = this->generateNodes();
+    bool too_many_files = this->generateNodes(assets);
 
     if(this->fileLooker)
         this->fileLooker->setFiles(this->rootNode);
@@ -259,13 +260,13 @@ bool Explorer::setRootFolder(const std::string& path){
     return too_many_files;
 }
 
-bool Explorer::generateNodes(){
+bool Explorer::generateNodes(AdeptIDEAssets *assets){
     // Returns whether too many nodes
 
     if(this->rootNode){
         int nodesGenerated = 0;
 
-        if(this->rootNode->generateAndSortChildren(this->settings, this->font, &nodesGenerated)){
+        if(this->rootNode->generateAndSortChildren(this->settings, this->font, &nodesGenerated, assets)){
             maxScroll = this->rootNode->countDescendants();
             return true; // Too many nodes
         }
@@ -276,7 +277,7 @@ bool Explorer::generateNodes(){
     return false;
 }
 
-bool Explorer::refreshNodes(){
+bool Explorer::refreshNodes(AdeptIDEAssets *assets){
     // Returns whether too many nodes
 
     if(!this->rootNode) return false;
@@ -284,7 +285,7 @@ bool Explorer::refreshNodes(){
     for(ExplorerNode *child : this->rootNode->children)
         delete child;
     this->rootNode->children.resize(0);
-    return this->generateNodes();
+    return this->generateNodes(assets);
 }
 
 float Explorer::calculateScrollOffset(){
@@ -295,14 +296,30 @@ std::string Explorer::getFolderPath(){
     return this->folderPath;
 }
 
-ExplorerNode::ExplorerNode(const std::string &name, ExplorerNode::Kind kind, Font *fontUsedToCreateTextModel){
+ExplorerNode::ExplorerNode(const std::string &name, ExplorerNode::Kind kind, Font *fontUsedToCreateTextModel, AdeptIDEAssets *assets){
     this->filenameWithoutPath = name;
     this->kind = kind;
+    this->icon = assets->plainTextModel;
 
     if (kind == FOLDER){
         this->textModel = fontUsedToCreateTextModel->generatePlainTextModel(name + "/", FONT_SCALE);
+        this->icon = assets->folderModel;
     } else {
         this->textModel = fontUsedToCreateTextModel->generatePlainTextModel(name, FONT_SCALE);
+
+        if(string_ends_with(name, ".adept")){
+            this->icon = assets->adeptModel;
+        } else if(string_ends_with(name, ".java")){
+            this->icon = assets->javaModel;
+        } else if(string_ends_with(name, ".html")){
+            this->icon = assets->htmlModel;
+        } else if(string_ends_with(name, ".json")){
+            this->icon = assets->jsonModel;
+        } else if(string_ends_with(name, ".png") || string_ends_with(name, ".jpg") || string_ends_with(name, ".jpeg")){
+            this->icon = assets->paintingModel;
+        } else {
+            this->icon = assets->plainTextModel;
+        }
     }
 
     this->hasCachedFilenameExtension = false;
@@ -398,7 +415,7 @@ void ExplorerNode::sortChildren(Settings *settings){
     qsort(children.data(), children.size(), sizeof(ExplorerNode*), comparison);
 }
 
-bool ExplorerNode::generateChildren(Settings *settings, Font *font, int *nodesAlreadyGenerated){
+bool ExplorerNode::generateChildren(Settings *settings, Font *font, int *nodesAlreadyGenerated, AdeptIDEAssets *assets){
     // Returns whether too many nodes
 
     cf_dir_t dir;
@@ -410,12 +427,12 @@ bool ExplorerNode::generateChildren(Settings *settings, Font *font, int *nodesAl
 
         if( (settings->explorer_show_files && !file.is_dir) || (settings->explorer_show_folders && file.is_dir) ){
             if((settings->explorer_show_hidden && strcmp(file.name, ".") != 0 && strcmp(file.name, "..") != 0) || file.name[0] != '.'){
-                ExplorerNode *child = new ExplorerNode(file.name, file.is_dir ? ExplorerNode::Kind::FOLDER : ExplorerNode::Kind::FILE, font);
+                ExplorerNode *child = new ExplorerNode(file.name, file.is_dir ? ExplorerNode::Kind::FOLDER : ExplorerNode::Kind::FILE, font, assets);
                 
                 this->addChild(child);
                 
                 if( ((*nodesAlreadyGenerated)++ == MAX_EXPLORER_NODES_GENERATED)
-                ||  (file.is_dir && child->generateAndSortChildren(settings, font, nodesAlreadyGenerated)))
+                ||  (file.is_dir && child->generateAndSortChildren(settings, font, nodesAlreadyGenerated, assets)))
                     return true; // Too many nodes
             }
         }
@@ -430,10 +447,10 @@ bool ExplorerNode::generateChildren(Settings *settings, Font *font, int *nodesAl
     return false;
 }
 
-bool ExplorerNode::generateAndSortChildren(Settings *settings, Font *font, int *nodesAlreadyGenerated){
+bool ExplorerNode::generateAndSortChildren(Settings *settings, Font *font, int *nodesAlreadyGenerated, AdeptIDEAssets *assets){
     // Returns whether too many nodes
 
-    bool tooManyNodes = this->generateChildren(settings, font, nodesAlreadyGenerated);
+    bool tooManyNodes = this->generateChildren(settings, font, nodesAlreadyGenerated, assets);
     this->sortChildren(settings);
     return tooManyNodes;
 }

@@ -139,7 +139,8 @@ FileType languageFromString(std::string text){
     if(text == "adept")         return FileType::ADEPT;
     if(text == "java")          return FileType::JAVA;
     if(text == "html")          return FileType::HTML;
-
+    if(text == "json")          return FileType::JSON;
+    
     if(text == /*prefered*/ "plain text" || text == "plain-text" || text == "plaintext" || text == "plain" || text == "text")
         return FileType::PLAIN_TEXT;
     
