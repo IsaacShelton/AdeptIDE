@@ -63,6 +63,9 @@ public:
     std::vector<std::string> terminal_shell_arguments;
     std::string terminal_environment_term;
 
+    // insight.*
+    double insight_passive_rate;
+
     // Hidden values accessable via Settings
     HiddenState hidden;
 

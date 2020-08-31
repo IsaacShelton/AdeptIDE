@@ -34,12 +34,9 @@ TextEditor::~TextEditor(){
     }
 
     this->suggestionBox.free();
-
-    if(this->hasCompiler){
-        compiler_free(&this->compiler);
-    }
-
     if(this->insightThread.joinable()) this->insightThread.join();
+
+    if(this->hasCompiler) compiler_free(&this->compiler);
 }
 
 void TextEditor::load(Settings *settings, Font *font, Texture *fontTexture, float maxWidth, float maxHeight){
@@ -577,7 +574,7 @@ void TextEditor::finishSuggestion(){
 void TextEditor::maybeUpdatePassiveInsight(){
     if(this->getFileType() != FileType::ADEPT) return;
 
-    if(!this->insightRunning && glfwGetTime() > this->lastPassiveInsightUpdate + 1.0){
+    if(!this->insightRunning && glfwGetTime() > this->lastPassiveInsightUpdate + this->settings->insight_passive_rate){
         this->makeInsight(false, true, false);
         this->lastPassiveInsightUpdate = glfwGetTime();
     }
@@ -1035,13 +1032,9 @@ void TextEditor::generateLineNumbersText(){
 void TextEditor::generateSuggestions(){
     size_t end = this->getCaretPosition();
 
-    // Lock down insight
-    this->insightMutex.lock();
-
     // Can't generate suggestions, because we don't have insight or
     // our caret is at the beginning of the file!
     if(!this->hasCompiler || end == 0){
-        this->insightMutex.unlock();
         return;
     }
 
@@ -1113,7 +1106,9 @@ void TextEditor::generateSuggestions(){
         
         std::stable_sort(newSymbolWeights.begin(), newSymbolWeights.end());
     } else {
-        nearestSymbols(&this->compiler, "" /*object_string*/, lastword, &newSymbolWeights);
+        compiler_t *compiler = this->borrowCompiler();
+        nearestSymbols(compiler, "" /*object_string*/, lastword, &newSymbolWeights);
+        this->returnCompiler();
     }
 
     // Grab our best suggestions into a single string and record the longest length
@@ -1128,8 +1123,6 @@ void TextEditor::generateSuggestions(){
         this->suggestionBox.symbolWeights = newSymbolWeights;
         this->suggestionBox.generate(list, lines, longest);
     }
-
-    this->insightMutex.unlock();
 }
 
 void TextEditor::makeInsight(bool storeCreationResult, bool fromMemory, bool showSuccessMessage){
@@ -1138,136 +1131,82 @@ void TextEditor::makeInsight(bool storeCreationResult, bool fromMemory, bool sho
     if(this->richText.fileType == FileType::ADEPT){
         if(this->insightThread.joinable()) this->insightThread.join();
 
+        char *astMaybeFromMemoryBuffer = NULL;
+        
         if(fromMemory){
-            char *astFromMemoryBuffer = new char[this->richText.text.length() + 2];
-            memcpy(astFromMemoryBuffer, this->richText.text.data(), this->richText.text.length());
-            astFromMemoryBuffer[this->richText.text.length()] = '\n';
-            astFromMemoryBuffer[this->richText.text.length() + 1] = '\0';
-
-            this->insightThread = std::thread([this, successful_result] (std::string filename, std::string adept_root, bool storeCreationResult, char *buffer) {
-                this->insightRunning = true;
-
-                this->insightMutex.lock();
-                insight_buffer_index = 0;
-                insight_buffer[0] = '\0';
-                compiler_t compiler;
-                compiler_init(&compiler);
-                object_t *object = compiler_new_object(&compiler);
-                object->filename = strclone(filename.c_str());
-                object->full_filename = filename_absolute(object->filename);
-                
-                if(object->full_filename == NULL)
-                    object->full_filename = strclone("");
-                
-                compiler.root = strclone(adept_root.c_str());
-
-                object->buffer = buffer; // Pass ownership to object instance
-
-                if(lex_buffer(&compiler, object)){
-                    // Failed to lex
-
-                    if(storeCreationResult)
-                        this->insightCreationResult = InsightCreationResultFailure;
-                    
-                    compiler_free(&compiler);
-                    this->insightMutex.unlock();
-                    this->insightRunning = false;
-                    return;
-                }
-
-                if(parse(&compiler, object)){
-                    // Failed to parse
-
-                    if(storeCreationResult)
-                        this->insightCreationResult = compiler.result_flags & COMPILER_RESULT_SUCCESS ? successful_result : InsightCreationResultFailure;
-                    
-                    if(compiler.result_flags & COMPILER_RESULT_SUCCESS){
-                        if(this->hasCompiler){
-                            compiler_free(&this->compiler);
-                        }
-                        this->compiler = compiler;
-                        this->hasCompiler = true;
-                    } else {
-                        compiler_free(&compiler);
-                    }
-
-                    this->insightMutex.unlock();
-                    this->insightRunning = false;
-                    return;
-                }
-
-                if(this->hasCompiler){
-                    compiler_free(&this->compiler);
-                }
-
-                this->compiler = compiler;
-                this->hasCompiler = true;
-
-                if(storeCreationResult)
-                    this->insightCreationResult = successful_result;
-                
-                this->insightMutex.unlock();
-                this->insightRunning = false;
-            }, this->filename, this->settings->adept_root, storeCreationResult, astFromMemoryBuffer);
-        } else {
-            this->insightThread = std::thread([this, successful_result] (std::string filename, std::string adept_root, bool storeCreationResult) {
-                this->insightMutex.lock();
-                insight_buffer_index = 0;
-                insight_buffer[0] = '\0';
-                compiler_t compiler;
-                compiler_init(&compiler);
-                object_t *object = compiler_new_object(&compiler);
-                object->filename = strclone(filename.c_str());
-                object->full_filename = filename_absolute(object->filename);
-                compiler.root = strclone(adept_root.c_str());
-
-                if(lex(&compiler, object)){
-                    // Failed to lex
-
-                    if(storeCreationResult)
-                        this->insightCreationResult = InsightCreationResultFailure;
-                    
-                    compiler_free(&compiler);
-                    this->insightMutex.unlock();
-                    this->insightRunning = false;
-                    return;
-                }
-
-                if(parse(&compiler, object)){
-                    // Failed to parse
-
-                    if(storeCreationResult)
-                        this->insightCreationResult = compiler.result_flags & COMPILER_RESULT_SUCCESS ? successful_result : InsightCreationResultFailure;
-                    
-                    if(compiler.result_flags & COMPILER_RESULT_SUCCESS){
-                        if(this->hasCompiler){
-                            compiler_free(&this->compiler);
-                        }
-                        this->compiler = compiler;
-                        this->hasCompiler = true;
-                    } else {
-                        compiler_free(&compiler);
-                    }
-
-                    this->insightMutex.unlock();
-                    this->insightRunning = false;
-                    return;
-                }
-                
-                if(this->hasCompiler){
-                    compiler_free(&this->compiler);
-                }
-
-                this->compiler = compiler;
-                this->hasCompiler = true;
-
-                if(storeCreationResult)
-                    this->insightCreationResult = successful_result;
-                
-                this->insightMutex.unlock();
-                this->insightRunning = false;
-            }, this->filename, this->settings->adept_root, storeCreationResult);
+            // Construct memory buffer
+            astMaybeFromMemoryBuffer = new char[this->richText.text.length() + 2];
+            memcpy(astMaybeFromMemoryBuffer, this->richText.text.data(), this->richText.text.length());
+            astMaybeFromMemoryBuffer[this->richText.text.length()] = '\n';
+            astMaybeFromMemoryBuffer[this->richText.text.length() + 1] = '\0';
         }
+
+        this->insightThread = std::thread([this, successful_result] (std::string filename, std::string adept_root, bool storeCreationResult, char *buffer) {
+            this->insightRunning = true;
+
+            compiler_t temporaryCompiler;
+            compiler_init(&temporaryCompiler);
+            object_t *object = compiler_new_object(&temporaryCompiler);
+            InsightCreationResult result_code = successful_result;
+
+            object->filename = strclone(filename.c_str());
+            object->full_filename = filename_absolute(object->filename);
+            
+            // Force object->full_filename to not be NULL
+            if(object->full_filename == NULL) object->full_filename = strclone("");
+
+            // Set compiler root
+            temporaryCompiler.root = strclone(adept_root.c_str());
+
+            // Prevent multiple people from using insight buffer at a time
+            this->insightOutMessageMutex.lock();
+            insight_buffer_index = 0;
+            insight_buffer[0] = '\0';
+
+            if(buffer){
+                // NOTE: Passing ownership of 'buffer' to object instance!!!
+                object->buffer = buffer;
+            }
+            
+            if(buffer ? lex_buffer(&temporaryCompiler, object) : lex(&temporaryCompiler, object)){
+                this->insightOutMessageMutex.unlock();
+
+                // Failed to lex
+                result_code = InsightCreationResultFailure;
+                compiler_free(&temporaryCompiler);
+                goto cleanup;
+            }
+
+            if(parse(&temporaryCompiler, object)){
+                this->insightOutMessageMutex.unlock();
+
+                if(temporaryCompiler.result_flags & COMPILER_RESULT_SUCCESS){
+                    // Alternative success
+                    goto store_and_cleanup;
+                } else {
+                    // Failed to parse
+                    result_code = InsightCreationResultFailure;
+                    compiler_free(&temporaryCompiler);
+                }
+                
+                goto cleanup;
+            }
+
+            this->insightOutMessageMutex.unlock();
+        
+        store_and_cleanup:
+            
+            this->insightMutex.lock();
+            if(storeCreationResult) this->insightCreationResult = result_code;
+            
+            if(this->hasCompiler) compiler_free(&this->compiler);
+            this->compiler = temporaryCompiler;
+            this->hasCompiler = true;
+            this->insightMutex.unlock();
+            
+        cleanup:
+            this->insightRunning = false;
+        }, this->filename, this->settings->adept_root, storeCreationResult, astMaybeFromMemoryBuffer);
     } else if(storeCreationResult){
         this->insightCreationResult = InsightCreationResultNotAdept;
     }

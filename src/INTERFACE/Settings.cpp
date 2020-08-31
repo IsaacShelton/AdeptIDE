@@ -192,6 +192,8 @@ void Settings::defaults(){
     this->terminal_shell_arguments.clear();
     this->terminal_environment_term = "xterm-256color";
 
+    this->insight_passive_rate = 1.0;
+
     // Hidden values accessable via Settings
     this->hidden.defaults();
 }
@@ -250,6 +252,8 @@ bool objectIntoSettings(Settings *settings, nlohmann::json object){
         if(setting(it, "terminal.shell", &settings->terminal_shell)) continue;
         if(setting(it, "terminal.shell.arguments", &settings->terminal_shell_arguments)) continue;
         if(setting(it, "terminal.environment.term", &settings->terminal_environment_term)) continue;
+
+        if(setting(it, "insight.passive.rate", &settings->insight_passive_rate)) continue;
 
         if(it.key() == "windows"){
             #ifdef _WIN32

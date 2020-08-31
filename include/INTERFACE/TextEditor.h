@@ -53,7 +53,7 @@ class TextEditor : public GenericEditor {
     // Fields in this grouping are controled by the mutex 'insightMutex'
     std::thread insightThread;
     std::atomic<bool> insightRunning;
-    bool hasCompiler;
+    std::atomic<bool> hasCompiler;
     compiler_t compiler;
     double lastPassiveInsightUpdate;
 
@@ -75,6 +75,7 @@ public:
 
     // Fields in this grouping are controled by the mutex 'insightMutex'
     std::mutex insightMutex;
+    std::mutex insightOutMessageMutex;
     InsightCreationResult insightCreationResult;
 
     ~TextEditor();
