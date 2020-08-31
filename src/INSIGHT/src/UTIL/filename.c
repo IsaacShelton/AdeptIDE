@@ -259,3 +259,4 @@ void filename_prepend_dotslash_if_needed(strong_cstr_t *filename){
         *filename = new_filename;
 	}
 }
+
