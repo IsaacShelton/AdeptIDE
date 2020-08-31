@@ -9,6 +9,7 @@
     "ide.emblem": true,
     "ide.scroll.fixed": false,
     "ide.scroll.multiplier": 1.0,
+    "ide.error.underline": true,
     "editor.default.theme": "visual studio",
     "editor.default.language": "adept",
     "editor.default.text": "",
@@ -25,7 +26,7 @@
     "explorer.prefer.code": true,
     "terminal.show": false,
     "terminal.transparent": false,
-    "insight.passive.rate": 0.5,
+    "insight.passive.rate": 1.0,
     
     "windows": {
         "ide.scroll.fixed": true,

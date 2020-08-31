@@ -37,6 +37,7 @@ TextEditor::~TextEditor(){
     if(this->insightThread.joinable()) this->insightThread.join();
 
     if(this->hasCompiler) compiler_free(&this->compiler);
+    if(this->error) adept_error_free_fully(this->error);
 }
 
 void TextEditor::load(Settings *settings, Font *font, Texture *fontTexture, float maxWidth, float maxHeight){
@@ -71,6 +72,8 @@ void TextEditor::load(Settings *settings, Font *font, Texture *fontTexture, floa
     this->hasCompiler = false;
     this->insightCreationResult = InsightCreationResultNothingNew;
     this->lastPassiveInsightUpdate = 0.0;
+    this->error = NULL;
+    this->lastChanged = 0.0;
 }
 
 void TextEditor::render(Matrix4f& projectionMatrix, Shader *shader, Shader *fontShader, Shader *solidShader, AdeptIDEAssets *assets){
@@ -103,6 +106,23 @@ void TextEditor::render(Matrix4f& projectionMatrix, Shader *shader, Shader *font
         solidShader->giveVector4f("color", color);
         this->selection->draw(this->richText.text, *this->font);
     }
+
+    this->insightMutex.lock();
+
+    if(this->error && this->error->source.object_index == 0 && this->settings->ide_error_underline && glfwGetTime() - this->lastChanged > 0.5){
+        float startX, startY;
+        Caret::getTargetCoords(this->error->source.index, this->richText.text, *this->font, this->xOffset + this->textXOffset, this->yOffset - this->scrollYOffset, &startX, &startY);
+        
+        solidShader->bind();
+        transformationMatrix.translateFromIdentity(startX, startY + this->font->line_height * FONT_SCALE * 0.8, -0.89f);
+        transformationMatrix.scale(this->error->source.stride * this->font->mono_character_width * FONT_SCALE, 2.0f, 1.0f);
+        solidShader->giveMatrix4f("projection_matrix", projectionMatrix);
+        solidShader->giveMatrix4f("transformation_matrix", transformationMatrix);
+        solidShader->giveVector4f("color", Vector4f(1.00, 0.00, 0.20, 1.0f));
+
+        assets->underlineBaseModel->draw();
+    }
+    this->insightMutex.unlock();
     
     fontShader->bind();
     fontShader->giveMatrix4f("projection_matrix", projectionMatrix);
@@ -145,7 +165,7 @@ void TextEditor::render(Matrix4f& projectionMatrix, Shader *shader, Shader *font
         fontShader->giveFloat("edge", this->textEdge);
 
         this->lineNumbersModel.draw();
-    }    
+    }
 
     if(this->showSuggestionBox){
         this->suggestionBox.render(projectionMatrix, shader, fontShader, solidShader, assets, this->mainCaret.getX(), this->mainCaret.getY() + this->font->line_height * FONT_SCALE);
@@ -205,6 +225,8 @@ void TextEditor::updateFilenameModel(){
 }
 
 void TextEditor::type(const std::string& characters){
+    this->onTextChange();
+
     if(this->selection != NULL){
         this->deleteSelected();
     }
@@ -281,6 +303,8 @@ void TextEditor::backspace(){
 void TextEditor::backspaceForCaret(Caret *caret){
     // WARNING: caret is not the same as this->caret
 
+    this->onTextChange();
+
     size_t i = caret->getPosition();
 
     if(this->selection != NULL){
@@ -313,6 +337,7 @@ void TextEditor::backspaceForCaret(Caret *caret){
 }
 
 void TextEditor::del(){
+    this->onTextChange();
     size_t i = this->mainCaret.getPosition();
 
     if(this->selection != NULL){
@@ -342,6 +367,8 @@ void TextEditor::del(){
 }
 
 void TextEditor::smartBackspace(){
+    this->onTextChange();
+
     if(this->selection != NULL){
         this->backspace(); return;
     }
@@ -353,6 +380,8 @@ void TextEditor::smartBackspace(){
 }
 
 void TextEditor::smartDel(){
+    this->onTextChange();
+
     if(this->selection != NULL){
         this->del(); return;
     }
@@ -366,6 +395,8 @@ void TextEditor::smartDel(){
 bool TextEditor::smartRemove(){
     // Performs a smart remove operation if possible.
     // Returns whether an operator was performed
+
+    this->onTextChange();
  
     size_t i = this->mainCaret.getPosition();
 
@@ -385,6 +416,8 @@ bool TextEditor::smartRemove(){
 }
 
 void TextEditor::backspaceLine(){
+    this->onTextChange();
+
     size_t beginning = this->mainCaret.getLineBeginning(this->richText.text);
     size_t end = this->mainCaret.getLineEndAfterNewline(this->richText.text);
     this->deleteAdditionalCarets();
@@ -406,6 +439,8 @@ void TextEditor::backspaceLine(){
 }
 
 void TextEditor::delLine(){
+    this->onTextChange();
+
     size_t beginning = this->mainCaret.getLineBeginning(this->richText.text);
     size_t end = this->mainCaret.getLineEndAfterNewline(this->richText.text);
     this->deleteAdditionalCarets();
@@ -461,6 +496,8 @@ bool TextEditor::hasSelection(){
 
 void TextEditor::deleteRange(size_t beginning, size_t end){
     if(beginning == end) return;
+
+    this->onTextChange();
     this->deleteAdditionalCarets();
 
     // Ensure that beginning is the lesser position
@@ -927,6 +964,8 @@ void TextEditor::redo(){
 }
 
 void TextEditor::undoChange(Change *change){
+    this->onTextChange();
+
     switch(change->kind){
     case INSERTION: {
             InsertionChange *insertion = (InsertionChange*) change;
@@ -958,6 +997,8 @@ void TextEditor::undoChange(Change *change){
 }
 
 void TextEditor::redoChange(Change *change){
+    this->onTextChange();
+
     switch(change->kind){
     case INSERTION: {
             InsertionChange *insertion = (InsertionChange*) change;
@@ -1148,6 +1189,7 @@ void TextEditor::makeInsight(bool storeCreationResult, bool fromMemory, bool sho
             compiler_init(&temporaryCompiler);
             object_t *object = compiler_new_object(&temporaryCompiler);
             InsightCreationResult result_code = successful_result;
+            adept_error_t *result_error = NULL;
 
             object->filename = strclone(filename.c_str());
             object->full_filename = filename_absolute(object->filename);
@@ -1173,6 +1215,8 @@ void TextEditor::makeInsight(bool storeCreationResult, bool fromMemory, bool sho
 
                 // Failed to lex
                 result_code = InsightCreationResultFailure;
+                result_error = temporaryCompiler.error;
+                temporaryCompiler.error = NULL;
                 compiler_free(&temporaryCompiler);
                 goto cleanup;
             }
@@ -1186,6 +1230,8 @@ void TextEditor::makeInsight(bool storeCreationResult, bool fromMemory, bool sho
                 } else {
                     // Failed to parse
                     result_code = InsightCreationResultFailure;
+                    result_error = temporaryCompiler.error;
+                    temporaryCompiler.error = NULL;
                     compiler_free(&temporaryCompiler);
                 }
                 
@@ -1197,6 +1243,7 @@ void TextEditor::makeInsight(bool storeCreationResult, bool fromMemory, bool sho
         store_and_cleanup:
             
             this->insightMutex.lock();
+            
             if(storeCreationResult) this->insightCreationResult = result_code;
             
             if(this->hasCompiler) compiler_free(&this->compiler);
@@ -1205,6 +1252,11 @@ void TextEditor::makeInsight(bool storeCreationResult, bool fromMemory, bool sho
             this->insightMutex.unlock();
             
         cleanup:
+            this->insightMutex.lock();
+            if(this->error) adept_error_free_fully(this->error);
+            this->error = result_error;
+            this->insightMutex.unlock();
+
             this->insightRunning = false;
         }, this->filename, this->settings->adept_root, storeCreationResult, astMaybeFromMemoryBuffer);
     } else if(storeCreationResult){
@@ -1223,6 +1275,22 @@ compiler_t *TextEditor::borrowCompiler(){
 
 void TextEditor::returnCompiler(){
     // NOTE: Must be called regardless of what textEditor->borrowCompiler() returns
+    this->insightMutex.unlock();
+}
+
+void TextEditor::onTextChange(){
+    // NOTE: The contents of 'richText->text' are not guaranteed to have changed yet
+
+    this->clearErrorMessage();
+    this->lastChanged = glfwGetTime();
+}
+
+void TextEditor::clearErrorMessage(){
+    this->insightMutex.lock();
+    if(this->error){
+        adept_error_free_fully(this->error);
+        this->error = NULL;
+    }
     this->insightMutex.unlock();
 }
 

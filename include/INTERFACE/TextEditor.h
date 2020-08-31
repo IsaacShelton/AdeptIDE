@@ -56,7 +56,9 @@ class TextEditor : public GenericEditor {
     std::atomic<bool> hasCompiler;
     compiler_t compiler;
     double lastPassiveInsightUpdate;
-
+    adept_error_t *error = NULL;
+    double lastChanged;
+    
     RichText richText;
     SuggestionBox suggestionBox;
 
@@ -170,6 +172,8 @@ public:
 
     compiler_t *borrowCompiler();
     void returnCompiler();
+    void clearErrorMessage();
+    void onTextChange();
 
     const std::string &getText();
 

@@ -257,7 +257,7 @@ void MenuBar::render(Matrix4f& projectionMatrix, Shader *fontShader, Shader *sol
         solidShader->giveVector4f("color", Vector4f(0.83, 0.83, 0.83, 1.0f));
         this->underlineBaseModel->draw();
     }
-
+    
     const float menuSpacing = 16.0f;
 
     transformationMatrix.translateFromIdentity(this->xOffset + 8.0f, this->yOffset + 2.0f, 0.8f);

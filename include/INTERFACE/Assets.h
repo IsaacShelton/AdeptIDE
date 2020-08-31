@@ -3,6 +3,7 @@
 #define ASSETS_H_INCLUDED
 
 #include "OPENGL/Model.h"
+#include "OPENGL/SolidModel.h"
 #include "OPENGL/Texture.h"
 
 struct AdeptIDEAssets {
@@ -22,6 +23,7 @@ struct AdeptIDEAssets {
     Model *constantModel = NULL;
     Model *enumModel = NULL;
     Model *cdModel = NULL;
+    SolidModel *underlineBaseModel = NULL;
 
     Texture *fontTexture = NULL;
     Texture *emblemTexture = NULL;
