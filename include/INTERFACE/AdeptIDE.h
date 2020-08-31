@@ -77,7 +77,7 @@ public:
     void moveToNextEditorTab();
     void updateTitle();
     void setCurrentEditor(size_t index);
-    void updateInsight();
+    void updateInsight(bool showSucessMessage = false);
 
     void type(const std::string& text);
     void type(char character);

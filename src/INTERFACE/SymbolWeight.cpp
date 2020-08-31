@@ -13,7 +13,7 @@ SymbolWeight::SymbolWeight(const std::string& name, const std::string& label, in
 }
 
 bool SymbolWeight::operator<(const SymbolWeight& other) const {
-    return this->label.length() != other.label.length() ? this->label.length() < other.label.length() : weight < other.weight;
+    return weight < other.weight;
 }
 
 void nearestSymbols(compiler_t *compiler, std::string optional_object_string, std::string target, std::vector<SymbolWeight> *outSymbols){

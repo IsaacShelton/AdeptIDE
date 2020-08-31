@@ -35,6 +35,8 @@ public:
     void generate(const std::string& text, size_t lines, size_t longest);
     void render(Matrix4f& projectionMatrix, Shader *shader, Shader *fontShader, Shader *solidShader, AdeptIDEAssets *assets, float x, float y);
     void setMaxSuggestions(size_t amount);
+    void clear();
+    void clearIfFileSuggestions();
 };
 
 #endif // SUGGESTION_BOX_H

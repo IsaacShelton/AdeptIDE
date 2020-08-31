@@ -6,6 +6,7 @@
 #include <thread>
 #include <mutex>
 #include <functional>
+#include <atomic>
 
 #include "OPENGL/Shader.h"
 #include "INTERFACE/Font.h"
@@ -26,6 +27,7 @@ typedef char InsightCreationResult;
 #define InsightCreationResultSuccess 1
 #define InsightCreationResultFailure 2
 #define InsightCreationResultNotAdept 3
+#define InsightCreationResultSilentSuccess 4
 
 class TextEditor : public GenericEditor {
     SyntaxColorPalette palette;
@@ -50,8 +52,10 @@ class TextEditor : public GenericEditor {
 
     // Fields in this grouping are controled by the mutex 'insightMutex'
     std::thread insightThread;
+    std::atomic<bool> insightRunning;
     bool hasCompiler;
     compiler_t compiler;
+    double lastPassiveInsightUpdate;
 
     RichText richText;
     SuggestionBox suggestionBox;
@@ -67,7 +71,7 @@ class TextEditor : public GenericEditor {
 public:
     bool showSuggestionBox;
     
-    void makeInsight(bool storeCreationResult = false, bool fromMemory = false);
+    void makeInsight(bool storeCreationResult = false, bool fromMemory = false, bool showSuccessMessage = true);
 
     // Fields in this grouping are controled by the mutex 'insightMutex'
     std::mutex insightMutex;
@@ -114,6 +118,7 @@ public:
     void nextLine();
     void nextPrecedingLine();
     void finishSuggestion();
+    void maybeUpdatePassiveInsight();
 
     void moveCaretToPosition(size_t position);
     void moveCaret(double xpos, double ypos);

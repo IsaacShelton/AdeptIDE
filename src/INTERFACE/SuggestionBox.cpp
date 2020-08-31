@@ -69,6 +69,9 @@ void SuggestionBox::render(Matrix4f& projectionMatrix, Shader *shader, Shader *f
         case SymbolWeight::Kind::ENUM:
             model = assets->enumModel;
             break;
+        case SymbolWeight::Kind::FILE:
+            model = assets->adeptModel;
+            break;
         default:
             model = assets->functionModel;
         }
@@ -88,4 +91,20 @@ void SuggestionBox::render(Matrix4f& projectionMatrix, Shader *shader, Shader *f
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, this->fontTexture->getID());
     this->textModel.draw();
+}
+
+void SuggestionBox::clear(){
+    this->free();
+    this->boxModel = NULL;
+    this->textModel = font->generatePlainTextModel("", FONT_SCALE);
+    this->symbolWeights.clear();
+}
+
+void SuggestionBox::clearIfFileSuggestions(){
+    for(const SymbolWeight& symbol : this->symbolWeights){
+        if(symbol.kind == SymbolWeight::Kind::FILE){
+            this->clear();
+            return;
+        }
+    }
 }

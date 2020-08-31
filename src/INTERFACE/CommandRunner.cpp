@@ -45,7 +45,7 @@ CommandResult CommandRunner::run(void *adeptide_ref){
     }
 
     if(command == "insight" || command == "updateinsight"){
-        adeptide->updateInsight();
+        adeptide->updateInsight(true);
         return CommandResult(true, "");
     }
 

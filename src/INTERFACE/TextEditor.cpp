@@ -8,6 +8,7 @@
 
 #include "UTIL/strings.h"
 #include "UTIL/lexical.h"
+#include "UTIL/document.h"
 #include "UTIL/animationMath.h"
 #include "OPENGL/Vector3f.h"
 #include "INTERFACE/TextEditor.h"
@@ -69,8 +70,10 @@ void TextEditor::load(Settings *settings, Font *font, Texture *fontTexture, floa
     this->suggestionBox.load(this->settings, this->font, this->fontTexture);
     this->showSuggestionBox = false;
 
+    this->insightRunning = false;
     this->hasCompiler = false;
     this->insightCreationResult = InsightCreationResultNothingNew;
+    this->lastPassiveInsightUpdate = 0.0;
 }
 
 void TextEditor::render(Matrix4f& projectionMatrix, Shader *shader, Shader *fontShader, Shader *solidShader, AdeptIDEAssets *assets){
@@ -227,58 +230,20 @@ void TextEditor::type(const std::string& characters){
 
     if(std::count(characters.begin(), characters.end(), '\n') != 0){
         this->lineNumbersUpdated = true;
+        this->showSuggestionBox = false;
+        this->suggestionBox.clearIfFileSuggestions();
     }
 
-    if(characters.length() != 0 && isIdentifier(characters[characters.length() - 1])){
+    if(this->settings->ide_suggestions && this->richText.fileType == FileType::ADEPT && characters.length() != 0 && isIdentifier(characters[characters.length() - 1])){
         this->showSuggestionBox = true;
-    } else {
-        this->showSuggestionBox = false;
+        this->generateSuggestions();
     }
 
     this->adjustViewForCaret();
 }
 
 void TextEditor::type(char character){
-    if(this->selection != NULL){
-        this->deleteSelected();
-    }
-
-    if(this->additionalCarets.size() != 0)
-        this->changeRecord.startGroup();
-
-    this->changeRecord.addInsertion(this->mainCaret.getPosition(), character);
-    this->relationallyIncreaseCaret(&this->mainCaret, 1);
-    this->richText.insert(this->mainCaret.getPosition() - 1, character);
-
-    for(Caret *additionalCaret : this->additionalCarets){
-        this->changeRecord.addInsertion(additionalCaret->getPosition(), character);
-        this->relationallyIncreaseCaret(additionalCaret, 1);
-        this->richText.insert(additionalCaret->getPosition() - 1, character);
-    }
-
-    if(this->additionalCarets.size() != 0)
-        this->changeRecord.endGroup();
-
-    if(character == '\n'){
-        this->lineNumbersUpdated = true;
-    }
-
-    if(this->settings->ide_suggestions && this->richText.fileType == FileType::ADEPT && isIdentifier(character)){
-        this->showSuggestionBox = true;
-        this->generateSuggestions();
-    } else if(character == '\n'){
-        this->showSuggestionBox = false;
-        this->suggestionBox.symbolWeights.clear();
-    }
-
-    this->adjustViewForCaret();
-    /*
-    global_background_input.mutex.lock();
-    global_background_input.text = this->richText.text;
-    global_background_input.filename = this->filename;
-    global_background_input.mutex.unlock();
-    global_background_input.updated.store(true);
-    */
+    this->type(std::string(1, character));
 }
 
 void TextEditor::typeBlock(){
@@ -606,6 +571,15 @@ void TextEditor::finishSuggestion(){
     if(this->suggestionBox.symbolWeights[0].kind == SymbolWeight::Kind::FUNCTION){
         this->type("()");
         this->moveCaretLeft();
+    }
+}
+
+void TextEditor::maybeUpdatePassiveInsight(){
+    if(this->getFileType() != FileType::ADEPT) return;
+
+    if(!this->insightRunning && glfwGetTime() > this->lastPassiveInsightUpdate + 1.0){
+        this->makeInsight(false, true, false);
+        this->lastPassiveInsightUpdate = glfwGetTime();
     }
 }
 
@@ -1071,6 +1045,18 @@ void TextEditor::generateSuggestions(){
         return;
     }
 
+    std::string list;
+    size_t lines = 0;
+    size_t longest = 0;
+    bool should_import_autocompletions = false;
+
+    size_t line_beginning = getLineBeginning(this->richText.text, end);
+
+    if(this->richText.text.length() >= line_beginning + 6 && strncmp(&this->richText.text[line_beginning], "import", 6) == 0){
+        // Show auto completions for import
+        should_import_autocompletions = true;
+    }
+
     // Find beginning of word being typed
     // TODO: Clean up this messy code
     size_t beginning = end - 1;
@@ -1111,29 +1097,44 @@ void TextEditor::generateSuggestions(){
     // TODO: Find object_beginning's associated scope to get the AST type of object_string
     */
 
-    std::vector<SymbolWeight> possibleNewSymbolWeights;
-    nearestSymbols(&this->compiler, "" /*object_string*/, lastword, &possibleNewSymbolWeights);
+    std::vector<SymbolWeight> newSymbolWeights;
+
+    if(should_import_autocompletions){
+        // TODO: Fill in with actual filesystem-based import suggestions
+        std::vector<std::string> normal_list = {
+            "AABB", "Array", "audio", "basics", "captain", "List", "math", "Matrix4f", "Optional", "Ownership", "parse", "random", "string_util",
+            "String", "terminal", "TypeInfo", "Vector2f", "Vector3f", "where"
+        };
+
+        for(size_t i = 0; i != normal_list.size(); i++){
+            int distance = levenshtein_overlapping(lastword.c_str(), normal_list[i].c_str());
+            newSymbolWeights.push_back(SymbolWeight(normal_list[i], normal_list[i], distance, SymbolWeight::Kind::FILE, NULL_SOURCE));    
+        }
+        
+        std::stable_sort(newSymbolWeights.begin(), newSymbolWeights.end());
+    } else {
+        nearestSymbols(&this->compiler, "" /*object_string*/, lastword, &newSymbolWeights);
+    }
 
     // Grab our best suggestions into a single string and record the longest length
-    std::string list;
-    size_t lines = 0;
-    size_t longest = 0;
-    for(size_t i = 0; i != settings->ide_suggestions_max && i != possibleNewSymbolWeights.size(); i++){
-        list += possibleNewSymbolWeights[i].label + "\n";
-        if(possibleNewSymbolWeights[i].label.length() > longest) longest = possibleNewSymbolWeights[i].label.length();
+    for(size_t i = 0; i != settings->ide_suggestions_max && i != newSymbolWeights.size(); i++){
+        list += newSymbolWeights[i].label + "\n";
+        if(newSymbolWeights[i].label.length() > longest) longest = newSymbolWeights[i].label.length();
         lines++;
     }
-    
+
     // Update Symbol Weights
     if(lines != 0){
-        this->suggestionBox.symbolWeights = possibleNewSymbolWeights;
+        this->suggestionBox.symbolWeights = newSymbolWeights;
         this->suggestionBox.generate(list, lines, longest);
     }
 
     this->insightMutex.unlock();
 }
 
-void TextEditor::makeInsight(bool storeCreationResult, bool fromMemory){
+void TextEditor::makeInsight(bool storeCreationResult, bool fromMemory, bool showSuccessMessage){
+    InsightCreationResult successful_result = showSuccessMessage ? InsightCreationResultSuccess : InsightCreationResultSilentSuccess;
+
     if(this->richText.fileType == FileType::ADEPT){
         if(this->insightThread.joinable()) this->insightThread.join();
 
@@ -1143,7 +1144,9 @@ void TextEditor::makeInsight(bool storeCreationResult, bool fromMemory){
             astFromMemoryBuffer[this->richText.text.length()] = '\n';
             astFromMemoryBuffer[this->richText.text.length() + 1] = '\0';
 
-            this->insightThread = std::thread([this] (std::string filename, std::string adept_root, bool storeCreationResult, char *buffer) {
+            this->insightThread = std::thread([this, successful_result] (std::string filename, std::string adept_root, bool storeCreationResult, char *buffer) {
+                this->insightRunning = true;
+
                 this->insightMutex.lock();
                 insight_buffer_index = 0;
                 insight_buffer[0] = '\0';
@@ -1168,6 +1171,7 @@ void TextEditor::makeInsight(bool storeCreationResult, bool fromMemory){
                     
                     compiler_free(&compiler);
                     this->insightMutex.unlock();
+                    this->insightRunning = false;
                     return;
                 }
 
@@ -1175,7 +1179,7 @@ void TextEditor::makeInsight(bool storeCreationResult, bool fromMemory){
                     // Failed to parse
 
                     if(storeCreationResult)
-                        this->insightCreationResult = compiler.result_flags & COMPILER_RESULT_SUCCESS ? InsightCreationResultSuccess : InsightCreationResultFailure;
+                        this->insightCreationResult = compiler.result_flags & COMPILER_RESULT_SUCCESS ? successful_result : InsightCreationResultFailure;
                     
                     if(compiler.result_flags & COMPILER_RESULT_SUCCESS){
                         if(this->hasCompiler){
@@ -1188,6 +1192,7 @@ void TextEditor::makeInsight(bool storeCreationResult, bool fromMemory){
                     }
 
                     this->insightMutex.unlock();
+                    this->insightRunning = false;
                     return;
                 }
 
@@ -1199,12 +1204,13 @@ void TextEditor::makeInsight(bool storeCreationResult, bool fromMemory){
                 this->hasCompiler = true;
 
                 if(storeCreationResult)
-                    this->insightCreationResult = InsightCreationResultSuccess;
+                    this->insightCreationResult = successful_result;
                 
                 this->insightMutex.unlock();
+                this->insightRunning = false;
             }, this->filename, this->settings->adept_root, storeCreationResult, astFromMemoryBuffer);
         } else {
-            this->insightThread = std::thread([this] (std::string filename, std::string adept_root, bool storeCreationResult) {
+            this->insightThread = std::thread([this, successful_result] (std::string filename, std::string adept_root, bool storeCreationResult) {
                 this->insightMutex.lock();
                 insight_buffer_index = 0;
                 insight_buffer[0] = '\0';
@@ -1223,6 +1229,7 @@ void TextEditor::makeInsight(bool storeCreationResult, bool fromMemory){
                     
                     compiler_free(&compiler);
                     this->insightMutex.unlock();
+                    this->insightRunning = false;
                     return;
                 }
 
@@ -1230,7 +1237,7 @@ void TextEditor::makeInsight(bool storeCreationResult, bool fromMemory){
                     // Failed to parse
 
                     if(storeCreationResult)
-                        this->insightCreationResult = compiler.result_flags & COMPILER_RESULT_SUCCESS ? InsightCreationResultSuccess : InsightCreationResultFailure;
+                        this->insightCreationResult = compiler.result_flags & COMPILER_RESULT_SUCCESS ? successful_result : InsightCreationResultFailure;
                     
                     if(compiler.result_flags & COMPILER_RESULT_SUCCESS){
                         if(this->hasCompiler){
@@ -1243,6 +1250,7 @@ void TextEditor::makeInsight(bool storeCreationResult, bool fromMemory){
                     }
 
                     this->insightMutex.unlock();
+                    this->insightRunning = false;
                     return;
                 }
                 
@@ -1254,9 +1262,10 @@ void TextEditor::makeInsight(bool storeCreationResult, bool fromMemory){
                 this->hasCompiler = true;
 
                 if(storeCreationResult)
-                    this->insightCreationResult = InsightCreationResultSuccess;
+                    this->insightCreationResult = successful_result;
                 
                 this->insightMutex.unlock();
+                this->insightRunning = false;
             }, this->filename, this->settings->adept_root, storeCreationResult);
         }
     } else if(storeCreationResult){

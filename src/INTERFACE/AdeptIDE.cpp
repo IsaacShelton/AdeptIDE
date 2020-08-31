@@ -336,6 +336,9 @@ int AdeptIDE::main(int argc, const char **argv){
                     this->createMessage("Can't gain insight into non-Adept source code", 3.0);
                     textEditor->insightCreationResult = InsightCreationResultNothingNew;
                     break;
+                case InsightCreationResultSilentSuccess:
+                    textEditor->insightCreationResult = InsightCreationResultNothingNew;
+                    break;
                 }
 
                 textEditor->insightMutex.unlock();
@@ -628,6 +631,9 @@ void AdeptIDE::handleEscapeKey(int mods){
 void AdeptIDE::update(){
     this->menubar.update(this->explorer->isVisible());
     if(this->message) this->message->update(this->width, this->settings.hidden.delta);
+
+    if(TextEditor *textEditor = this->getCurrentEditorAsTextEditor())
+        textEditor->maybeUpdatePassiveInsight();
 }
 
 void AdeptIDE::renderEditorFilenames(){
@@ -758,6 +764,9 @@ void AdeptIDE::newFile(FileType fileType){
             this->updateTitle();
             newEditor->type(this->settings.editor_default_text);
             newEditor->moveCaretToPosition(this->settings.editor_default_position <= this->settings.editor_default_text.length() ? this->settings.editor_default_position : 0);
+
+            // Have blank initial insight for new adept files
+            if(fileType == FileType::ADEPT) this->updateInsight();
         }
     }
 }
@@ -868,9 +877,9 @@ void AdeptIDE::setCurrentEditor(size_t index){
     this->currentEditorIndex = index;
 }
 
-void AdeptIDE::updateInsight(){
+void AdeptIDE::updateInsight(bool showSucessMessage){
     if(TextEditor *textEditor = this->getCurrentEditorAsTextEditor())
-        textEditor->makeInsight(true, true);
+        textEditor->makeInsight(true, true, showSucessMessage);
 }
 
 void AdeptIDE::scrollDown(int lineCount){
@@ -1577,7 +1586,7 @@ void key_callback(GLFWwindow *window, int key, int scancode, int action, int mod
             adeptide->menubar.loseFocus();
             break;
         case GLFW_KEY_I:
-            adeptide->updateInsight();
+            adeptide->updateInsight(true);
             adeptide->menubar.loseFocus();
             break;
         case GLFW_KEY_P:
@@ -1672,7 +1681,7 @@ void handle_left_click(AdeptIDE *adeptide, double xpos, double ypos){
         adeptide->openFolder();
     } else if(xpos >= 64.0f && xpos <= 96.0f && ypos >= 24.0f && ypos <= 24.0f + 32.0f){
         // Update Insight Tree Button
-        adeptide->updateInsight();
+        adeptide->updateInsight(true);
     } else if(xpos >= 96.0f && xpos <= 128.0f && ypos >= 24.0f && ypos <= 24.0f + 32.0f){
         // Update Insight Tree Button
         adeptide->cdFile();

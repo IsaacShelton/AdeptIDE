@@ -8,7 +8,7 @@
 
 struct SymbolWeight {
     enum Kind {
-        FUNCTION, STRUCT, GLOBAL, CONSTANT, ENUM
+        FUNCTION, STRUCT, GLOBAL, CONSTANT, ENUM, FILE
     };
 
     std::string name;
