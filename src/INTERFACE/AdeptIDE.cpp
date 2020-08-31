@@ -270,7 +270,7 @@ int AdeptIDE::main(int argc, const char **argv){
     this->explorer->load(&this->settings, &this->font, this->fontTexture, 256, this->height, this->fileLooker);
 
     this->terminal = new Terminal();
-    this->terminal->load(&this->settings, &this->font, this->fontTexture, this->width, 256);
+    this->terminal->load(&this->settings, &this->font, this->fontTexture, this->width, 256);    
 
     double previousTime = glfwGetTime();
     int frameCount = 0;
@@ -290,6 +290,7 @@ int AdeptIDE::main(int argc, const char **argv){
     global_background_thread = new std::thread(background);
 
     double lastFrameTime = 0.0;
+    bool isFirstFrame = true;
 
     while(!glfwWindowShouldClose(this->window)){
         double currentTime = glfwGetTime();
@@ -445,6 +446,12 @@ int AdeptIDE::main(int argc, const char **argv){
 
         glfwSwapBuffers(window);
         glfwPollEvents();
+
+        if(isFirstFrame){
+            // Run some code before the second frame
+            this->updateImportFolder();
+            isFirstFrame = false;
+        }
     }
 
     global_background_input.should_close.store(true);
@@ -704,8 +711,21 @@ void AdeptIDE::loadSettings(){
     }
 
     // Refresh explorer
-    if(this->explorer && this->explorer->refreshNodes())
+    if(this->explorer && this->explorer->refreshNodes() && this->fontTexture)
         this->createMessage("Too many files in directory! Some files omitted!", 3.0);
+    
+    // Refresh import folder, but only if assets have been loaded
+    if(this->fontTexture){
+        this->updateImportFolder();
+    }
+}
+
+void AdeptIDE::updateImportFolder(){
+    this->importFolderLocation = this->settings.adept_root + "import";
+
+    if(!directory_exists(this->importFolderLocation)){
+        this->createMessage("Couldn't locate import folder in Adept root directory!\nMake sure that 'adept.root' in your settings is correct", 6.0);
+    }
 }
 
 void AdeptIDE::openFile(){

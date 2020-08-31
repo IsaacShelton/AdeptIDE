@@ -22,6 +22,7 @@ class AdeptIDE : public AdeptIDEAssets { // Inheritance not symbolic
 private:
     Font font;
     FolderWatcher rootWatcher;
+    std::string importFolderLocation;
 
     void handleInput();
     void update();
@@ -29,6 +30,7 @@ private:
     void renderEmblem();
     void renderCurrentEditor();
     void loadSettings();
+    void updateImportFolder();
 
 public:
     std::string root;

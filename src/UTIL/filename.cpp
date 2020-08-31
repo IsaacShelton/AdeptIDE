@@ -1,6 +1,9 @@
 
 #include <stdlib.h>
 #include <string.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <errno.h>
 
 #include "UTIL/filename.h"
 
@@ -65,4 +68,10 @@ std::string filename_get_without_extension(const std::string& text){
         if(text[i] == '/' || text[i] == '\\') return text;
     }
     return text;
+}
+
+bool directory_exists(const std::string& directory){
+    struct stat info;
+    bool result = stat(directory.c_str(), &info) == 0 ? info.st_mode & S_IFDIR : false;
+    return result;
 }

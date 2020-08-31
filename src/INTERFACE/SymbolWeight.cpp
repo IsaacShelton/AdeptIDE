@@ -73,8 +73,11 @@ void nearestSymbols(compiler_t *compiler, std::string optional_object_string, st
         const char *name = ast->globals[i].name;
         if(strlen(name) < target.length() || strncmp(name, target.c_str(), target.length()) != 0) continue;
 
+
         // Is a global
-        outSymbols->push_back(SymbolWeight(name, name, levenshtein_overlapping(target.c_str(), name), SymbolWeight::Kind::GLOBAL, ast->globals[i].source));
+        strong_cstr_t type_name = ast_type_str(&ast->globals[i].type);
+        outSymbols->push_back(SymbolWeight(name, std::string(name) + " " + std::string(type_name), levenshtein_overlapping(target.c_str(), name), SymbolWeight::Kind::GLOBAL, ast->globals[i].source));
+        free(type_name);
     }
 
     for(size_t i = 0; i != ast->constants_length; i++){
