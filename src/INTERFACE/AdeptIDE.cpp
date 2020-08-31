@@ -397,7 +397,12 @@ int AdeptIDE::main(int argc, const char **argv){
 
             this->transformationMatrix.translate(32.0f, 0.0f, 0.0f);
             this->shader->giveMatrix4f("transformation_matrix", this->transformationMatrix);
+            #if USE_OLD_UPDATE_INSIGHT_ICON_INSTEAD_OF_TERMINAL_ICON
             renderModel(this->treeModel);
+            #else
+            renderModel(this->terminalModel);
+            #endif
+
 
             this->transformationMatrix.translate(32.0f, 0.0f, 0.0f);
             this->shader->giveMatrix4f("transformation_matrix", this->transformationMatrix);
@@ -1700,8 +1705,13 @@ void handle_left_click(AdeptIDE *adeptide, double xpos, double ypos){
         // Open Folder Button
         adeptide->openFolder();
     } else if(xpos >= 64.0f && xpos <= 96.0f && ypos >= 24.0f && ypos <= 24.0f + 32.0f){
+        #if USE_OLD_UPDATE_INSIGHT_ICON_INSTEAD_OF_TERMINAL_ICON
         // Update Insight Tree Button
         adeptide->updateInsight(true);
+        #else
+        // Toggle Terminal Button
+        adeptide->terminal->toggleVisibility();
+        #endif
     } else if(xpos >= 96.0f && xpos <= 128.0f && ypos >= 24.0f && ypos <= 24.0f + 32.0f){
         // Update Insight Tree Button
         adeptide->cdFile();

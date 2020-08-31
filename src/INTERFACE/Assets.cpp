@@ -12,6 +12,7 @@ AdeptIDEAssets::~AdeptIDEAssets(){
     delete explorerToggleModel;
     delete openFolderModel;
     delete treeModel;
+    delete terminalModel;
     delete functionModel;
     delete structureModel;
     delete globalModel;
@@ -30,6 +31,7 @@ AdeptIDEAssets::~AdeptIDEAssets(){
     delete explorerToggleTexture;
     delete openFolderTexture;
     delete treeTexture;
+    delete terminalTexture;
     delete functionTexture;
     delete structureTexture;
     delete globalTexture;
@@ -49,6 +51,7 @@ void AdeptIDEAssets::loadAdeptIDEAssets(const std::string& assetsFolder){
     texture(assetsFolder, "explorer.png", &explorerToggleTexture);
     texture(assetsFolder, "openFolder.png", &openFolderTexture);
     texture(assetsFolder, "tree.png", &treeTexture);
+    texture(assetsFolder, "terminal.png", &terminalTexture);
     texture(assetsFolder, "function.png", &functionTexture);
     texture(assetsFolder, "structure.png", &structureTexture);
     texture(assetsFolder, "global.png", &globalTexture);
@@ -66,6 +69,7 @@ void AdeptIDEAssets::loadAdeptIDEAssets(const std::string& assetsFolder){
     model(16, explorerToggleTexture, &explorerToggleModel);
     model(16, openFolderTexture, &openFolderModel);
     model(16, treeTexture, &treeModel);
+    model(16, terminalTexture, &terminalModel);
     model(16, functionTexture, &functionModel);
     model(16, structureTexture, &structureModel);
     model(16, globalTexture, &globalModel);

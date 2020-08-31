@@ -17,6 +17,7 @@ struct AdeptIDEAssets {
     Model *explorerToggleModel = NULL;
     Model *openFolderModel = NULL;
     Model *treeModel = NULL;
+    Model *terminalModel = NULL;
     Model *functionModel = NULL;
     Model *structureModel = NULL;
     Model *globalModel = NULL;
@@ -36,6 +37,7 @@ struct AdeptIDEAssets {
     Texture *explorerToggleTexture = NULL;
     Texture *openFolderTexture = NULL;
     Texture *treeTexture = NULL;
+    Texture *terminalTexture = NULL;
     Texture *functionTexture = NULL;
     Texture *structureTexture = NULL;
     Texture *globalTexture = NULL;

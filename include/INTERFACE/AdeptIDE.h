@@ -39,7 +39,7 @@ public:
     Matrix4f projectionMatrix;
     Matrix4f transformationMatrix;
     Settings settings;
-
+    
     MenuBar menubar;
     std::vector<GenericEditor*> editors;
     size_t currentEditorIndex;
