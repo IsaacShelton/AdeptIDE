@@ -902,9 +902,9 @@ void AdeptIDE::setCurrentEditor(size_t index){
     this->currentEditorIndex = index;
 }
 
-void AdeptIDE::updateInsight(bool showSucessMessage){
+void AdeptIDE::updateInsight(bool showSuccessMessage){
     if(TextEditor *textEditor = this->getCurrentEditorAsTextEditor())
-        textEditor->makeInsight(true, true, showSucessMessage);
+        textEditor->makeInsight(true, true, showSuccessMessage);
 }
 
 void AdeptIDE::scrollDown(int lineCount){

@@ -1243,9 +1243,6 @@ void TextEditor::makeInsight(bool storeCreationResult, bool fromMemory, bool sho
         store_and_cleanup:
             
             this->insightMutex.lock();
-            
-            if(storeCreationResult) this->insightCreationResult = result_code;
-            
             if(this->hasCompiler) compiler_free(&this->compiler);
             this->compiler = temporaryCompiler;
             this->hasCompiler = true;
@@ -1253,6 +1250,8 @@ void TextEditor::makeInsight(bool storeCreationResult, bool fromMemory, bool sho
             
         cleanup:
             this->insightMutex.lock();
+            if(storeCreationResult) this->insightCreationResult = result_code;
+
             if(this->error) adept_error_free_fully(this->error);
             this->error = result_error;
             this->insightMutex.unlock();
