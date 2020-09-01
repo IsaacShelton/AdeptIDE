@@ -220,6 +220,7 @@ int AdeptIDE::main(int argc, const char **argv){
     changeLanguageDropdown->menus.push_back(new Menu("Adept                     Ctrl+1", this->menubar.font, language_adept, this));
     changeLanguageDropdown->menus.push_back(new Menu("Java                      Ctrl+2", this->menubar.font, language_java, this));
     changeLanguageDropdown->menus.push_back(new Menu("HTML                      Ctrl+3", this->menubar.font, language_html, this));
+    changeLanguageDropdown->menus.push_back(new Menu("JSON                      Ctrl+4", this->menubar.font, language_json, this));
     
     // Change Theme Menu
     DropdownMenu *changeThemeDropdown = new DropdownMenu(&this->font, selectionDropDownX + 256.0f + 16.0f, 20.0f, 32);
@@ -1621,6 +1622,7 @@ void key_callback(GLFWwindow *window, int key, int scancode, int action, int mod
             break;
         case GLFW_KEY_4:
             if(mods & GLFW_MOD_SHIFT) theme_one_dark(adeptide);
+            else language_json(adeptide);
             break;
         case GLFW_KEY_A:
             adeptide->hideAnyTextBars();
@@ -1895,6 +1897,15 @@ void language_html(void *data){
     TextEditor *editor = adeptide->getCurrentEditorAsTextEditor();
     if(editor){
         editor->setFileType(HTML);
+        adeptide->menubar.loseFocus();
+    }
+}
+
+void language_json(void *data){
+    AdeptIDE *adeptide = static_cast<AdeptIDE*>(data);
+    TextEditor *editor = adeptide->getCurrentEditorAsTextEditor();
+    if(editor){
+        editor->setFileType(JSON);
         adeptide->menubar.loseFocus();
     }
 }

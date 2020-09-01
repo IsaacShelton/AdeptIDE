@@ -187,6 +187,7 @@ void language_plain(void *data);
 void language_adept(void *data);
 void language_java(void *data);
 void language_html(void *data);
+void language_json(void *data);
 
 void theme_visual_studio(void *data);
 void theme_fruit_smoothie(void *data);
