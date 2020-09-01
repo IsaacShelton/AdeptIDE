@@ -25,7 +25,7 @@ struct AdeptIDEAssets {
     Model *constantModel = NULL;
     Model *enumModel = NULL;
     Model *cdModel = NULL;
-    SolidModel *underlineBaseModel = NULL;
+    SolidModel *singlePixelModel = NULL;
 
     Texture *fontTexture = NULL;
     Texture *emblemTexture = NULL;

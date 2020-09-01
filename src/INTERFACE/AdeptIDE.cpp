@@ -47,6 +47,7 @@ AdeptIDE::AdeptIDE() : AdeptIDEAssets() {
     this->commandRunner = NULL;
     this->symbolNavigator = NULL;
     this->finder = NULL;
+    this->popup = NULL;
 }
 
 AdeptIDE::~AdeptIDE(){
@@ -68,6 +69,7 @@ AdeptIDE::~AdeptIDE(){
     delete this->commandRunner;
     delete this->symbolNavigator;
     delete this->finder;
+    delete this->popup;
 }
 
 int AdeptIDE::main(int argc, const char **argv){
@@ -251,6 +253,7 @@ int AdeptIDE::main(int argc, const char **argv){
     DropdownMenu *helpMenu = new DropdownMenu(&this->font, selectionDropDownX, 20.0f, 32);
     this->menubar.menus[6]->dropdownMenu = helpMenu;
     this->menubar.menus[6]->data = helpMenu;
+    this->menubar.menus[6]->dropdownMenu->menus.push_back(new Menu("Typing Tips", this->menubar.font, typing_tips, this));
     this->menubar.menus[6]->dropdownMenu->menus.push_back(new Menu("About", this->menubar.font, about_menu, this));
 
     this->fileLooker = new FileLooker();
@@ -449,6 +452,14 @@ int AdeptIDE::main(int argc, const char **argv){
             if(this->message->shouldClose(this->width)){
                 delete this->message;
                 this->message = NULL;
+            }
+        }
+
+        if(this->popup){
+            this->popup->render(projectionMatrix, fontShader, solidShader, fontTexture, width, height, (AdeptIDEAssets*) this);
+            if(this->popup->shouldDie()) {
+                delete this->popup;
+                this->popup = NULL;
             }
         }
 
@@ -1364,6 +1375,11 @@ void AdeptIDE::createMessage(const std::string& message, double seconds){
     this->message = new Message(message, &font, seconds, width, height);
 }
 
+void AdeptIDE::createPopUp(const std::string& message, PopUp::Kind kind){
+    delete this->popup;
+    this->popup = new PopUp(message, &font, kind);
+}
+
 void scroll_callback(GLFWwindow *window, double xOffset, double yOffset){
     AdeptIDE *adeptide = static_cast<AdeptIDE*>(glfwGetWindowUserPointer(window));
 
@@ -1716,7 +1732,9 @@ void mouse_button_callback(GLFWwindow* window, int button, int action, int mods)
 void handle_left_click(AdeptIDE *adeptide, double xpos, double ypos){
     if(adeptide->fileLooker) adeptide->fileLooker->setVisibility(false);
 
-    if(adeptide->menubar.leftClick(xpos, ypos, &adeptide->currentEditorIndex)){
+    if(adeptide->popup){
+        adeptide->popup->leftClick(xpos, ypos, adeptide->width, adeptide->height);
+    } else if(adeptide->menubar.leftClick(xpos, ypos, &adeptide->currentEditorIndex)){
         // Click menu
         adeptide->updateTitle();
     } else if(xpos >= 0.0f && xpos <= 32.0f && ypos >= 24.0f && ypos <= 24.0f + 32.0f){
@@ -1926,11 +1944,30 @@ void theme_one_dark(void *data){
     }
 }
 
+void typing_tips(void *data){
+    AdeptIDE *adeptide = static_cast<AdeptIDE *>(data);
+
+    std::string about_string;
+    about_string += "Shift+Enter                       = Insert Newline\n";
+    about_string += "Ctrl+Shift+Enter                  = Insert Newline Before\n";
+    about_string += "Ctrl+Shift+{                      = Curly Bracket Pair\n";
+    about_string += "Shift+[                           = Square Bracket Pair\n";
+    about_string += "Shift+Backspace                   = Delete Line\n";
+    about_string += "\n";
+    about_string += "Hold Shift                        = Select while moving Caret\n";
+    about_string += "Ctrl+Arrow / Cmd+Arrow            = Move Caret by Word\n";
+    about_string += "LeftAlt+Arrow / Option+Arrow      = Move Caret by Subword\n";
+
+    about_string += "\n\nClick to Dismiss\n";
+    adeptide->createPopUp(about_string, PopUp::Kind::OK);
+    adeptide->menubar.loseFocus();
+}
+
 void about_menu(void *data){
     AdeptIDE *adeptide = static_cast<AdeptIDE *>(data);
     
     std::string about_string;
-    about_string += "VERSION:  AdpetIDE " + std::string(__DATE__) + " " + std::string(__TIME__) + "\n";
+    about_string += "VERSION:  AdeptIDE " + std::string(__DATE__) + " " + std::string(__TIME__) + "\n";
     about_string += "INSIGHT:  Adept 2.4 (in development)\n";
     about_string += "PLATFORM: ";
 

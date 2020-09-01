@@ -120,7 +120,7 @@ void TextEditor::render(Matrix4f& projectionMatrix, Shader *shader, Shader *font
         solidShader->giveMatrix4f("transformation_matrix", transformationMatrix);
         solidShader->giveVector4f("color", Vector4f(1.00, 0.00, 0.20, 1.0f));
 
-        assets->underlineBaseModel->draw();
+        assets->singlePixelModel->draw();
     }
     this->insightMutex.unlock();
     

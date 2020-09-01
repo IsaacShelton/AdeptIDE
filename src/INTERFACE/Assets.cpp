@@ -20,7 +20,7 @@ AdeptIDEAssets::~AdeptIDEAssets(){
     delete constantModel;
     delete enumModel;
     delete cdModel;
-    delete underlineBaseModel;
+    delete singlePixelModel;
 
     delete emblemTexture;
     delete plainTextTexture;
@@ -80,5 +80,5 @@ void AdeptIDEAssets::loadAdeptIDEAssets(const std::string& assetsFolder){
     model(16, constantTexture, &constantModel);
     model(16, enumTexture, &enumModel);
     model(16, cdTexture, &cdModel);
-    underlineBaseModel = createSolidModel(1.0f, 1.0f);
+    singlePixelModel = createSolidModel(1.0f, 1.0f);
 }

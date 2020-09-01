@@ -16,6 +16,7 @@
 #include "INTERFACE/SymbolNavigator.h"
 #include "INTERFACE/Finder.h"
 #include "INTERFACE/Terminal.h"
+#include "INTERFACE/PopUp.h"
 #include "PROCESS/FolderWatcher.h"
 
 class AdeptIDE : public AdeptIDEAssets { // Inheritance not symbolic
@@ -59,6 +60,7 @@ public:
     CommandRunner *commandRunner;
     SymbolNavigator *symbolNavigator;
     Finder *finder;
+    PopUp *popup;
 
     AdeptIDE();
     ~AdeptIDE();
@@ -142,6 +144,7 @@ public:
     void hideAnyTextBarsExcept(TextBar *textbar);
 
     void createMessage(const std::string& message, double seconds);
+    void createPopUp(const std::string& message, PopUp::Kind kind);
 
     void handleEnterKey(int mods);
     void handleEscapeKey(int mods);
@@ -191,6 +194,7 @@ void theme_tropical_ocean(void *data);
 void theme_island_campfire(void *data);
 void theme_one_dark(void *data);
 
+void typing_tips(void *data);
 void about_menu(void *data);
 
 void toggle_explorer(void *data);
