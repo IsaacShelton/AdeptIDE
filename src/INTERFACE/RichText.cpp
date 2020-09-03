@@ -196,16 +196,21 @@ void RichText::updateSpecials(){
         {"pragma", WHITESPACE_OR_OPERATOR, WHITESPACE, &palette.keyword},
         {"repeat", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.keyword},
         {"static", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.keyword},
+        {"va_arg", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.keyword},
+        {"va_end", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.keyword},
         {"AnyType", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.type},
         {"private", WHITESPACE_OR_OPERATOR, WHITESPACE, &palette.keyword},
         {"foreign", WHITESPACE, WHITESPACE, &palette.keyword},
         {"dynamic", WHITESPACE, WHITESPACE, &palette.keyword},
         {"default", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.keyword},
         {"stdcall", WHITESPACE_OR_OPERATOR, WHITESPACE, &palette.keyword},
+        {"va_copy", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.keyword},
+        {"va_list", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.type},
         {"constant", WHITESPACE, WHITESPACE, &palette.keyword},
         {"continue", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.keyword},
         {"external", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.keyword},
         {"typeinfo", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.keyword},
+        {"va_start", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.keyword},
         {"verbatim", WHITESPACE, WHITESPACE, &palette.keyword},
         {"__types__", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.number},
         {"dangerous", WHITESPACE, WHITESPACE, &palette.keyword},
@@ -219,6 +224,7 @@ void RichText::updateSpecials(){
         {"__types_length__", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.number},
         {"AnyFixedArrayType", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.type},
         {"__type_kinds_length__", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.number},
+
     };
 
     this->javaSpecials = {

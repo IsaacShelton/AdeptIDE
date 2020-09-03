@@ -159,7 +159,7 @@ errorcode_t parse_primary_expr(parse_ctx_t *ctx, ast_expr_t **out_expr){
             if(transcendant_name == NULL) return FAILURE;
 
             meta_expr_t *value;
-            meta_expr_t *special_result = meta_get_special_variable(ctx->compiler, transcendant_name, sources[*i - 1]);
+            meta_expr_t *special_result = meta_get_special_variable(ctx->compiler, ctx->object, transcendant_name, sources[*i - 1]);
 
             if(special_result){
                 value = special_result;
@@ -207,6 +207,46 @@ errorcode_t parse_primary_expr(parse_ctx_t *ctx, ast_expr_t **out_expr){
             }
             break;
         }
+    case TOKEN_VA_ARG: {
+            // va_arg(list, Type)
+            //   ^
+            
+            source_t source = sources[(*i)++];
+
+            // Eat '('
+            if(parse_eat(ctx, TOKEN_OPEN, "Expected '(' after va_arg keyword")) return FAILURE;
+
+            ast_expr_t *va_list_value;
+            if(parse_expr(ctx, &va_list_value)) return FAILURE;
+
+            // Eat ','
+            if(parse_eat(ctx, TOKEN_NEXT, "Expected ',' after first parameter to va_arg")){
+                ast_expr_free_fully(va_list_value);
+                return FAILURE;
+            }
+
+            ast_type_t arg_type;
+            if(parse_type(ctx, &arg_type)){
+                ast_expr_free_fully(va_list_value);
+                return FAILURE;
+            }
+
+            // Eat ')'
+            if(parse_eat(ctx, TOKEN_CLOSE, "Expected ')' after va_arg parameters")){
+                ast_expr_free_fully(va_list_value);
+                ast_type_free(&arg_type);
+                return FAILURE;
+            }
+
+            ast_expr_va_arg_t *va_arg_expr = malloc(sizeof(ast_expr_va_arg_t));
+            va_arg_expr->id = EXPR_VA_ARG;
+            va_arg_expr->source = source;
+            va_arg_expr->va_list = va_list_value;
+            va_arg_expr->arg_type = arg_type;
+
+            *out_expr = (ast_expr_t*) va_arg_expr;
+        }
+        break;
     default:
         parse_panic_token(ctx, sources[*i], tokens[*i].id, "Unexpected token '%s' in expression");
         return FAILURE;
