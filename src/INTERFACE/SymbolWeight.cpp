@@ -48,7 +48,13 @@ void nearestSymbols(compiler_t *compiler, std::string optional_object_string, st
             if(j + 1 != ast->funcs[i].arity) args += ", ";
         }
 
-        if(ast->funcs[i].traits & AST_FUNC_VARARG) args += ", ...";
+        if(ast->funcs[i].traits & AST_FUNC_VARARG){
+            args += ", ...";
+        } else if(ast->funcs[i].traits & AST_FUNC_VARIADIC){
+            std::string variadic_name = ast->funcs[i].variadic_arg_name ? std::string(ast->funcs[i].variadic_arg_name) : "";
+            if(ast->funcs[i].arity != 0) args += ", ";
+            args += variadic_name + " ...";
+        }
 
         char *r = ast_type_str(&ast->funcs[i].return_type);
         // Is a function

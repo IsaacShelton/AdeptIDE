@@ -27,6 +27,7 @@ void ast_init(ast_t *ast){
     ast->libraries_length = 0;
     ast->libraries_capacity = 0;
     ast->common.ast_usize_type = NULL;
+    ast->common.ast_variadic_array = NULL;
 
     ast->type_table = NULL;
     ast->meta_definitions = NULL;
@@ -131,6 +132,10 @@ void ast_free(ast_t *ast){
         ast_type_free_fully(ast->common.ast_usize_type);
     }
 
+    if(ast->common.ast_variadic_array != NULL){
+        ast_type_free_fully(ast->common.ast_variadic_array);
+    }
+    
     type_table_free(ast->type_table);
     free(ast->type_table);
 
@@ -170,7 +175,8 @@ void ast_free_functions(ast_func_t *functions, length_t functions_length){
         free(func->arg_type_traits);
 
         if(func->arg_defaults) ast_exprs_free_fully(func->arg_defaults, func->arity);
-
+        
+        free(func->variadic_arg_name);
         ast_free_statements(func->statements, func->statements_length);
         free(func->statements);
         ast_type_free(&func->return_type);
@@ -309,6 +315,17 @@ void ast_dump_functions(FILE *file, ast_func_t *functions, length_t functions_le
             memcpy(&arguments_string[arguments_string_length], ", ...", 6);
         }
 
+        if(func->traits & AST_FUNC_VARIADIC){
+            if(arguments_string_length + 5 >= arguments_string_capacity){
+                arguments_string_capacity += 5;
+                char *new_arguments_string = malloc(arguments_string_capacity);
+                memcpy(new_arguments_string, arguments_string, arguments_string_length + 1);
+                free(arguments_string);
+                arguments_string = new_arguments_string;
+            }
+
+            memcpy(&arguments_string[arguments_string_length], ", ..", 5);
+        }
 
         char *return_type_string = ast_type_str(&func->return_type);
 
@@ -699,6 +716,7 @@ void ast_func_create_template(ast_func_t *func, strong_cstr_t name, bool is_stdc
     func->return_type.source = NULL_SOURCE;
     func->return_type.source.object_index = source.object_index;
     func->traits = TRAIT_NONE;
+    func->variadic_arg_name = NULL;
     func->statements = NULL;
     func->statements_length = 0;
     func->statements_capacity = 0;

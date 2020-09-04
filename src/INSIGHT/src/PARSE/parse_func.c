@@ -100,6 +100,21 @@ errorcode_t parse_func(parse_ctx_t *ctx){
         compiler_panic(ctx->compiler, source, "Management method __access__ must be declared like '__access__(this *T, index $Key) *$Value'");
         return FAILURE;
     }
+
+    if(strcmp(func->name, "__variadic_array__") == 0){
+        if(ctx->ast->common.ast_variadic_array != NULL){
+            compiler_panic(ctx->compiler, source, "The function __variadic_array__ can only be defined once");
+            return FAILURE;
+        }
+
+        if(ast_type_is_void(&func->return_type)){
+            compiler_panic(ctx->compiler, source, "The function __variadic_array__ must return a value");
+            return FAILURE;
+        }
+
+        ctx->ast->common.ast_variadic_array = malloc(sizeof(ast_type_t));
+        *ctx->ast->common.ast_variadic_array = ast_type_clone(&func->return_type);
+    }
     
     static const char *math_management_funcs[] = {
         "__add__", "__divide__", "__equals__", "__greater_than__",
@@ -242,6 +257,7 @@ errorcode_t parse_func_arguments(parse_ctx_t *ctx, ast_func_t *func){
     bool is_solid;
     length_t backfill = 0;
     length_t capacity = 0;
+    func->variadic_arg_name = NULL;
 
     if(parse_ignore_newlines(ctx, "Expected '(' after function name")) return FAILURE;
 
@@ -307,7 +323,9 @@ errorcode_t parse_func_arguments(parse_ctx_t *ctx, ast_func_t *func){
         
         if(!is_solid) continue;
 
-        if(tokens[*i].id == TOKEN_NEXT){
+        bool takes_variable_arity = func->traits & AST_FUNC_VARARG || func->traits & AST_FUNC_VARIADIC;
+
+        if(tokens[*i].id == TOKEN_NEXT && !takes_variable_arity){
             if(tokens[++(*i)].id == TOKEN_CLOSE){
                 compiler_panic(ctx->compiler, sources[*i], "Expected type after ',' in argument list");
                 parse_free_unbackfilled_arguments(func, backfill);
@@ -315,7 +333,7 @@ errorcode_t parse_func_arguments(parse_ctx_t *ctx, ast_func_t *func){
                 return FAILURE;
             }
         } else if(tokens[*i].id != TOKEN_CLOSE){
-            const char *error_message = func->traits & AST_FUNC_VARARG
+            const char *error_message = takes_variable_arity
                     ? "Expected ')' after variadic argument"
                     : "Expected ',' after argument type";
             compiler_panic(ctx->compiler, sources[*i], error_message);
@@ -356,6 +374,8 @@ errorcode_t parse_func_argument(parse_ctx_t *ctx, ast_func_t *func, length_t cap
         func->arg_defaults[func->arity + *backfill] = NULL;
 
     if(tokens[*i].id == TOKEN_ELLIPSIS){
+        // Alone ellipsis, used for c-style varargs
+
         if(*backfill != 0){
             compiler_panic(ctx->compiler, sources[*i], "Expected type for previous arguments before ellipsis");
             parse_free_unbackfilled_arguments(func, *backfill);
@@ -377,6 +397,25 @@ errorcode_t parse_func_argument(parse_ctx_t *ctx, ast_func_t *func, length_t cap
         }
 
         func->arg_names[func->arity + *backfill] = name;
+    }
+
+    if(tokens[*i].id == TOKEN_ELLIPSIS){
+        // Ellipsis as type, used for modern variadic argument
+
+        if(*backfill != 0){
+            compiler_panic(ctx->compiler, sources[*i], "Expected type for previous arguments before ellipsis");
+            parse_free_unbackfilled_arguments(func, *backfill);
+            return FAILURE;
+        }
+
+        (*i)++;
+        func->traits |= AST_FUNC_VARIADIC;
+        *out_is_solid = false;
+
+        // Take variadic name from last unused argument name
+        func->variadic_arg_name = func->arg_names[func->arity + *backfill];
+        func->arg_names[func->arity + *backfill] = NULL;
+        return SUCCESS;
     }
 
     if(
