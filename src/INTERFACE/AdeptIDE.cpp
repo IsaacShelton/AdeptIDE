@@ -169,7 +169,7 @@ int AdeptIDE::main(int argc, const char **argv){
     this->menubar.load(&this->settings, &this->font, this->fontTexture, &this->editors, !this->settings.explorer_default_collapse);
 
     this->menubar.addMenu("FILE",      &file_menu,      NULL);
-    this->menubar.addMenu("EDIT",      NULL,            NULL);
+    this->menubar.addMenu("EDIT",      &edit_menu,      NULL);
     this->menubar.addMenu("VIEW",      &view_menu,      NULL);
     this->menubar.addMenu("SELECTION", &selection_menu, NULL);
     this->menubar.addMenu("BUILD",     &build_menu,     NULL);
@@ -206,6 +206,15 @@ int AdeptIDE::main(int argc, const char **argv){
     this->menubar.menus[0]->dropdownMenu->menus.push_back(new Menu(quitString, this->menubar.font, &quit_menu, this->window));
 
     float selectionDropDownX;
+
+    selectionDropDownX = 8.0f + this->menubar.menus[0]->textWidth + 16.0f;
+    this->menubar.menus[1]->dropdownMenu = new DropdownMenu(&this->font, selectionDropDownX, 20.0f, 32);
+    this->menubar.menus[1]->data = this->menubar.menus[1]->dropdownMenu;
+    this->menubar.menus[1]->dropdownMenu->menus.push_back(new Menu("Goto File                  Ctrl+P", this->menubar.font, goto_file, this));
+    this->menubar.menus[1]->dropdownMenu->menus.push_back(new Menu("Goto Line                  Ctrl+J", this->menubar.font, goto_line, this));
+    this->menubar.menus[1]->dropdownMenu->menus.push_back(new Menu("Run IDE Command      Ctrl+Shift+P", this->menubar.font, run_ide_command, this));
+    this->menubar.menus[1]->dropdownMenu->menus.push_back(new Menu("Jump to Symbol       Ctrl+Shift+J", this->menubar.font, jump_to_symbol, this));
+    this->menubar.menus[1]->dropdownMenu->menus.push_back(new Menu("Find in File               Ctrl+F", this->menubar.font, find_text, this));
 
     selectionDropDownX = 8.0f + this->menubar.menus[0]->textWidth + this->menubar.menus[1]->textWidth + 16.0f * 2;
     this->menubar.menus[2]->dropdownMenu = new DropdownMenu(&this->font, selectionDropDownX, 20.0f, 28);
@@ -1784,6 +1793,11 @@ void file_menu(void *data){
     dropdownMenu->isOpen = true;
 }
 
+void edit_menu(void *data){
+    DropdownMenu *dropdownMenu = static_cast<DropdownMenu*>(data);
+    dropdownMenu->isOpen = true;
+}
+
 void view_menu(void *data){
     DropdownMenu *dropdownMenu = static_cast<DropdownMenu*>(data);
     dropdownMenu->isOpen = true;
@@ -1863,6 +1877,36 @@ void quit_menu(void *data){
 void select_all_menu(void *data){
     AdeptIDE *adeptide = static_cast<AdeptIDE*>(data);
     adeptide->selectAll();
+}
+
+void goto_file(void *data){
+    AdeptIDE *adeptide = static_cast<AdeptIDE*>(data);
+    adeptide->lookForFile();
+    adeptide->menubar.loseFocus();
+}
+
+void goto_line(void *data){
+    AdeptIDE *adeptide = static_cast<AdeptIDE*>(data);
+    adeptide->gotoLine();
+    adeptide->menubar.loseFocus();
+}
+
+void run_ide_command(void *data){
+    AdeptIDE *adeptide = static_cast<AdeptIDE*>(data);
+    adeptide->runCommand();
+    adeptide->menubar.loseFocus();
+}
+
+void jump_to_symbol(void *data){
+    AdeptIDE *adeptide = static_cast<AdeptIDE*>(data);
+    adeptide->gotoSymbol();
+    adeptide->menubar.loseFocus();
+}
+
+void find_text(void *data){
+    AdeptIDE *adeptide = static_cast<AdeptIDE*>(data);
+    adeptide->findInFile();
+    adeptide->menubar.loseFocus();
 }
 
 void language_plain(void *data){

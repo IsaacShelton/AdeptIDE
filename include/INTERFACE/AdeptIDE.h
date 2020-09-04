@@ -162,10 +162,17 @@ void handle_left_click(AdeptIDE *adeptide, double xpos, double ypos);
 void drop_callback(GLFWwindow *window, int count, const char **paths);
 
 void file_menu(void *data);
+void edit_menu(void *data);
 void view_menu(void *data);
 void selection_menu(void *data);
 void build_menu(void *data);
 void help_menu(void *data);
+
+void goto_file(void *data);
+void goto_line(void *data);
+void run_ide_command(void *data);
+void jump_to_symbol(void *data);
+void find_text(void *data);
 
 void new_adept_file(void *data);
 void new_plain_text_file(void *data);
