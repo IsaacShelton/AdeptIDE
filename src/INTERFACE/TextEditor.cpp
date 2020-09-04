@@ -1146,6 +1146,9 @@ void TextEditor::generateSuggestions(){
             "VariadicArray", "Vector2f", "Vector3f", "where"
         };
 
+        // Ignore if just typed import
+        if(lastword == "import") lastword = "";
+
         for(size_t i = 0; i != normal_list.size(); i++){
             int distance = levenshtein_overlapping(lastword.c_str(), normal_list[i].c_str());
             newSymbolWeights.push_back(SymbolWeight(normal_list[i], normal_list[i], distance, SymbolWeight::Kind::FILE, NULL_SOURCE));    
