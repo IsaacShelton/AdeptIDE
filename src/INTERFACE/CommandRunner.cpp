@@ -9,6 +9,7 @@
 #include "UTIL/animationMath.h"
 #include "INTERFACE/AdeptIDE.h"
 #include "INTERFACE/CommandRunner.h"
+#include "UTIL/levenshtein.h" // NOTE: From insight
 
 CommandRunner::CommandRunner(){
     this->container = NULL;
@@ -41,6 +42,11 @@ CommandResult CommandRunner::run(void *adeptide_ref){
 
     if(command == "newhtml"){
         adeptide->newFile(FileType::HTML);
+        return CommandResult(true, "");
+    }
+
+    if(command == "newjson"){
+        adeptide->newFile(FileType::JSON);
         return CommandResult(true, "");
     }
 
@@ -96,6 +102,40 @@ CommandResult CommandRunner::run(void *adeptide_ref){
     }
     
     return CommandResult(false, "Unknown Command");
+}
+
+void CommandRunner::onType(){
+    std::string input = this->getInput();
+    std::string result = "";
+
+    // Lazy command suggestions
+    const static std::vector<std::string> command_list = {
+        "cdhere", "new", "newadept", "newplain", "newplaintext", "newtext", "newjava", "newhtml", "newjson",
+        "insight", "updateinsight", "openfolder", "open", "openfile", "explorer", "toggleexplorer", "terminal", "toggleterminal",
+        "save", "savefile", "run", "runfile", "settings", "maximize"
+    };
+
+    std::vector<SymbolWeight> suggestions;
+
+    for(size_t i = 0; i != command_list.size(); i++){
+        if(command_list[i].length() < input.length()) continue;
+        int distance = levenshtein_overlapping(input.c_str(), command_list[i].c_str());
+        suggestions.push_back(SymbolWeight(command_list[i], command_list[i], distance, SymbolWeight::Kind::NONE, NULL_SOURCE));
+    }
+    
+    std::stable_sort(suggestions.begin(), suggestions.end());
+
+    size_t max_matches = 10;
+    for(const SymbolWeight& suggestion : suggestions){
+        result += suggestion.label + "\n";
+        if(--max_matches == 0) break;
+    }
+
+    // Trim ending \n from result
+    if(result.length() != 0) result = result.substr(0, result.length() - 1);
+
+    // Set additional text bar text
+    this->setAdditionalText(result);
 }
 
 CommandResult::CommandResult(bool successful, const std::string& message){

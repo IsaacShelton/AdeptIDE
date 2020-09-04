@@ -1140,8 +1140,8 @@ void TextEditor::generateSuggestions(){
     if(should_import_autocompletions){
         // TODO: Fill in with actual filesystem-based import suggestions
         std::vector<std::string> normal_list = {
-            "AABB", "Array", "audio", "basics", "captain", "List", "math", "Matrix4f", "Optional", "Ownership", "parse", "random", "string_util",
-            "String", "terminal", "TypeInfo", "Vector2f", "Vector3f", "where"
+            "AABB", "Anything", "Array", "audio", "basics", "captain", "List", "math", "Matrix4f", "mt19937", "Optional", "Ownership", "parse", "random", "string_util",
+            "String", "terminal", "TypeInfo", "VariadicArray", "Vector2f", "Vector3f", "where"
         };
 
         for(size_t i = 0; i != normal_list.size(); i++){

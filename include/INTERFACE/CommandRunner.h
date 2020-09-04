@@ -10,6 +10,7 @@ class CommandRunner : public TextBar {
 public:
     CommandRunner();
     CommandResult run(void *adeptide);
+    void onType();
 };
 
 struct CommandResult {
