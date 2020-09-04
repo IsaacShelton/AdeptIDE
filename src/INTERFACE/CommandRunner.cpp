@@ -101,7 +101,7 @@ CommandResult CommandRunner::run(void *adeptide_ref){
         return CommandResult(true, "");
     }
     
-    return CommandResult(false, "Unknown Command");
+    return CommandResult(false, "Unknown Command \"" + command + "\"");
 }
 
 void CommandRunner::onType(){
