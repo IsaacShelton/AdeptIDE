@@ -10,3 +10,4 @@ src/INSIGHT/obj
 bin/assets/raw
 bin/assets/xcf
 *.log
+grab_insight.sh
