@@ -194,6 +194,7 @@ void RichText::updateSpecials(){
         {"double", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.type},
         {"packed", WHITESPACE, WHITESPACE, &palette.keyword},
         {"pragma", WHITESPACE_OR_OPERATOR, WHITESPACE, &palette.keyword},
+        {"repeat", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.keyword},
         {"static", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.keyword},
         {"va_arg", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.keyword},
         {"va_end", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.keyword},
