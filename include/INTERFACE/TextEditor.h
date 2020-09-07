@@ -57,6 +57,8 @@ class TextEditor : public GenericEditor {
     compiler_t compiler;
     double lastPassiveInsightUpdate;
     adept_error_t *error = NULL;
+    adept_warning_t *warnings = NULL;
+    length_t warnings_length = 0;
     double lastChanged;
     
     RichText richText;
@@ -173,6 +175,7 @@ public:
     compiler_t *borrowCompiler();
     void returnCompiler();
     void clearErrorMessage();
+    void clearWarningMessages();
     void onTextChange();
 
     const std::string &getText();

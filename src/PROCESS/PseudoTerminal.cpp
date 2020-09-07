@@ -142,7 +142,7 @@ WindowsCMD::WindowsCMD(const std::string& shell, const std::vector<std::string> 
     });
     #else
     // not _WIN32
-    this->thread = std::thread([this]() -> void {
+    this->thread = std::thread([/*this*/]() -> void {
         // Windows CMD is not available on non-Windows platforms
     });
     #endif

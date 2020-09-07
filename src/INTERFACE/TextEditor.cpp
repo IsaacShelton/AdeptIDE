@@ -109,19 +109,43 @@ void TextEditor::render(Matrix4f& projectionMatrix, Shader *shader, Shader *font
 
     this->insightMutex.lock();
 
-    if(this->error && this->error->source.object_index == 0 && this->settings->ide_error_underline && glfwGetTime() - this->lastChanged > 0.5){
-        float startX, startY;
-        Caret::getTargetCoords(this->error->source.index, this->richText.text, *this->font, this->xOffset + this->textXOffset, this->yOffset - this->scrollYOffset, &startX, &startY);
-        
-        solidShader->bind();
-        transformationMatrix.translateFromIdentity(startX, startY + this->font->line_height * FONT_SCALE * 0.8, -0.89f);
-        transformationMatrix.scale(this->error->source.stride * this->font->mono_character_width * FONT_SCALE, 2.0f, 1.0f);
-        solidShader->giveMatrix4f("projection_matrix", projectionMatrix);
-        solidShader->giveMatrix4f("transformation_matrix", transformationMatrix);
-        solidShader->giveVector4f("color", Vector4f(1.00, 0.00, 0.20, 1.0f));
+    if(glfwGetTime() - this->lastChanged > 0.5){
+        // Show error underline
+        if(this->error && this->error->source.object_index == 0 && this->settings->ide_error_underline){
+            float startX, startY;
+            Caret::getTargetCoords(this->error->source.index, this->richText.text, *this->font, this->xOffset + this->textXOffset, this->yOffset - this->scrollYOffset, &startX, &startY);
+            
+            solidShader->bind();
+            transformationMatrix.translateFromIdentity(startX, startY + this->font->line_height * FONT_SCALE * 0.8, -0.89f);
+            transformationMatrix.scale(this->error->source.stride * this->font->mono_character_width * FONT_SCALE, 2.0f, 1.0f);
+            solidShader->giveMatrix4f("projection_matrix", projectionMatrix);
+            solidShader->giveMatrix4f("transformation_matrix", transformationMatrix);
+            solidShader->giveVector4f("color", Vector4f(1.00, 0.00, 0.20, 1.00));
 
-        assets->singlePixelModel->draw();
+            assets->singlePixelModel->draw();
+        }
+
+        // Show warning underlines
+        if(this->settings->ide_warning_underline) for(length_t i = 0; i != this->warnings_length; i++){
+            adept_warning_t *warning = &this->warnings[i];
+
+            // Ignore if not in this file
+            if(warning->source.object_index != 0) continue;
+
+            float startX, startY;
+            Caret::getTargetCoords(warning->source.index, this->richText.text, *this->font, this->xOffset + this->textXOffset, this->yOffset - this->scrollYOffset, &startX, &startY);
+            
+            solidShader->bind();
+            transformationMatrix.translateFromIdentity(startX, startY + this->font->line_height * FONT_SCALE * 0.8, -0.89f);
+            transformationMatrix.scale(warning->source.stride * this->font->mono_character_width * FONT_SCALE, 2.0f, 1.0f);
+            solidShader->giveMatrix4f("projection_matrix", projectionMatrix);
+            solidShader->giveMatrix4f("transformation_matrix", transformationMatrix);
+            solidShader->giveVector4f("color", Vector4f(1.00, 0.80, 0.00, 1.00));
+
+            assets->singlePixelModel->draw();
+        }
     }
+
     this->insightMutex.unlock();
     
     fontShader->bind();
@@ -1199,6 +1223,8 @@ void TextEditor::makeInsight(bool storeCreationResult, bool fromMemory, bool sho
             object_t *object = compiler_new_object(&temporaryCompiler);
             InsightCreationResult result_code = successful_result;
             adept_error_t *result_error = NULL;
+            adept_warning_t *result_warnings = NULL;
+            length_t result_warnings_length = 0;
 
             object->filename = strclone(filename.c_str());
             object->full_filename = filename_absolute(object->filename);
@@ -1225,13 +1251,25 @@ void TextEditor::makeInsight(bool storeCreationResult, bool fromMemory, bool sho
                 // Failed to lex
                 result_code = InsightCreationResultFailure;
                 result_error = temporaryCompiler.error;
+                result_warnings = temporaryCompiler.warnings;
+                result_warnings_length = temporaryCompiler.warnings_length;
                 temporaryCompiler.error = NULL;
+                temporaryCompiler.warnings = NULL;
+                temporaryCompiler.warnings_length = 0;
+                temporaryCompiler.warnings_capacity = 0;
                 compiler_free(&temporaryCompiler);
                 goto cleanup;
             }
 
             if(parse(&temporaryCompiler, object)){
                 this->insightOutMessageMutex.unlock();
+
+                result_warnings = temporaryCompiler.warnings;
+                result_warnings_length = temporaryCompiler.warnings_length;
+                
+                temporaryCompiler.warnings = NULL;
+                temporaryCompiler.warnings_length = 0;
+                temporaryCompiler.warnings_capacity = 0;
 
                 if(temporaryCompiler.result_flags & COMPILER_RESULT_SUCCESS){
                     // Alternative success
@@ -1247,6 +1285,13 @@ void TextEditor::makeInsight(bool storeCreationResult, bool fromMemory, bool sho
                 goto cleanup;
             }
 
+            result_warnings = temporaryCompiler.warnings;
+            result_warnings_length = temporaryCompiler.warnings_length;
+            
+            temporaryCompiler.warnings = NULL;
+            temporaryCompiler.warnings_length = 0;
+            temporaryCompiler.warnings_capacity = 0;
+
             this->insightOutMessageMutex.unlock();
         
         store_and_cleanup:
@@ -1256,15 +1301,18 @@ void TextEditor::makeInsight(bool storeCreationResult, bool fromMemory, bool sho
             this->compiler = temporaryCompiler;
             this->hasCompiler = true;
             this->insightMutex.unlock();
-            
+
         cleanup:
             this->insightMutex.lock();
-            if(storeCreationResult) this->insightCreationResult = result_code;
+            if(this->warnings) adept_warnings_free_fully(this->warnings, this->warnings_length);
+            this->warnings = result_warnings;
+            this->warnings_length = result_warnings_length;
 
+            if(storeCreationResult) this->insightCreationResult = result_code;
             if(this->error) adept_error_free_fully(this->error);
             this->error = result_error;
             this->insightMutex.unlock();
-
+            
             this->insightRunning = false;
         }, this->filename, this->settings->adept_root, storeCreationResult, astMaybeFromMemoryBuffer);
     } else if(storeCreationResult){
@@ -1290,6 +1338,7 @@ void TextEditor::onTextChange(){
     // NOTE: The contents of 'richText->text' are not guaranteed to have changed yet
 
     this->clearErrorMessage();
+    this->clearWarningMessages();
     this->lastChanged = glfwGetTime();
 }
 
@@ -1298,6 +1347,16 @@ void TextEditor::clearErrorMessage(){
     if(this->error){
         adept_error_free_fully(this->error);
         this->error = NULL;
+    }
+    this->insightMutex.unlock();
+}
+
+void TextEditor::clearWarningMessages(){
+    this->insightMutex.lock();
+    if(this->warnings){
+        adept_warnings_free_fully(this->warnings, this->warnings_length);
+        this->warnings = NULL;
+        this->warnings_length = 0;
     }
     this->insightMutex.unlock();
 }

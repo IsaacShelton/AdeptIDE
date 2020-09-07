@@ -161,6 +161,7 @@ void Settings::defaults(){
     this->ide_scroll_fixed = true;
     this->ide_scroll_multiplier = 1.0;
     this->ide_error_underline = true;
+    this->ide_warning_underline = true;
 
     // editor.*
     this->editor_default_theme = SyntaxColorPalette::Defaults::VISUAL_STUDIO;
@@ -221,6 +222,7 @@ bool objectIntoSettings(Settings *settings, nlohmann::json object){
         if(setting(it, "ide.scroll.fixed", &settings->ide_scroll_fixed)) continue;
         if(setting(it, "ide.scroll.multiplier", &settings->ide_scroll_multiplier)) continue;
         if(setting(it, "ide.error.underline", &settings->ide_error_underline)) continue;
+        if(setting(it, "ide.warning.underline", &settings->ide_warning_underline)) continue;
 
         if(setting(it, "editor.default.theme", &tmp)){
             settings->editor_default_theme = themeFromString(tmp);

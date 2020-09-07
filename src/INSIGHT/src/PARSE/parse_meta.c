@@ -18,7 +18,7 @@ errorcode_t parse_meta(parse_ctx_t *ctx){
 
     const char *standard_directives[] = {
         "default", "define", "elif", "else", "end", "error", "get", "halt", "if", "import", "input", "place", "place_error", "place_warning",
-        "print", "print_error", "print_warning", "set", "unless"
+        "print", "print_error", "print_warning", "set", "unless", "warning"
     };
 
     #define META_DIRECTIVE_DEFAULT 0
@@ -40,6 +40,7 @@ errorcode_t parse_meta(parse_ctx_t *ctx){
     #define META_DIRECTIVE_PRINT_WARNING 16
     #define META_DIRECTIVE_SET 17
     #define META_DIRECTIVE_UNLESS 18
+    #define META_DIRECTIVE_WARNING 19
 
     maybe_index_t standard = binary_string_search(standard_directives, sizeof(standard_directives) / sizeof(char*), directive_name);
 
@@ -415,22 +416,23 @@ errorcode_t parse_meta(parse_ctx_t *ctx){
 
             meta_expr_t *value = NULL;
 
-            if(tokenlist->tokens[++(*i)].id != TOKEN_NEWLINE || standard != META_DIRECTIVE_DEFINE){
-                if(parse_meta_expr(ctx, &value)) return FAILURE;
-                if(meta_collapse(ctx->compiler, ctx->object, ctx->ast->meta_definitions, ctx->ast->meta_definitions_length, &value)) return FAILURE;
-            }
-            
-            if(value == NULL){
-                value = malloc(sizeof(meta_expr_t));
-                value->id = META_EXPR_NULL;
-
-                if(!(ctx->compiler->traits & COMPILER_UNSAFE_META)){
-                    if(compiler_warnf(ctx->compiler, source, "WARNING: No value given for definition of '%s'", definition_name)){
-                        meta_expr_free_fully(value);
-                        return FAILURE;
-                    }
+            if(tokenlist->tokens[++(*i)].id == TOKEN_NEWLINE){
+                if(standard == META_DIRECTIVE_DEFINE){
+                    compiler_panicf(ctx->compiler, tokenlist->sources[*i], "Expected initial value for meta variable definition");
+                } else {
+                    compiler_panicf(ctx->compiler, tokenlist->sources[*i], "Expected new value for meta variable");
                 }
+
+                printf("Did you mean to use:\n    #%s %s true\n", directive_name, definition_name);
+
+                #ifndef _WIN32
+                printf("\n"); // Extra newline for non-windows systems to make more readable
+                #endif
+                return FAILURE;
             }
+
+            if(parse_meta_expr(ctx, &value)) return FAILURE;
+            if(meta_collapse(ctx->compiler, ctx->object, ctx->ast->meta_definitions, ctx->ast->meta_definitions_length, &value)) return FAILURE;
             
             meta_definition_t *existing = meta_definition_find(ctx->ast->meta_definitions, ctx->ast->meta_definitions_length, definition_name);
 
@@ -445,6 +447,20 @@ errorcode_t parse_meta(parse_ctx_t *ctx){
     case META_DIRECTIVE_GET: { // get
             compiler_panicf(ctx->compiler, source, "Meta directive #%s must be used in an inline expression", directive_name);
             return FAILURE;
+        }
+        break;
+    case META_DIRECTIVE_WARNING: { // warning
+            (*i)++;
+
+            meta_expr_t *value;
+            if(parse_meta_expr(ctx, &value)) return FAILURE;
+            if(meta_collapse(ctx->compiler, ctx->object, ctx->ast->meta_definitions, ctx->ast->meta_definitions_length, &value)) return FAILURE;
+
+            char *print_value = meta_expr_str(value);
+            compiler_warnf(ctx->compiler, source, "%s", print_value);
+            free(print_value);
+
+            meta_expr_free_fully(value);
         }
         break;
     default:

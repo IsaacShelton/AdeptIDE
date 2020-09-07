@@ -33,6 +33,7 @@ public:
     bool ide_scroll_fixed;
     double ide_scroll_multiplier;
     bool ide_error_underline;
+    bool ide_warning_underline;
 
     // editor.*
     SyntaxColorPalette::Defaults editor_default_theme;

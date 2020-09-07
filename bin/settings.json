@@ -10,6 +10,7 @@
     "ide.scroll.fixed": false,
     "ide.scroll.multiplier": 1.0,
     "ide.error.underline": true,
+    "ide.warning.underline": true,
     "editor.default.theme": "visual studio",
     "editor.default.language": "adept",
     "editor.default.text": "",

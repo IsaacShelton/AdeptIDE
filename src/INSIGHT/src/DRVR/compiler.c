@@ -186,6 +186,9 @@ void compiler_init(compiler_t *compiler){
     
     compiler->default_stblib = NULL;
     compiler->error = NULL;
+    compiler->warnings = NULL;
+    compiler->warnings_length = 0;
+    compiler->warnings_capacity = 0;
     compiler->show_unused_variables_how_to_disable = false;
     compiler->cross_compile_for = CROSS_COMPILE_NONE;
 }
@@ -201,6 +204,7 @@ void compiler_free(compiler_t *compiler){
 
     compiler_free_objects(compiler);
     compiler_free_error(compiler);
+    compiler_free_warnings(compiler);
     config_free(&compiler->config);
 }
 
@@ -247,6 +251,14 @@ void compiler_free_error(compiler_t *compiler){
         adept_error_free_fully(compiler->error);
         compiler->error = NULL;
     }
+}
+
+void compiler_free_warnings(compiler_t *compiler){
+    adept_warnings_free_fully(compiler->warnings, compiler->warnings_length);
+
+    compiler->warnings = NULL;
+    compiler->warnings_length = 0;
+    compiler->warnings_capacity = 0;
 }
 
 object_t* compiler_new_object(compiler_t *compiler){
@@ -355,6 +367,8 @@ errorcode_t parse_arguments(compiler_t *compiler, object_t *object, int argc, ch
                 compiler->traits |= COMPILER_NO_WARN;
             } else if(strcmp(argv[arg_index], "-Werror") == 0){
                 compiler->traits |= COMPILER_WARN_AS_ERROR;
+            } else if(strcmp(argv[arg_index], "-Wshort") == 0 || strcmp(argv[arg_index], "--short-warnings") == 0){
+                compiler->traits |= COMPILER_SHORT_WARNINGS;
             } else if(strcmp(argv[arg_index], "-j") == 0){
                 compiler->traits |= COMPILER_NO_REMOVE_OBJECT;
             } else if(strcmp(argv[arg_index], "-O0") == 0){
@@ -598,8 +612,10 @@ void show_help(bool show_advanced_options){
     printf("    -e                Execute resulting executable\n");
     printf("    -w                Disable compiler warnings\n");
 
-    if(show_advanced_options)
+    if(show_advanced_options){
         printf("    -Werror           Turn warnings into errors\n");
+        printf("    --short-warnings  Don't show code fragments for warnings\n");
+    }
 
     printf("    -o FILENAME       Output to FILENAME (relative to working directory)\n");
     printf("    -n FILENAME       Output to FILENAME (relative to file)\n");
@@ -823,19 +839,15 @@ void compiler_panic(compiler_t *compiler, source_t source, const char *message){
     #endif // !ADEPT_INSIGHT_BUILD
 
     if(compiler->error == NULL){
-        strong_cstr_t buffer = calloc(256, 1);
-        snprintf(buffer, 256, "%s", message);
-        compiler->error = adept_error_create(buffer, source);
+        compiler->error = adept_error_create(strclone(message), source);
     }
 }
 
 void compiler_panicf(compiler_t *compiler, source_t source, const char *format, ...){
-    #ifndef ADEPT_INSIGHT_BUILD
     va_list args;
     va_start(args, format);
     compiler_vpanicf(compiler, source, format, args);
     va_end(args);
-    #endif
 }
 
 void compiler_vpanicf(compiler_t *compiler, source_t source, const char *format, va_list args){
@@ -878,8 +890,8 @@ void compiler_vpanicf(compiler_t *compiler, source_t source, const char *format,
     #endif // !ADEPT_INSIGHT_BUILD
 
     if(compiler->error == NULL){
-        strong_cstr_t buffer = calloc(256, 1);
-        vsnprintf(buffer, 256, format, error_format_args);
+        strong_cstr_t buffer = calloc(1024, 1);
+        vsnprintf(buffer, 1024, format, error_format_args);
         compiler->error = adept_error_create(buffer, source);
     }
 
@@ -901,28 +913,31 @@ bool compiler_warn(compiler_t *compiler, source_t source, const char *message){
     int line, column;
     lex_get_location(relevant_object->buffer, source.index, &line, &column);
     yellowprintf("%s:%d:%d: %s\n", filename_name_const(relevant_object->filename), line, column, message);
+
+    if(!(compiler->traits & COMPILER_SHORT_WARNINGS)){
+        compiler_print_source(compiler, line, column, source);
+    }
     #endif
 
+    compiler_create_warning(compiler, strclone(message), source);
     return false;
 }
 
 bool compiler_warnf(compiler_t *compiler, source_t source, const char *format, ...){
     if(compiler->traits & COMPILER_NO_WARN) return false;
-
-    #ifndef ADEPT_INSIGHT_BUILD
+    
     va_list args;
     va_start(args, format);
 
     if(compiler->traits & COMPILER_WARN_AS_ERROR){
         compiler_vpanicf(compiler, source, format, args);
+        va_end(args);
         return true;
     } else {
         compiler_vwarnf(compiler, source, format, args);
     }
 
     va_end(args);
-    #endif
-
     return false;
 }
 
@@ -932,8 +947,22 @@ void compiler_vwarnf(compiler_t *compiler, source_t source, const char *format, 
     #ifndef ADEPT_INSIGHT_BUILD
     object_t *relevant_object = compiler->objects[source.object_index];
     int line, column;
+    #endif
 
+    va_list warning_format_args;
+    va_copy(warning_format_args, args);
+    
+    #ifndef ADEPT_INSIGHT_BUILD
     terminal_set_color(TERMINAL_COLOR_YELLOW);
+
+    if(relevant_object->traits & OBJECT_PACKAGE){
+        line = 1;
+        column = 1;
+        printf("%s:?:?: ", filename_name_const(relevant_object->filename));
+    } else {
+        lex_get_location(relevant_object->buffer, source.index, &line, &column);
+        printf("%s:%d:%d: ", filename_name_const(relevant_object->filename), line, column);
+    }
 
     lex_get_location(relevant_object->buffer, source.index, &line, &column);
     printf("%s:%d:%d: ", filename_name_const(relevant_object->filename), line, column);
@@ -941,7 +970,16 @@ void compiler_vwarnf(compiler_t *compiler, source_t source, const char *format, 
     printf("\n");
 
     terminal_set_color(TERMINAL_COLOR_DEFAULT);
+
+    if(!(compiler->traits & COMPILER_SHORT_WARNINGS)){
+        compiler_print_source(compiler, line, column, source);
+    }
     #endif
+
+    strong_cstr_t buffer = calloc(512, 1);
+    vsnprintf(buffer, 512, format, warning_format_args);
+    compiler_create_warning(compiler, buffer, source);
+    va_end(warning_format_args);
 }
 
 #ifndef ADEPT_INSIGHT_BUILD
@@ -1224,4 +1262,18 @@ adept_error_t *adept_error_create(strong_cstr_t message, source_t source){
 void adept_error_free_fully(adept_error_t *error){
     free(error->message);
     free(error);
+}
+
+void compiler_create_warning(compiler_t *compiler, strong_cstr_t message, source_t source){
+    printf("here!\n");
+    expand((void**) &compiler->warnings, sizeof(adept_warning_t), compiler->warnings_length, &compiler->warnings_capacity, 1, 4);
+    
+    adept_warning_t *warning = &compiler->warnings[compiler->warnings_length++];
+    warning->message = message;
+    warning->source = source;
+}
+
+void adept_warnings_free_fully(adept_warning_t *warnings, length_t length){
+    for(length_t i = 0; i != length; i++) free(warnings[i].message);
+    free(warnings);
 }
