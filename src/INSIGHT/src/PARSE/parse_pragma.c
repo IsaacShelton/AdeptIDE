@@ -27,7 +27,7 @@ errorcode_t parse_pragma(parse_ctx_t *ctx){
         "__builtin_warn_bad_printf_format", "compiler_supports", "compiler_version", "default_stdlib", "deprecated", "disable_warnings", "enable_warnings", "help",
         "ignore_all", "ignore_deprecation", "ignore_early_return", "ignore_obsolete", "ignore_partial_support", "ignore_unrecognized_directives", "ignore_unused", "libm",
         "mac_only", "no_type_info", "no_typeinfo", "no_undef", "null_checks", "optimization", "options", "package", "project_name",
-        "unsafe_meta", "unsafe_new", "unsupported", "windows_only"
+        "unsafe_meta", "unsafe_new", "unsupported", "warn_as_error", "windows_only"
     };
 
     const length_t directives_length = sizeof(directives) / sizeof(const char * const);
@@ -63,7 +63,8 @@ errorcode_t parse_pragma(parse_ctx_t *ctx){
     #define PRAGMA_UNSAFE_META                      0x00000019
     #define PRAGMA_UNSAFE_NEW                       0x0000001A
     #define PRAGMA_UNSUPPORTED                      0x0000001B
-    #define PRAGMA_WINDOWS_ONLY                     0x0000001C
+    #define PRAGMA_WARN_AS_ERROR                    0x0000001C
+    #define PRAGMA_WINDOWS_ONLY                     0x0000001D
 
     maybe_index_t directive = binary_string_search(directives, directives_length, directive_string);
 
@@ -85,7 +86,8 @@ errorcode_t parse_pragma(parse_ctx_t *ctx){
         // Check to make sure we support the target version
         if(strcmp(read, "2.0") == 0 || strcmp(read, "2.1") == 0){
             if(!(ctx->compiler->ignore & COMPILER_IGNORE_PARTIAL_SUPPORT)){
-                compiler_warnf(ctx->compiler, ctx->tokenlist->sources[*i], "This compiler only partially supports version '%s'", read);
+                if(compiler_warnf(ctx->compiler, ctx->tokenlist->sources[*i], "This compiler only partially supports version '%s'", read))
+                    return FAILURE;
             }
         } else if(strcmp(read, "2.2") != 0 && strcmp(read, "2.3") != 0 && strcmp(read, "2.4") != 0){
             compiler_panicf(ctx->compiler, ctx->tokenlist->sources[*i], "This compiler doesn't support version '%s'", read);
@@ -128,11 +130,15 @@ errorcode_t parse_pragma(parse_ctx_t *ctx){
         }
 
         if(!(ctx->compiler->ignore & COMPILER_IGNORE_DEPRECATION)){
+            bool should_exit = false;
+
             if(read != NULL){
-                compiler_warnf(ctx->compiler, ctx->tokenlist->sources[*i - 1], "This file is deprecated and may be removed in the future\n %s %s", BOX_DRAWING_UP_RIGHT, read);
+                should_exit = compiler_warnf(ctx->compiler, ctx->tokenlist->sources[*i - 1], "This file is deprecated and may be removed in the future\n %s %s", BOX_DRAWING_UP_RIGHT, read);
             } else {
-                compiler_warn(ctx->compiler, ctx->tokenlist->sources[*i], "This file is deprecated and may be removed in the future");
+                should_exit = compiler_warn(ctx->compiler, ctx->tokenlist->sources[*i], "This file is deprecated and may be removed in the future");
             }
+
+            if(should_exit) return FAILURE;
         }
         return SUCCESS;
     case PRAGMA_DISABLE_WARNINGS: // 'disable_warnings' directive
@@ -174,14 +180,17 @@ errorcode_t parse_pragma(parse_ctx_t *ctx){
             compiler_panicf(ctx->compiler, ctx->tokenlist->sources[*i], "This file only works on Mac");
             return FAILURE;
         }
-        return SUCCESS;
         #else
-        compiler_panicf(ctx->compiler, ctx->tokenlist->sources[*i], "This file only works on Mac");
-        return FAILURE;
+        if(ctx->compiler->cross_compile_for != CROSS_COMPILE_MACOS){
+            compiler_panicf(ctx->compiler, ctx->tokenlist->sources[*i], "This file only works on Mac");
+            return FAILURE;
+        }
         #endif
+        return SUCCESS;
     case PRAGMA_NO_TYPE_INFO: // 'no_type_info' directive
         if(!(ctx->compiler->ignore & COMPILER_IGNORE_OBSOLETE)){
-            compiler_warn(ctx->compiler, ctx->tokenlist->sources[*i], "WARNING: 'pragma no_type_info' is obsolete, use 'pragma no_typeinfo' instead");
+            if(compiler_warn(ctx->compiler, ctx->tokenlist->sources[*i], "WARNING: 'pragma no_type_info' is obsolete, use 'pragma no_typeinfo' instead"))
+                return FAILURE;
         }
     case PRAGMA_NO_TYPEINFO: // 'no_typeinfo'  directive
         ctx->compiler->traits |= COMPILER_NO_TYPEINFO;
@@ -250,6 +259,9 @@ errorcode_t parse_pragma(parse_ctx_t *ctx){
             compiler_panic(ctx->compiler, ctx->tokenlist->sources[*i], "This file is no longer supported or never was unsupported");
         }
         return FAILURE;
+    case PRAGMA_WARN_AS_ERROR: // 'warn_as_error' directive
+        ctx->compiler->traits |= COMPILER_WARN_AS_ERROR;
+        return SUCCESS;
     case PRAGMA_WINDOWS_ONLY: // 'windows_only' directive
         #ifdef _WIN32
         if(ctx->compiler->cross_compile_for != CROSS_COMPILE_NONE){

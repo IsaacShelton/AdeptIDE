@@ -56,7 +56,7 @@ void ast_init(ast_t *ast, unsigned int cross_compile_for){
     // __windows__
     meta_definition_add_bool(&ast->meta_definitions, &ast->meta_definitions_length, &ast->meta_definitions_capacity, "__windows__",
     #ifdef _WIN32
-        true
+        cross_compile_for == CROSS_COMPILE_NONE
     #else
         cross_compile_for == CROSS_COMPILE_WINDOWS
     #endif
@@ -67,7 +67,7 @@ void ast_init(ast_t *ast, unsigned int cross_compile_for){
     #if defined(__APPLE__) || defined(__MACH__)
         cross_compile_for == CROSS_COMPILE_NONE
     #else
-        false
+        cross_compile_for == CROSS_COMPILE_MACOS
     #endif
     );
 
@@ -937,6 +937,7 @@ void va_args_inject_ast(compiler_t *compiler, ast_t *ast){
         // Larger Intel x86_64 va_list
         
         if(sizeof(va_list) != 24){
+            // Neglect whether to terminate, since this is not a fixable warning
             compiler_warnf(compiler, NULL_SOURCE, "WARNING: Assuming Intel x86_64 va_list\n");
         }
 

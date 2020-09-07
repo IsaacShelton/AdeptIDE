@@ -353,6 +353,8 @@ errorcode_t parse_arguments(compiler_t *compiler, object_t *object, int argc, ch
                 compiler->traits |= COMPILER_EXECUTE_RESULT;
             } else if(strcmp(argv[arg_index], "-w") == 0){
                 compiler->traits |= COMPILER_NO_WARN;
+            } else if(strcmp(argv[arg_index], "-Werror") == 0){
+                compiler->traits |= COMPILER_WARN_AS_ERROR;
             } else if(strcmp(argv[arg_index], "-j") == 0){
                 compiler->traits |= COMPILER_NO_REMOVE_OBJECT;
             } else if(strcmp(argv[arg_index], "-O0") == 0){
@@ -426,8 +428,13 @@ errorcode_t parse_arguments(compiler_t *compiler, object_t *object, int argc, ch
                 printf("[-] Cross compiling for Windows x86_64\n");
                 compiler->cross_compile_for = CROSS_COMPILE_WINDOWS;
                 #endif
+            } else if(strcmp(argv[arg_index], "--macos") == 0){
+                #ifndef __APPLE__
+                printf("[-] Cross compiling for MacOS x86_64\n");
+                compiler->cross_compile_for = CROSS_COMPILE_MACOS;
+                #endif
             }
-
+            
             #ifdef ENABLE_DEBUG_FEATURES //////////////////////////////////
             else if(strcmp(argv[arg_index], "--run-tests") == 0){
                 run_debug_tests();
@@ -590,6 +597,10 @@ void show_help(bool show_advanced_options){
     printf("    -h, --help        Display this message\n");
     printf("    -e                Execute resulting executable\n");
     printf("    -w                Disable compiler warnings\n");
+
+    if(show_advanced_options)
+        printf("    -Werror           Turn warnings into errors\n");
+
     printf("    -o FILENAME       Output to FILENAME (relative to working directory)\n");
     printf("    -n FILENAME       Output to FILENAME (relative to file)\n");
 
@@ -626,6 +637,10 @@ void show_help(bool show_advanced_options){
         printf("\nLinker Options:\n");
         printf("    --libm            Forces linking against libc math library\n");
 
+        printf("\nCross Compilation:\n");
+        printf("    --windows         Output Windows Executable (Requires Extension)\n");
+        printf("    --macos           Output MacOS Mach-O Object File\n");
+        
         printf("\nIgnore Options:\n");
         printf("    --ignore-all                      Enables all ignore options\n");
         printf("    --ignore-deprecation              Ignore deprecation warnings\n");
@@ -816,12 +831,20 @@ void compiler_panic(compiler_t *compiler, source_t source, const char *message){
 
 void compiler_panicf(compiler_t *compiler, source_t source, const char *format, ...){
     #ifndef ADEPT_INSIGHT_BUILD
+    va_list args;
+    va_start(args, format);
+    compiler_vpanicf(compiler, source, format, args);
+    va_end(args);
+    #endif
+}
+
+void compiler_vpanicf(compiler_t *compiler, source_t source, const char *format, va_list args){
+    #ifndef ADEPT_INSIGHT_BUILD
     object_t *relevant_object = compiler->objects[source.object_index];
     int line, column;
     #endif // !ADEPT_INSIGHT_BUILD
     
-    va_list args, error_format_args;
-    va_start(args, format);
+    va_list error_format_args;
     va_copy(error_format_args, args);
 
     #ifndef ADEPT_INSIGHT_BUILD
@@ -860,38 +883,63 @@ void compiler_panicf(compiler_t *compiler, source_t source, const char *format, 
         compiler->error = adept_error_create(buffer, source);
     }
 
-    va_end(args);
     va_end(error_format_args);
 }
 
-void compiler_warn(compiler_t *compiler, source_t source, const char *message){
-    if(compiler->traits & COMPILER_NO_WARN) return;
+bool compiler_warn(compiler_t *compiler, source_t source, const char *message){
+    // Returns whether program should exit
+
+    if(compiler->traits & COMPILER_NO_WARN) return false;
 
     #ifndef ADEPT_INSIGHT_BUILD
+    if(compiler->traits & COMPILER_WARN_AS_ERROR){
+        compiler_panic(compiler, source, message);
+        return true;
+    }
+    
     object_t *relevant_object = compiler->objects[source.object_index];
     int line, column;
     lex_get_location(relevant_object->buffer, source.index, &line, &column);
     yellowprintf("%s:%d:%d: %s\n", filename_name_const(relevant_object->filename), line, column, message);
     #endif
+
+    return false;
 }
 
-void compiler_warnf(compiler_t *compiler, source_t source, const char *format, ...){
+bool compiler_warnf(compiler_t *compiler, source_t source, const char *format, ...){
+    if(compiler->traits & COMPILER_NO_WARN) return false;
+
+    #ifndef ADEPT_INSIGHT_BUILD
+    va_list args;
+    va_start(args, format);
+
+    if(compiler->traits & COMPILER_WARN_AS_ERROR){
+        compiler_vpanicf(compiler, source, format, args);
+        return true;
+    } else {
+        compiler_vwarnf(compiler, source, format, args);
+    }
+
+    va_end(args);
+    #endif
+
+    return false;
+}
+
+void compiler_vwarnf(compiler_t *compiler, source_t source, const char *format, va_list args){
     if(compiler->traits & COMPILER_NO_WARN) return;
 
     #ifndef ADEPT_INSIGHT_BUILD
     object_t *relevant_object = compiler->objects[source.object_index];
-    va_list args;
     int line, column;
 
     terminal_set_color(TERMINAL_COLOR_YELLOW);
-    va_start(args, format);
 
     lex_get_location(relevant_object->buffer, source.index, &line, &column);
     printf("%s:%d:%d: ", filename_name_const(relevant_object->filename), line, column);
     vprintf(format, args);
     printf("\n");
 
-    va_end(args);
     terminal_set_color(TERMINAL_COLOR_DEFAULT);
     #endif
 }
