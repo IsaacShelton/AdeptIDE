@@ -1,4 +1,5 @@
 
+#include <string.h>
 #include "stb/stb_image.h"
 #include "OPENGL/Image.h"
 

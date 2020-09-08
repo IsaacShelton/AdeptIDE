@@ -59,9 +59,17 @@ else
 EXECUTABLE=bin/AdeptIDE
 DEBUG_EXECUTABLE=bin/AdeptIDE_debug
 MACOS_APP_EXECUTABLE_LOCATION=bin/AdeptIDE.app/Contents/MacOS/AdeptIDE
-DEPENDENCIES=-lglfw -framework Cocoa -framework OpenGL -framework IOKit -framework CoreVideo -framework Foundation $(INSIGHT)
+DEPENDENCIES=-lglfw $(INSIGHT)
 MAC_DIALOG_MM=$(SRCDIR)/UTIL/macdialog.mm
-MAC_DIALOG_O=obj/UTIL/macdialog.o
+UNAME_S := $(shell uname -s)
+
+ifeq (UNAME_S,Darwin)
+	MAC_DIALOG_O=obj/UTIL/macdialog.o
+	DEPENDENCIES+=-framework Cocoa -framework OpenGL -framework IOKit -framework CoreVideo -framework Foundation
+else
+	MAC_DIALOG_O=
+	DEPENDENCIES+=-lpthread -lGL
+endif
 
 develop: directories $(SOURCES) $(C_SOURCES) $(MAC_DIALOG_MM) $(EXECUTABLE)
 
