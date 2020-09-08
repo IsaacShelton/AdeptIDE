@@ -8,8 +8,12 @@
 #define alertError(t, m) MessageBox(NULL, t, m, MB_OK | MB_ICONERROR)
 #elif defined(__APPLE__)
 #include <CoreFoundation/CoreFoundation.h>
-#define alertError(t, m) macMessageBox(t, m)
 void macMessageBox(const char *title, const char *text);
+#define alertError(t, m) macMessageBox(t, m)
+#elif defined(__linux__)
+void linuxSanitize(char *inout_text);
+void linuxMessageBox(const char *title, const char *text);
+#define alertError(t, m) linuxMessageBox(t, m)
 #endif
 
 #endif // ALERT_H_INCLUDED

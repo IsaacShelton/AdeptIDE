@@ -29,6 +29,8 @@
     "terminal.transparent": false,
     "insight.passive.rate": 1.0,
     
+    "adept.root": "/home/isaac/Projects/Adept/bin/",
+    
     "windows": {
         "ide.scroll.fixed": true,
         "terminal.shell": "C:\\Windows\\System32\\cmd.exe",

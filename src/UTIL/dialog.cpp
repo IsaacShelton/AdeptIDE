@@ -189,5 +189,96 @@ bool saveFileDialog(GLFWwindow* window, std::string& output){
     return false;
 }
 #elif !defined(__APPLE__)
-// Non-apple dialog
+    // Linux / Non-apple dialog
+    #include "UTIL/util.h" // (from insight)
+    #include "UTIL/ground.h" // (from insight)
+    #include "INTERFACE/Alert.h"
+    #include "UTIL/__insight_undo_overloads.h"
+
+    bool openFileDialog(GLFWwindow* window, std::string& output){
+        FILE *fp;
+        char buffer[2048];
+        
+        fp = popen("/bin/zenity --file-selection", "r");
+        if(fp == NULL){
+            return false;
+        }
+
+        while(fgets(buffer, sizeof(buffer), fp) != NULL){}
+
+        length_t newline = 0;
+        while(buffer[newline] != '\0' && buffer[newline] != '\n') newline++;
+
+        output = std::string(buffer, newline);
+        pclose(fp);
+        return true;
+    }
+
+    bool openFolderDialog(GLFWwindow* window, std::string& output){
+        FILE *fp;
+        char buffer[2048];
+        
+        fp = popen("/bin/zenity --file-selection --directory", "r");
+        if(fp == NULL){
+            return false;
+        }
+
+        while(fgets(buffer, sizeof(buffer), fp) != NULL){}
+
+        length_t newline = 0;
+        while(buffer[newline] != '\0' && buffer[newline] != '\n') newline++;
+
+        output = std::string(buffer, newline);
+        pclose(fp);
+        return true;
+    }
+
+    bool openMultipleFileDialog(GLFWwindow* window, std::vector<std::string>& output){
+        FILE *fp;
+        char buffer[2048];
+        
+        fp = popen("/bin/zenity --file-selection --multiple --separator=:", "r");
+        if(fp == NULL){
+            return false;
+        }
+
+        while(fgets(buffer, sizeof(buffer), fp) != NULL){}
+
+        length_t start = 0;
+        length_t colon = 0;
+        while(buffer[colon] != '\0'){
+            if(buffer[colon] == ':'){
+                output.push_back(std::string(&buffer[start], colon - start));
+                start = colon + 1;
+            }
+            colon++;
+        }
+
+        if(colon - start > 0){
+            if(colon != 0 && buffer[colon - 1] == '\n') colon--;
+            output.push_back(std::string(&buffer[start], colon - start));
+        }
+
+        pclose(fp);
+        return true;
+    }
+
+    bool saveFileDialog(GLFWwindow* window, std::string& output){
+        FILE *fp;
+        char buffer[2048];
+        
+        fp = popen("/bin/zenity --file-selection --save", "r");
+        if(fp == NULL){
+            return false;
+        }
+
+        while(fgets(buffer, sizeof(buffer), fp) != NULL){}
+
+        length_t newline = 0;
+        while(buffer[newline] != '\0' && buffer[newline] != '\n') newline++;
+
+        output = std::string(buffer, newline);
+        pclose(fp);
+        return true;
+    }
 #endif
