@@ -118,11 +118,12 @@ typedef struct {
 // Possible ast_global_t traits
 #define AST_GLOBAL_POD                   TRAIT_1
 #define AST_GLOBAL_EXTERNAL              TRAIT_2
-#define AST_GLOBAL_SPECIAL               TRAIT_3
-#define AST_GLOBAL___TYPES__             TRAIT_4 // Sub-trait of AST_GLOBAL_SPECIAL
-#define AST_GLOBAL___TYPES_LENGTH__      TRAIT_5 // Sub-trait of AST_GLOBAL_SPECIAL
-#define AST_GLOBAL___TYPE_KINDS__        TRAIT_6 // Sub-trait of AST_GLOBAL_SPECIAL
-#define AST_GLOBAL___TYPE_KINDS_LENGTH__ TRAIT_7 // Sub-trait of AST_GLOBAL_SPECIAL
+#define AST_GLOBAL_THREAD_LOCAL          TRAIT_3
+#define AST_GLOBAL_SPECIAL               TRAIT_4
+#define AST_GLOBAL___TYPES__             TRAIT_5 // Sub-trait of AST_GLOBAL_SPECIAL
+#define AST_GLOBAL___TYPES_LENGTH__      TRAIT_6 // Sub-trait of AST_GLOBAL_SPECIAL
+#define AST_GLOBAL___TYPE_KINDS__        TRAIT_7 // Sub-trait of AST_GLOBAL_SPECIAL
+#define AST_GLOBAL___TYPE_KINDS_LENGTH__ TRAIT_8 // Sub-trait of AST_GLOBAL_SPECIAL
 
 // ---------------- ast_enum_t ----------------
 // An enum AST node
@@ -167,7 +168,7 @@ typedef struct {
     length_t enums_length;
     length_t enums_capacity;
     strong_cstr_t *libraries;
-    bool *libraries_are_framework;
+    char *library_kinds;
     length_t libraries_length;
     length_t libraries_capacity;
     ast_shared_common_t common;
@@ -195,6 +196,10 @@ typedef struct {
     length_t polymorphic_structs_length;
     length_t polymorphic_structs_capacity;
 } ast_t;
+
+#define LIBRARY_KIND_NONE           0x00
+#define LIBRARY_KIND_LIBRARY        0x01
+#define LIBRARY_KIND_FRAMEWORK      0x02
 
 // ---------------- ast_init ----------------
 // Initializes an AST
@@ -301,8 +306,8 @@ void ast_add_global(ast_t *ast, weak_cstr_t name, ast_type_t type, ast_expr_t *i
 
 // ---------------- ast_add_foreign_library ----------------
 // Adds a library to the list of foreign libraries
-// NOTE: Does not have ownership of library string
-void ast_add_foreign_library(ast_t *ast, strong_cstr_t library, bool is_framework);
+// NOTE: Takes ownership of library string
+void ast_add_foreign_library(ast_t *ast, strong_cstr_t library, char kind);
 
 // ---------------- ast_get_usize ----------------
 // Gets constant AST type for type 'usize'

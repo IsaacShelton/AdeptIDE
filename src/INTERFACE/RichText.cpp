@@ -220,6 +220,7 @@ void RichText::updateSpecials(){
         {"successful", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.type},
         {"AnyTypeKind", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.type},    
         {"fallthrough", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.keyword},
+        {"thread_local", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.keyword},
         {"AnyStructType", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.type},
         {"__type_kinds__", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.number},
         {"AnyFuncPtrType", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.type},
