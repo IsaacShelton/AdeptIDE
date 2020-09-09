@@ -63,7 +63,7 @@ DEPENDENCIES=-lglfw $(INSIGHT)
 MAC_DIALOG_MM=$(SRCDIR)/UTIL/macdialog.mm
 UNAME_S := $(shell uname -s)
 
-ifeq (UNAME_S,Darwin)
+ifeq ($(UNAME_S),Darwin)
 	MAC_DIALOG_O=obj/UTIL/macdialog.o
 	DEPENDENCIES+=-framework Cocoa -framework OpenGL -framework IOKit -framework CoreVideo -framework Foundation
 else
