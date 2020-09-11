@@ -182,6 +182,7 @@ void RichText::updateSpecials(){
         {"break", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.keyword},
         {"undef", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.keyword},
         {"inout", WHITESPACE_OR_OPERATOR, WHITESPACE, &palette.keyword},
+        {"union", WHITESPACE_OR_OPERATOR, WHITESPACE, &palette.keyword},
         {"struct", WHITESPACE_OR_OPERATOR, WHITESPACE, &palette.keyword},
         {"public", WHITESPACE_OR_OPERATOR, WHITESPACE, &palette.keyword},
         {"import", WHITESPACE, WHITESPACE, &palette.keyword},
