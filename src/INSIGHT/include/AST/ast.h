@@ -57,7 +57,7 @@ typedef struct {
 // Addional AST function traits for builtin uses
 #define AST_FUNC_WARN_BAD_PRINTF_FORMAT TRAIT_2_1
 
-// ---------------- ast_struct_t ----------------
+// ---------------- ast_struct_t, ast_union_t ----------------
 // A structure within the root AST
 typedef struct {
     strong_cstr_t name;
@@ -66,11 +66,14 @@ typedef struct {
     length_t field_count;
     trait_t traits;
     source_t source;
-} ast_struct_t;
+} ast_struct_t, ast_union_t;
 
 // Possible AST structure traits
 #define AST_STRUCT_PACKED      TRAIT_1
 #define AST_STRUCT_POLYMORPHIC TRAIT_2
+#define AST_STRUCT_IS_UNION    TRAIT_3
+
+#define AST_UNION_POLYMORPHIC  AST_STRUCT_POLYMORPHIC 
 
 // ---------------- ast_polymorphic_struct_t ----------------
 // A polymorphic structure
@@ -274,17 +277,21 @@ successful_t ast_struct_find_field(ast_struct_t *ast_struct, const char *name, l
 // Finds a kind by name within an enum
 successful_t ast_enum_find_kind(ast_enum_t *ast_enum, const char *name, length_t *out_index);
 
-// ---------------- find_alias ----------------
+// ---------------- ast_find_alias ----------------
 // Finds an alias by name
-maybe_index_t find_alias(ast_alias_t *aliases, length_t aliases_length, const char *alias);
+maybe_index_t ast_find_alias(ast_alias_t *aliases, length_t aliases_length, const char *alias);
 
-// ---------------- find_constant ----------------
+// ---------------- ast_find_constant ----------------
 // Finds a global constant expression by name
-maybe_index_t find_constant(ast_constant_t *constants, length_t constants_length, const char *constant);
+maybe_index_t ast_find_constant(ast_constant_t *constants, length_t constants_length, const char *constant);
 
-// ---------------- find_enum ----------------
+// ---------------- ast_find_enum ----------------
 // Finds a enum expression by name
-maybe_index_t find_enum(ast_enum_t *enums, length_t enums_length, const char *inum);
+maybe_index_t ast_find_enum(ast_enum_t *enums, length_t enums_length, const char *inum);
+
+// ---------------- ast_find_global ----------------
+// Finds a global variable by name
+maybe_index_t ast_find_global(ast_global_t *globals, length_t globals_length, const char *name);
 
 // ---------------- ast_add_enum ----------------
 // Adds an enum to the global scope of an AST

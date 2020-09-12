@@ -227,6 +227,7 @@ void ast_free_globals(ast_global_t *globals, length_t globals_length){
 void ast_free_enums(ast_enum_t *enums, length_t enums_length){
     for(length_t i = 0; i != enums_length; i++){
         ast_enum_t *inum = &enums[i];
+        free(inum->name);
         free(inum->kinds);
     }
 }
@@ -649,7 +650,7 @@ void ast_dump_structs(FILE *file, ast_struct_t *structs, length_t structs_length
             free(typename);
         }
 
-        fprintf(file, "struct %s (%s)\n", structure->name, fields_string);
+        fprintf(file, "%s %s (%s)\n", structure->traits & AST_STRUCT_IS_UNION ? "union" : "struct", structure->name, fields_string);
     }
 
     free(fields_string);
@@ -813,7 +814,7 @@ successful_t ast_enum_find_kind(ast_enum_t *ast_enum, const char *name, length_t
     return false;
 }
 
-maybe_index_t find_alias(ast_alias_t *aliases, length_t aliases_length, const char *alias){
+maybe_index_t ast_find_alias(ast_alias_t *aliases, length_t aliases_length, const char *alias){
     // If not found returns -1 else returns index inside array
 
     maybe_index_t first, middle, last, comparison;
@@ -831,7 +832,7 @@ maybe_index_t find_alias(ast_alias_t *aliases, length_t aliases_length, const ch
     return -1;
 }
 
-maybe_index_t find_constant(ast_constant_t *constants, length_t constants_length, const char *constant){
+maybe_index_t ast_find_constant(ast_constant_t *constants, length_t constants_length, const char *constant){
     // If not found returns -1 else returns index inside array
 
     maybe_index_t first, middle, last, comparison;
@@ -849,7 +850,7 @@ maybe_index_t find_constant(ast_constant_t *constants, length_t constants_length
     return -1;
 }
 
-maybe_index_t find_enum(ast_enum_t *enums, length_t enums_length, const char *inum){
+maybe_index_t ast_find_enum(ast_enum_t *enums, length_t enums_length, const char *inum){
     // If not found returns -1 else returns index inside array
 
     maybe_index_t first, middle, last, comparison;
@@ -867,7 +868,18 @@ maybe_index_t find_enum(ast_enum_t *enums, length_t enums_length, const char *in
     return -1;
 }
 
-void ast_add_enum(ast_t *ast, weak_cstr_t name, weak_cstr_t *kinds, length_t length, source_t source){
+maybe_index_t ast_find_global(ast_global_t *globals, length_t globals_length, const char *name){
+    // If not found returns -1 else returns index inside array
+
+    // TODO: SPEED: PERFORMANCE: Make this not be a linear search
+    for(length_t i = 0; i != globals_length; i++){
+        if(strcmp(globals[i].name, name) == 0) return i;
+    }
+
+    return -1;
+}
+
+void ast_add_enum(ast_t *ast, strong_cstr_t name, weak_cstr_t *kinds, length_t length, source_t source){
     expand((void**) &ast->enums, sizeof(ast_enum_t), ast->enums_length, &ast->enums_capacity, 1, 4);
     ast_enum_init(&ast->enums[ast->enums_length++], name, kinds, length, source);
 }

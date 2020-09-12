@@ -28,8 +28,12 @@ errorcode_t parse(compiler_t *compiler, object_t *object){
         va_args_inject_ast(compiler, ctx.ast);
     }
     
-    if(parse_tokens(&ctx)) return FAILURE;
+    if(parse_tokens(&ctx)){
+        if(ctx.prename) free(ctx.prename);
+        return FAILURE;
+    }
 
+    if(ctx.prename) free(ctx.prename);
     qsort(object->ast.polymorphic_funcs, object->ast.polymorphic_funcs_length, sizeof(ast_polymorphic_func_t), &ast_polymorphic_funcs_cmp);
     qsort(object->ast.polymorphic_methods, object->ast.polymorphic_methods_length, sizeof(ast_polymorphic_func_t), &ast_polymorphic_funcs_cmp);
     return SUCCESS;
@@ -57,9 +61,18 @@ errorcode_t parse_tokens(parse_ctx_t *ctx){
             if(parse_func(ctx)) return FAILURE;
             break;
         case TOKEN_STRUCT: case TOKEN_PACKED:
-            if(parse_struct(ctx)) return FAILURE;
+            if(parse_struct(ctx, false)) return FAILURE;
+            break;
+        case TOKEN_UNION:
+            if(parse_struct(ctx, true)) return FAILURE;
             break;
         case TOKEN_WORD:
+            if(ctx->compiler->traits & COMPILER_COLON_COLON && tokens[i + 1].id == TOKEN_NAMESPACE){
+                if(ctx->prename) free(ctx->prename);
+                ctx->prename = parse_take_word(ctx, "Expected pre-name for ::");
+                break;
+            }
+            /* fallthrough */
         case TOKEN_EXTERNAL:
             if(parse_global(ctx)) return FAILURE;
             break;

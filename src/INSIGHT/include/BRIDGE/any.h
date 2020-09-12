@@ -33,8 +33,9 @@ extern "C" {
 #define ANY_TYPE_KIND_DOUBLE      0x0B
 #define ANY_TYPE_KIND_PTR         0x0C
 #define ANY_TYPE_KIND_STRUCT      0x0D
-#define ANY_TYPE_KIND_FUNC_PTR    0x0E
-#define ANY_TYPE_KIND_FIXED_ARRAY 0x0F
+#define ANY_TYPE_KIND_UNION       0x0E
+#define ANY_TYPE_KIND_FUNC_PTR    0x0F
+#define ANY_TYPE_KIND_FIXED_ARRAY 0x10
 #define MAX_ANY_TYPE_KIND ANY_TYPE_KIND_FIXED_ARRAY
 
 // ---------------- any_type_kind_names ----------------
@@ -71,6 +72,10 @@ void any_inject_ast_AnyPtrType(ast_t *ast);
 // ---------------- any_inject_ast_AnyStructType ----------------
 // Injects AST struct 'AnyStructType'
 void any_inject_ast_AnyStructType(ast_t *ast);
+
+// ---------------- any_inject_ast_AnyUnionType ----------------
+// Injects AST struct 'AnyUnionType'
+void any_inject_ast_AnyUnionType(ast_t *ast);
 
 // ---------------- any_inject_ast_AnyFuncPtrType ----------------
 // Injects AST struct 'AnyFuncPtrType'

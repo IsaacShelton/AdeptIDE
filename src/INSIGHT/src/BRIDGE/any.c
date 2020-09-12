@@ -4,7 +4,7 @@
 
 const char *any_type_kind_names[] = {
     "void", "bool", "byte", "ubyte", "short", "ushort", "int", "uint",
-    "long", "ulong", "float", "double", "pointer", "struct", "function-pointer", "fixed-array"
+    "long", "ulong", "float", "double", "pointer", "struct", "union", "function-pointer", "fixed-array"
 };
 
 void any_inject_ast(ast_t *ast){
@@ -14,6 +14,7 @@ void any_inject_ast(ast_t *ast){
 
     any_inject_ast_AnyPtrType(ast);
     any_inject_ast_AnyStructType(ast);
+    any_inject_ast_AnyUnionType(ast);
     any_inject_ast_AnyFuncPtrType(ast);
     any_inject_ast_AnyFixedArrayType(ast);
 
@@ -76,7 +77,7 @@ void any_inject_ast_AnyTypeKind(ast_t *ast){
     kinds[12] = "PTR";      kinds[13] = "STRUCT";
     kinds[14] = "FUNC_PTR"; kinds[15] = "FIXED_ARRAY";
 
-    ast_add_enum(ast, "AnyTypeKind", kinds, 16, NULL_SOURCE);
+    ast_add_enum(ast, strclone("AnyTypeKind"), kinds, 16, NULL_SOURCE);
 }
 
 void any_inject_ast_AnyPtrType(ast_t *ast){
@@ -127,6 +128,31 @@ void any_inject_ast_AnyStructType(ast_t *ast){
     ast_type_make_base(&types[8], strclone("bool"));
 
     ast_add_struct(ast, strclone("AnyStructType"), names, types, 9, TRAIT_NONE, NULL_SOURCE);
+}
+
+void any_inject_ast_AnyUnionType(ast_t *ast){
+
+    /* struct AnyUnionType (kind AnyTypeKind, name *ubyte, is_alias bool, size usize, members **AnyType, length usize, member_names **ubyte) */
+
+    strong_cstr_t *names = malloc(sizeof(strong_cstr_t) * 7);
+    names[0] = strclone("kind");
+    names[1] = strclone("name");
+    names[2] = strclone("is_alias");
+    names[3] = strclone("size");
+    names[4] = strclone("members");
+    names[5] = strclone("length");
+    names[6] = strclone("member_names");
+
+    ast_type_t *types = malloc(sizeof(ast_type_t) * 7);
+    ast_type_make_base(&types[0], strclone("AnyTypeKind"));
+    ast_type_make_base_ptr(&types[1], strclone("ubyte"));
+    ast_type_make_base(&types[2], strclone("bool"));
+    ast_type_make_base(&types[3], strclone("usize"));
+    ast_type_make_base_ptr_ptr(&types[4], strclone("AnyType"));
+    ast_type_make_base(&types[5], strclone("usize"));
+    ast_type_make_base_ptr_ptr(&types[6], strclone("ubyte"));
+
+    ast_add_struct(ast, strclone("AnyUnionType"), names, types, 7, TRAIT_NONE, NULL_SOURCE);
 }
 
 void any_inject_ast_AnyFuncPtrType(ast_t *ast){
