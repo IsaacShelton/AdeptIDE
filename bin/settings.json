@@ -40,6 +40,7 @@
     },
     
     "macos": {
+        "ide.default.fps": 0,
         "ide.scroll.fixed": false,
         "terminal.shell": "/bin/bash",
         "terminal.shell.arguments": ["-l"],
