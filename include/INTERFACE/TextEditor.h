@@ -56,9 +56,9 @@ class TextEditor : public GenericEditor {
     std::atomic<bool> hasCompiler;
     compiler_t compiler;
     double lastPassiveInsightUpdate;
-    adept_error_t *error = NULL;
-    adept_warning_t *warnings = NULL;
-    length_t warnings_length = 0;
+    adept_error_t *error;
+    adept_warning_t *warnings;
+    length_t warnings_length;
     double lastChanged;
     
     RichText richText;

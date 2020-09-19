@@ -66,6 +66,7 @@ public:
     std::string terminal_environment_term;
 
     // insight.*
+    bool insight_passive_enabled;
     double insight_passive_rate;
 
     // Hidden values accessable via Settings

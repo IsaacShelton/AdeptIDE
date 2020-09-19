@@ -802,9 +802,9 @@ void AdeptIDE::openEditor(const std::string& filename){
         newEditor = newImageEditor;
     } else {
         TextEditor *newTextEditor = this->addTextEditor();
-        newTextEditor->loadTextFromFile(filename);
         newTextEditor->filename = filename;
         newTextEditor->updateFilenameModel();
+        newTextEditor->loadTextFromFile(filename);
 
         newEditor = newTextEditor;
     }

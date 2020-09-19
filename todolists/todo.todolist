@@ -3,10 +3,8 @@ TODO:
 * select & move cursor in terminal
 * replace
 * better integration with bash
-* make goto file by name better to avoid overlaps
 * make insight popup less annoying, only show when helpful
 * re-add html highlighting
-* add json highlighting
 
 COMPLETED:
 + paste in terminal
@@ -17,3 +15,5 @@ COMPLETED:
 + goto symbol
 + fix issue with view focusing on cursor after 'go to line' in which no text is visible after going to the line
 + find
++ add json highlighting
++ make goto file by name better to avoid overlaps

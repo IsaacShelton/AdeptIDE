@@ -73,6 +73,8 @@ void TextEditor::load(Settings *settings, Font *font, Texture *fontTexture, floa
     this->insightCreationResult = InsightCreationResultNothingNew;
     this->lastPassiveInsightUpdate = 0.0;
     this->error = NULL;
+    this->warnings = NULL;
+    this->warnings_length = 0;
     this->lastChanged = 0.0;
 }
 
@@ -638,6 +640,7 @@ void TextEditor::finishSuggestion(){
 
 void TextEditor::maybeUpdatePassiveInsight(){
     if(this->getFileType() != FileType::ADEPT) return;
+    if(!this->settings->insight_passive_enabled) return;
 
     if(!this->insightRunning && glfwGetTime() > this->lastPassiveInsightUpdate + this->settings->insight_passive_rate){
         this->makeInsight(false, true, false);
@@ -953,11 +956,12 @@ void TextEditor::loadTextFromFile(const std::string& filename){
     
     this->richText.setFont(this->font);
     this->richText.loadFromFile(filename);
-    this->makeInsight();
 
     this->mainCaret.set(0);
     this->scroll = 0;
     this->lineNumbersUpdated = true;
+
+    this->makeInsight();
 }
 
 #include "UTIL/util.h"
