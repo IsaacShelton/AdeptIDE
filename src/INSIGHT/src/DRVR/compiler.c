@@ -184,13 +184,14 @@ void compiler_init(compiler_t *compiler){
     compiler->debug_traits = TRAIT_NONE;
     #endif // ENABLE_DEBUG_FEATURES
     
-    compiler->default_stblib = NULL;
+    compiler->default_stdlib = NULL;
     compiler->error = NULL;
     compiler->warnings = NULL;
     compiler->warnings_length = 0;
     compiler->warnings_capacity = 0;
     compiler->show_unused_variables_how_to_disable = false;
     compiler->cross_compile_for = CROSS_COMPILE_NONE;
+    compiler->entry_point = "main";
 }
 
 void compiler_free(compiler_t *compiler){
@@ -217,18 +218,19 @@ void compiler_free_objects(compiler_t *compiler){
             #ifndef ADEPT_INSIGHT_BUILD
             ir_module_free(&object->ir_module);
             #endif
-            // [fallthrough]
-        case COMPILATION_STAGE_AST:    
+            // fallthrough
+        case COMPILATION_STAGE_AST:
             ast_free(&object->ast);
-            // [fallthrough]
+            free(object->current_namespace);
+            // fallthrough
         case COMPILATION_STAGE_TOKENLIST:
             free(object->buffer);
             tokenlist_free(&object->tokenlist);
-            // [fallthrough]
+            // fallthrough
         case COMPILATION_STAGE_FILENAME:
             free(object->filename);
             free(object->full_filename);
-            // [fallthrough]
+            // fallthrough
         case COMPILATION_STAGE_NONE:
             // Nothing to free up
             break;
@@ -280,7 +282,9 @@ object_t* compiler_new_object(compiler_t *compiler){
     (*object_reference)->compilation_stage = COMPILATION_STAGE_NONE;
     (*object_reference)->index = compiler->objects_length++;
     (*object_reference)->traits = OBJECT_NONE;
-    (*object_reference)->default_stblib = NULL;
+    (*object_reference)->default_stdlib = NULL;
+    (*object_reference)->current_namespace = NULL;
+    (*object_reference)->current_namespace_length = 0;
     return *object_reference;
 }
 
@@ -430,10 +434,10 @@ errorcode_t parse_arguments(compiler_t *compiler, object_t *object, int argc, ch
             } else if(strcmp(argv[arg_index], "--libm") == 0){
                 compiler->use_libm = true;
             } else if(strncmp(argv[arg_index], "-std=", 5) == 0){
-                compiler->default_stblib = &argv[arg_index][5];
+                compiler->default_stdlib = &argv[arg_index][5];
                 compiler->traits |= COMPILER_FORCE_STDLIB;
             } else if(strncmp(argv[arg_index], "--std=", 6) == 0){
-                compiler->default_stblib = &argv[arg_index][6];
+                compiler->default_stdlib = &argv[arg_index][6];
                 compiler->traits |= COMPILER_FORCE_STDLIB;
             } else if(strcmp(argv[arg_index], "--repl") == 0){
                 compiler->traits |= COMPILER_REPL;
@@ -754,7 +758,7 @@ errorcode_t compiler_read_file(compiler_t *compiler, object_t *object){
     length_t filename_length = strlen(object->filename);
 
     if(filename_length >= 4 && strcmp(&object->filename[filename_length - 4], ".dep") == 0){
-        return pkg_read(compiler, object);
+        return pkg_read(object);
     } else {
         return lex(compiler, object);
     }
@@ -762,9 +766,9 @@ errorcode_t compiler_read_file(compiler_t *compiler, object_t *object){
 
 strong_cstr_t compiler_get_stdlib(compiler_t *compiler, object_t *optional_object){
     // Find which standard library to use
-    maybe_null_weak_cstr_t standard_library_folder = optional_object ? optional_object->default_stblib : NULL;
+    maybe_null_weak_cstr_t standard_library_folder = optional_object ? optional_object->default_stdlib : NULL;
 
-    if(standard_library_folder == NULL) standard_library_folder = compiler->default_stblib;
+    if(standard_library_folder == NULL) standard_library_folder = compiler->default_stdlib;
     if(standard_library_folder == NULL) standard_library_folder = ADEPT_VERSION_STRING;
     
     length_t length = strlen(standard_library_folder);
@@ -775,12 +779,12 @@ strong_cstr_t compiler_get_stdlib(compiler_t *compiler, object_t *optional_objec
     return mallocandsprintf("%s/", standard_library_folder);
 }
 
-void compiler_print_source(compiler_t *compiler, int line, int column, source_t source){
+void compiler_print_source(compiler_t *compiler, int line, source_t source){
     object_t *relevant_object = compiler->objects[source.object_index];
     if(relevant_object->buffer == NULL || relevant_object->traits & OBJECT_PACKAGE) return;
 
     length_t line_index = 0;
-    for(length_t current_line = 1; current_line != line; line_index++){
+    for(int current_line = 1; current_line != line; line_index++){
         if(relevant_object->buffer[line_index] == '\n') current_line++;
     }
 
@@ -824,7 +828,7 @@ void compiler_panic(compiler_t *compiler, source_t source, const char *message){
         } else {
             lex_get_location(relevant_object->buffer, source.index, &line, &column);
             redprintf("%s:%d:%d:\n", filename_name_const(relevant_object->filename), line, column);
-            compiler_print_source(compiler, line, column, source);
+            compiler_print_source(compiler, line, source);
         }
         return;
     }
@@ -834,7 +838,7 @@ void compiler_panic(compiler_t *compiler, source_t source, const char *message){
     } else {
         lex_get_location(relevant_object->buffer, source.index, &line, &column);
         redprintf("%s:%d:%d: %s!\n", filename_name_const(relevant_object->filename), line, column, message);
-        compiler_print_source(compiler, line, column, source);
+        compiler_print_source(compiler, line, source);
     }
     #endif // !ADEPT_INSIGHT_BUILD
 
@@ -868,7 +872,7 @@ void compiler_vpanicf(compiler_t *compiler, source_t source, const char *format,
         } else {
             lex_get_location(relevant_object->buffer, source.index, &line, &column);
             redprintf("%s:%d:%d:\n", filename_name_const(relevant_object->filename), line, column);
-            compiler_print_source(compiler, line, column, source);
+            compiler_print_source(compiler, line, source);
         }
         return;
     }
@@ -886,7 +890,7 @@ void compiler_vpanicf(compiler_t *compiler, source_t source, const char *format,
     printf("!\n");
     terminal_set_color(TERMINAL_COLOR_DEFAULT);
 
-    compiler_print_source(compiler, line, column, source);
+    compiler_print_source(compiler, line, source);
     #endif // !ADEPT_INSIGHT_BUILD
 
     if(compiler->error == NULL){
@@ -915,7 +919,7 @@ bool compiler_warn(compiler_t *compiler, source_t source, const char *message){
     yellowprintf("%s:%d:%d: %s\n", filename_name_const(relevant_object->filename), line, column, message);
 
     if(!(compiler->traits & COMPILER_SHORT_WARNINGS)){
-        compiler_print_source(compiler, line, column, source);
+        compiler_print_source(compiler, line, source);
     }
     #endif
 
@@ -970,7 +974,7 @@ void compiler_vwarnf(compiler_t *compiler, source_t source, const char *format, 
     terminal_set_color(TERMINAL_COLOR_DEFAULT);
 
     if(!(compiler->traits & COMPILER_SHORT_WARNINGS)){
-        compiler_print_source(compiler, line, column, source);
+        compiler_print_source(compiler, line, source);
     }
     #endif
 
@@ -1012,7 +1016,7 @@ void compiler_undeclared_function(compiler_t *compiler, object_t *object, source
         if(mapping->is_beginning_of_group == 1 && index != original_index) break;
 
         print_candidate(&object->ast.funcs[mapping->ast_func_id]);
-    } while(++index != ir_module->funcs_length);
+    } while((length_t) ++index != ir_module->funcs_length);
 
     index = poly_index;
 
@@ -1025,7 +1029,7 @@ void compiler_undeclared_function(compiler_t *compiler, object_t *object, source
         if(poly->is_beginning_of_group == 1 && index != poly_index) break;
 
         print_candidate(&object->ast.funcs[poly->ast_func_id]);
-    } while(++index != object->ast.polymorphic_funcs_length);
+    } while((length_t) ++index != object->ast.polymorphic_funcs_length);
 }
 
 void compiler_undeclared_method(compiler_t *compiler, object_t *object, source_t source,
@@ -1097,7 +1101,7 @@ void compiler_undeclared_method(compiler_t *compiler, object_t *object, source_t
 
             // Print method candidate for basic struct type
             print_candidate(&object->ast.funcs[method->ast_func_id]);
-        } while(++index != ir_module->methods_length);
+        } while((length_t) ++index != ir_module->methods_length);
 
         // Print potential candidates for generic struct
         else if(kind == AST_ELEM_GENERIC_BASE) do {
@@ -1123,7 +1127,7 @@ void compiler_undeclared_method(compiler_t *compiler, object_t *object, source_t
             if(generics_match_up){
                 print_candidate(&object->ast.funcs[generic_base_method->ast_func_id]);
             }
-        } while(++index != ir_module->generic_base_methods_length);
+        } while((length_t) ++index != ir_module->generic_base_methods_length);
     }
 
     index = poly_index;
@@ -1165,7 +1169,7 @@ void compiler_undeclared_method(compiler_t *compiler, object_t *object, source_t
         }
 
         print_candidate(ast_func);
-    } while(++index != object->ast.polymorphic_funcs_length);
+    } while((length_t) ++index != object->ast.polymorphic_funcs_length);
 }
 #endif
 

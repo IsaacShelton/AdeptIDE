@@ -34,6 +34,7 @@ typedef struct object {
     strong_cstr_t filename;      // Filename
     strong_cstr_t full_filename; // Absolute filename (used for testing duplicate imports)
     strong_cstr_t buffer;        // Text buffer
+    length_t buffer_length;      // Length of text buffer
     tokenlist_t tokenlist;       // Token list
     ast_t ast;                   // Abstract syntax tree
 
@@ -47,7 +48,9 @@ typedef struct object {
 
     // Default standard library to import from (per object version)
     // If NULL, then use ADEPT_VERSION_STRING
-    maybe_null_weak_cstr_t default_stblib;
+    maybe_null_weak_cstr_t default_stdlib;
+    maybe_null_strong_cstr_t current_namespace;
+    length_t current_namespace_length;
 } object_t;
 
 // Possible traits for object_t

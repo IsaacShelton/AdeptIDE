@@ -27,7 +27,8 @@ errorcode_t lex(compiler_t *compiler, object_t *object){
 
     buffer[buffer_size] = '\n';   // Append newline to flush everything
     buffer[++buffer_size] = '\0'; // Terminate the string for debug purposes
-    object->buffer = buffer;      // Pass ownership to object instance
+    object->buffer = buffer;
+    object->buffer_length = buffer_size;
 
     return lex_buffer(compiler, object);
 }
@@ -40,10 +41,13 @@ errorcode_t lex_buffer(compiler_t *compiler, object_t *object){
     lex_state_t lex_state;
     tokenlist_t *tokenlist = &object->tokenlist;
 
-    tokenlist->tokens = malloc(sizeof(token_t) * 1024);
+    length_t estimate = object->buffer_length / 3;
+    if(estimate < 1024) estimate = 1024;
+
+    tokenlist->tokens = malloc(sizeof(token_t) * estimate);
     tokenlist->length = 0;
-    tokenlist->capacity = 1024;
-    tokenlist->sources = malloc(sizeof(source_t) * 1024);
+    tokenlist->capacity = estimate;
+    tokenlist->sources = malloc(sizeof(source_t) * estimate);
 
     // By this point we have a buffer and a tokenlist
     object->compilation_stage = COMPILATION_STAGE_TOKENLIST;
@@ -60,7 +64,7 @@ errorcode_t lex_buffer(compiler_t *compiler, object_t *object){
 
     for(length_t i = 0; i != buffer_size; i++){
         coexpand((void**) &tokenlist->tokens, sizeof(token_t), (void**) &tokenlist->sources,
-                sizeof(source_t), tokenlist->length, &tokenlist->capacity, 1, 1024);
+                sizeof(source_t), tokenlist->length, &tokenlist->capacity, 1, estimate);
 
         // Macro to map a character to a single token
         #define LEX_SINGLE_TOKEN_MAPPING_MACRO(_token_id, _token_index, _token_stride) { \
@@ -147,10 +151,16 @@ errorcode_t lex_buffer(compiler_t *compiler, object_t *object){
                 (*sources)[tokenlist->length].object_index = object_index;
                 t = &((*tokens)[tokenlist->length]);
                 t->data = NULL;
-                if(buffer[i + 1] == '.' && buffer[i + 2] == '.'){
-                    t->id = TOKEN_ELLIPSIS;
-                    i += 2;
-                    (*sources)[tokenlist->length++].stride = 3;
+                if(buffer[i + 1] == '.'){
+                    if(buffer[i + 2] == '.'){
+                        t->id = TOKEN_ELLIPSIS;
+                        i += 2;
+                        (*sources)[tokenlist->length++].stride = 3;
+                    } else {
+                        t->id = TOKEN_RANGE;
+                        i += 1;
+                        (*sources)[tokenlist->length++].stride = 2;
+                    }
                 } else {
                     t->id = TOKEN_MEMBER;
                     (*sources)[tokenlist->length++].stride = 1;
@@ -182,7 +192,7 @@ errorcode_t lex_buffer(compiler_t *compiler, object_t *object){
                 break;
             default:
                 // Test for word
-                if(buffer[i] == '_' || (buffer[i] >= 65 && buffer[i] <= 90) || (buffer[i] >= 97 && buffer[i] <= 122)){
+                if(buffer[i] == '_' || (buffer[i] >= 65 && buffer[i] <= 90) || (buffer[i] >= 97 && buffer[i] <= 122) || buffer[i] == '\\' ){
                     (*sources)[tokenlist->length].index = i;
                     (*sources)[tokenlist->length].object_index = object_index;
                     (*sources)[tokenlist->length].stride = 0;
@@ -217,14 +227,14 @@ errorcode_t lex_buffer(compiler_t *compiler, object_t *object){
                 here.index = i;
                 here.object_index = object->index;
                 here.stride = 0;
-                compiler_print_source(compiler, line, column, here);
+                compiler_print_source(compiler, line, here);
                 lex_state_free(&lex_state);
                 return FAILURE;
             }
             break;
         case LEX_STATE_WORD:
             tmp = buffer[i];
-            if(tmp == '_' || (tmp >= 65 && tmp <= 90) || (tmp >= 97 && tmp <= 122) || (tmp >= '0' && tmp <= '9')){
+            if(tmp == '_' || (tmp >= 65 && tmp <= 90) || (tmp >= 97 && tmp <= 122) || (tmp >= '0' && tmp <= '9') || tmp == '\\'){
                 expand((void**) &lex_state.buildup, sizeof(char), lex_state.buildup_length, &lex_state.buildup_capacity, 1, 256);
                 lex_state.buildup[lex_state.buildup_length++] = buffer[i];
             } else {
@@ -234,7 +244,7 @@ errorcode_t lex_buffer(compiler_t *compiler, object_t *object){
                 const char * const keywords[] = {
                     "POD", "alias", "and", "as", "at", "break", "case", "cast", "const", "continue", "def", "default", "defer",
                     "delete", "each", "else", "enum", "exhaustive", "external", "fallthrough", "false", "for", "foreign", "func",
-                    "funcptr", "global", "if", "import", "in", "inout", "new", "null", "or", "out", "packed",
+                    "funcptr", "global", "if", "import", "in", "inout", "namespace", "new", "null", "or", "out", "packed",
                     "pragma", "private", "public", "repeat", "return", "sizeof", "static", "stdcall", "struct", "switch", "thread_local",
                     "true", "typeinfo", "undef", "union", "unless", "until", "va_arg", "va_copy", "va_end", "va_start", "verbatim", "while"
                 };
@@ -303,7 +313,7 @@ errorcode_t lex_buffer(compiler_t *compiler, object_t *object){
                 default:
                     lex_get_location(buffer, i, &line, &column);
                     redprintf("%s:%d:%d: Unknown escape sequence '\\%c'\n", filename_name_const(object->filename), line, column, buffer[i]);
-                    compiler_print_source(compiler, line, column, (source_t){i - 1, object_index, 2});
+                    compiler_print_source(compiler, line, (source_t){i - 1, object_index, 2});
                     lex_state_free(&lex_state);
                     return FAILURE;
                 }
@@ -364,7 +374,7 @@ errorcode_t lex_buffer(compiler_t *compiler, object_t *object){
                 default:
                     lex_get_location(buffer, i, &line, &column);
                     redprintf("%s:%d:%d: Unknown escape sequence '\\%c'\n", filename_name_const(object->filename), line, column, buffer[i]);
-                    compiler_print_source(compiler, line, column, (source_t){i - 1, object_index, 2});
+                    compiler_print_source(compiler, line, (source_t){i - 1, object_index, 2});
                     lex_state_free(&lex_state);
                     return FAILURE;
                 }
@@ -381,14 +391,14 @@ errorcode_t lex_buffer(compiler_t *compiler, object_t *object){
                 lex_state.buildup_inner_stride++;
             }
             break;
-        case LEX_STATE_EQUALS:   LEX_OPTIONAL_MOD_TOKEN_MAPPING('=', TOKEN_EQUALS, TOKEN_ASSIGN);                      break;
+        case LEX_STATE_EQUALS:   LEX_OPTIONAL_2MODS_TOKEN_MAPPING('=', TOKEN_EQUALS, '>', TOKEN_STRONG_ARROW, TOKEN_ASSIGN); break;
         case LEX_STATE_NOT:      LEX_OPTIONAL_2MODS_TOKEN_MAPPING('=', TOKEN_NOTEQUALS, '!', TOKEN_TOGGLE, TOKEN_NOT); break;
-        case LEX_STATE_COLON:    LEX_OPTIONAL_MOD_TOKEN_MAPPING(':', TOKEN_NAMESPACE, TOKEN_COLON);                    break;
+        case LEX_STATE_COLON:    LEX_OPTIONAL_MOD_TOKEN_MAPPING(':', TOKEN_ASSOCIATE, TOKEN_COLON);                    break;
         case LEX_STATE_ADD:
             LEX_OPTIONAL_2MODS_TOKEN_MAPPING('=', TOKEN_ADD_ASSIGN, '+', TOKEN_INCREMENT, TOKEN_ADD);
             break;
         case LEX_STATE_MULTIPLY: LEX_OPTIONAL_MOD_TOKEN_MAPPING('=', TOKEN_MULTIPLY_ASSIGN, TOKEN_MULTIPLY);   break;
-        case LEX_STATE_MODULUS:  LEX_OPTIONAL_MOD_TOKEN_MAPPING('=', TOKEN_MODULUS_ASSIGN,  TOKEN_MODULUS);     break;
+        case LEX_STATE_MODULUS:  LEX_OPTIONAL_MOD_TOKEN_MAPPING('=', TOKEN_MODULUS_ASSIGN,  TOKEN_MODULUS);    break;
         case LEX_STATE_BIT_XOR:  LEX_OPTIONAL_MOD_TOKEN_MAPPING('=', TOKEN_BIT_XOR_ASSIGN,  TOKEN_BIT_XOR);    break;
         case LEX_STATE_LESS:
             if(buffer[i] == '<'){
@@ -759,7 +769,7 @@ errorcode_t lex_buffer(compiler_t *compiler, object_t *object){
             break;
         }
 
-        compiler_print_source(compiler, line, column, (*sources)[tokenlist->length]);
+        compiler_print_source(compiler, line, (*sources)[tokenlist->length]);
         lex_state_free(&lex_state);
         return FAILURE;
     }

@@ -40,6 +40,18 @@ typedef struct {
     source_t source;
 } ast_func_t;
 
+// ---------------- ast_func_alias_t ----------------
+// A function redirection within the root AST
+typedef struct {
+    weak_cstr_t from;
+    weak_cstr_t to;
+    ast_type_t *arg_types;
+    length_t arity;
+    trait_t required_traits;
+    source_t source;
+    bool match_first_of_name;
+} ast_func_alias_t;
+
 #define AST_FUNC_ARG_TYPE_TRAIT_POD TRAIT_1
 
 // Possible AST function traits
@@ -103,6 +115,7 @@ typedef struct {
 // A global variable within the root AST
 typedef struct {
     weak_cstr_t name;
+    length_t name_length;
     ast_type_t type;
     ast_expr_t *initial;
     trait_t traits;
@@ -146,6 +159,9 @@ typedef struct {
     ast_func_t *funcs;
     length_t funcs_length;
     length_t funcs_capacity;
+    ast_func_alias_t *func_aliases;
+    length_t func_aliases_length;
+    length_t func_aliases_capacity;
     ast_struct_t *structs;
     length_t structs_length;
     length_t structs_capacity;
@@ -206,6 +222,7 @@ void ast_free(ast_t *ast);
 // ---------------- ast_free_* ----------------
 // Frees a specific part of the data within an AST
 void ast_free_functions(ast_func_t *functions, length_t functions_length);
+void ast_free_function_aliases(ast_func_alias_t *faliases, length_t length);
 void ast_free_statements(ast_expr_t **statements, length_t length);
 void ast_free_statements_fully(ast_expr_t **statements, length_t length);
 void ast_free_structs(ast_struct_t *structs, length_t structs_length);
@@ -228,7 +245,7 @@ void ast_dump_enums(FILE *file, ast_enum_t *enums, length_t enums_length);
 
 // ---------------- ast_func_create_template ----------------
 // Fills out a blank template for a new function
-void ast_func_create_template(ast_func_t *func, strong_cstr_t name, bool is_stdcall, bool is_foreign, bool is_verbatim, source_t source);
+void ast_func_create_template(ast_func_t *func, strong_cstr_t name, bool is_stdcall, bool is_foreign, bool is_verbatim, source_t source, bool is_entry);
 
 // ---------------- ast_func_is_polymorphic ----------------
 // Returns whether an AST function has polymorphic arguments
@@ -282,7 +299,8 @@ maybe_index_t ast_find_enum(ast_enum_t *enums, length_t enums_length, const char
 
 // ---------------- ast_find_global ----------------
 // Finds a global variable by name
-maybe_index_t ast_find_global(ast_global_t *globals, length_t globals_length, const char *name);
+// NOTE: Requires that 'globals' is sorted
+maybe_index_t ast_find_global(ast_global_t *globals, length_t globals_length, weak_cstr_t name);
 
 // ---------------- ast_add_enum ----------------
 // Adds an enum to the global scope of an AST
@@ -334,6 +352,10 @@ int ast_enums_cmp(const void *a, const void *b);
 // Compares two 'ast_func_t*' structures by name.
 // Used for qsort()
 int ast_polymorphic_funcs_cmp(const void *a, const void *b);
+
+// ---------------- ast_globals_cmp ----------------
+// Compares two 'ast_global_t*' structures by name
+int ast_globals_cmp(const void *ga, const void *gb);
 
 #ifdef __cplusplus
 }

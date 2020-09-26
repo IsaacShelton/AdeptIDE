@@ -1127,7 +1127,8 @@ void TextEditor::generateSuggestions(){
     // TODO: Clean up this messy code
     size_t beginning = end - 1;
     while(true){
-        if(!isIdentifier(this->richText.text[beginning])){
+        char c = this->richText.text[beginning];
+        if(!isIdentifier(c) && c != '\\'){
             beginning++;
             break;
         }
@@ -1169,9 +1170,9 @@ void TextEditor::generateSuggestions(){
         // TODO: Fill in with actual filesystem-based import suggestions
         std::vector<std::string> normal_list = {
             "AABB", "Anything", "Array", "array_util", "audio", "basics", "captain", "cerrno", "cmath",
-            "csignal", "cstdio", "cstdlib", "cstring", "ctime", "List", "math", "Matrix4f", "mt19937",
-            "Optional", "Ownership", "parse", "random", "string_util", "String", "terminal", "TypeInfo",
-            "VariadicArray", "Vector2f", "Vector3f", "where"
+            "csignal", "cstdio", "cstdlib", "cstring", "ctime", "list_util", "List", "math", "Matrix4f",
+            "mt19937", "Optional", "Ownership", "parse", "Pair", "random", "string_util", "String",
+            "terminal", "TypeInfo", "VariadicArray", "Vector2f", "Vector3f", "where"
         };
 
         // Ignore if just typed import
@@ -1247,6 +1248,7 @@ void TextEditor::makeInsight(bool storeCreationResult, bool fromMemory, bool sho
             if(buffer){
                 // NOTE: Passing ownership of 'buffer' to object instance!!!
                 object->buffer = buffer;
+                object->buffer_length = strlen(buffer);
             }
             
             if(buffer ? lex_buffer(&temporaryCompiler, object) : lex(&temporaryCompiler, object)){

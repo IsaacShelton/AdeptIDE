@@ -7,6 +7,9 @@ void ast_init(ast_t *ast, unsigned int cross_compile_for){
     ast->funcs = malloc(sizeof(ast_func_t) * 8);
     ast->funcs_length = 0;
     ast->funcs_capacity = 8;
+    ast->func_aliases = NULL;
+    ast->func_aliases_length = 0;
+    ast->func_aliases_capacity = 0;
     ast->structs = malloc(sizeof(ast_struct_t) * 4);
     ast->structs_length = 0;
     ast->structs_capacity = 4;
@@ -106,6 +109,7 @@ void ast_free(ast_t *ast){
 
     ast_free_enums(ast->enums, ast->enums_length);
     ast_free_functions(ast->funcs, ast->funcs_length);
+    ast_free_function_aliases(ast->func_aliases, ast->func_aliases_length);
     ast_free_structs(ast->structs, ast->structs_length);
     ast_free_globals(ast->globals, ast->globals_length);
     ast_free_constants(ast->constants, ast->constants_length);
@@ -121,6 +125,7 @@ void ast_free(ast_t *ast){
 
     free(ast->enums);
     free(ast->funcs);
+    free(ast->func_aliases);
     free(ast->structs);
     free(ast->constants);
     free(ast->globals);
@@ -180,6 +185,13 @@ void ast_free_functions(ast_func_t *functions, length_t functions_length){
         ast_free_statements(func->statements, func->statements_length);
         free(func->statements);
         ast_type_free(&func->return_type);
+    }
+}
+
+void ast_free_function_aliases(ast_func_alias_t *faliases, length_t length){
+    for(length_t i = 0; i != length; i++){
+        ast_func_alias_t *falias = &faliases[i];
+        ast_types_free_fully(falias->arg_types, falias->arity);
     }
 }
 
@@ -703,7 +715,7 @@ void ast_dump_enums(FILE *file, ast_enum_t *enums, length_t enums_length){
     }
 }
 
-void ast_func_create_template(ast_func_t *func, strong_cstr_t name, bool is_stdcall, bool is_foreign, bool is_verbatim, source_t source){
+void ast_func_create_template(ast_func_t *func, strong_cstr_t name, bool is_stdcall, bool is_foreign, bool is_verbatim, source_t source, bool is_entry){
     func->name = name;
     func->arg_names = NULL;
     func->arg_types = NULL;
@@ -724,7 +736,7 @@ void ast_func_create_template(ast_func_t *func, strong_cstr_t name, bool is_stdc
     func->statements_capacity = 0;
     func->source = source;
 
-    if(strcmp(name, "main") == 0)      func->traits |= AST_FUNC_MAIN;
+    if(is_entry)                       func->traits |= AST_FUNC_MAIN;
     if(strcmp(name, "__defer__") == 0) func->traits |= AST_FUNC_DEFER | (is_verbatim ? TRAIT_NONE : AST_FUNC_AUTOGEN);
     if(strcmp(name, "__pass__") == 0)  func->traits |= AST_FUNC_PASS  | (is_verbatim ? TRAIT_NONE : AST_FUNC_AUTOGEN);
     if(is_stdcall)                     func->traits |= AST_FUNC_STDCALL;
@@ -763,7 +775,7 @@ void ast_polymorphic_struct_init(ast_polymorphic_struct_t *structure, strong_cst
 void ast_alias_init(ast_alias_t *alias, weak_cstr_t name, ast_type_t type, trait_t traits, source_t source){
     alias->name = name;
     alias->type = type;
-    alias->traits = TRAIT_NONE;
+    alias->traits = traits;
     alias->source = source;
 }
 
@@ -868,12 +880,24 @@ maybe_index_t ast_find_enum(ast_enum_t *enums, length_t enums_length, const char
     return -1;
 }
 
-maybe_index_t ast_find_global(ast_global_t *globals, length_t globals_length, const char *name){
+maybe_index_t ast_find_global(ast_global_t *globals, length_t globals_length, weak_cstr_t name){
     // If not found returns -1 else returns index inside array
 
-    // TODO: SPEED: PERFORMANCE: Make this not be a linear search
-    for(length_t i = 0; i != globals_length; i++){
-        if(strcmp(globals[i].name, name) == 0) return i;
+    maybe_index_t first, middle, last, comparison;
+    first = 0; last = globals_length - 1;
+
+    ast_global_t target;
+    target.name = name;
+    target.name_length = strlen(name);
+    // (neglect other fields of 'target')
+
+    while(first <= last){
+        middle = (first + last) / 2;
+        comparison = ast_globals_cmp(&globals[middle], &target);
+
+        if(comparison == 0) return middle;
+        else if(comparison > 0) last = middle - 1;
+        else first = middle + 1;
     }
 
     return -1;
@@ -905,6 +929,7 @@ void ast_add_global(ast_t *ast, weak_cstr_t name, ast_type_t type, ast_expr_t *i
 
     ast_global_t *global = &ast->globals[ast->globals_length++];
     global->name = name;
+    global->name_length = strlen(name);
     global->type = type;
     global->initial = initial_value;
     global->traits = traits;
@@ -985,4 +1010,20 @@ int ast_polymorphic_funcs_cmp(const void *a, const void *b){
     int diff = strcmp(((ast_polymorphic_func_t*) a)->name, ((ast_polymorphic_func_t*) b)->name);
     if(diff != 0) return diff;
     return (int) ((ast_polymorphic_func_t*) a)->ast_func_id - (int) ((ast_polymorphic_func_t*) b)->ast_func_id;
+}
+
+int ast_globals_cmp(const void *ga, const void *gb){
+    #define global_a ((ast_global_t*) ga)
+    #define global_b ((ast_global_t*) gb)
+
+    if(global_a->name_length != global_b->name_length){
+        // DANGEROUS: Assume that the length difference isn't of
+        // magnitudes big enough to cause overflow of 'int' value
+        return (int) global_a->name_length - (int) global_b->name_length;
+    }
+
+    return strncmp(global_a->name, global_b->name, global_a->name_length);
+    
+    #undef global_a
+    #undef global_b
 }

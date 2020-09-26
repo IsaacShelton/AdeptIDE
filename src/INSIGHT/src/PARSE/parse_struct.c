@@ -141,6 +141,8 @@ errorcode_t parse_struct_head(parse_ctx_t *ctx, bool is_union, strong_cstr_t *ou
         }
     }
 
+    parse_prepend_namespace(ctx, out_name);
+
     *out_generics = generics;
     *out_generics_length = generics_length;
     return SUCCESS;
@@ -250,6 +252,9 @@ void parse_struct_grow_fields(char ***names, ast_type_t **types, length_t length
             *types = malloc(sizeof(ast_type_t) * 4);
             return;
         }
+
+        // Ignore unused variable if backfill isn't used in implementation of 'grow'
+        (void) backfill;
 
         *capacity *= 2;
         grow((void**) names, sizeof(char*), length, *capacity);

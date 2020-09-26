@@ -106,7 +106,7 @@ typedef struct compiler {
 
     // Default standard library to import from (global version)
     // If NULL, then use ADEPT_VERSION_STRING
-    maybe_null_weak_cstr_t default_stblib;
+    maybe_null_weak_cstr_t default_stdlib;
 
     adept_error_t *error;
     adept_warning_t *warnings;
@@ -115,6 +115,8 @@ typedef struct compiler {
 
     bool show_unused_variables_how_to_disable;
     unsigned int cross_compile_for;
+    
+    weak_cstr_t entry_point;
 } compiler_t;
 
 #define CROSS_COMPILE_NONE    0x00
@@ -198,7 +200,7 @@ strong_cstr_t compiler_get_stdlib(compiler_t *compiler, object_t *optional_objec
 
 // ---------------- compiler_print_source ----------------
 // Prints the source code at a given 'source_t'
-void compiler_print_source(compiler_t *compiler, int line, int column, source_t source);
+void compiler_print_source(compiler_t *compiler, int line, source_t source);
 
 // ---------------- compiler_panic (and friends) ----------------
 // Prints a compiler error message at a given 'source_t'
