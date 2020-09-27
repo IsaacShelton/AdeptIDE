@@ -105,7 +105,7 @@ typedef struct {
 // ---------------- ast_alias_t ----------------
 // A type alias within the root AST
 typedef struct {
-    weak_cstr_t name;
+    strong_cstr_t name;
     ast_type_t type;
     trait_t traits;
     source_t source;
@@ -227,6 +227,7 @@ void ast_free_statements(ast_expr_t **statements, length_t length);
 void ast_free_statements_fully(ast_expr_t **statements, length_t length);
 void ast_free_structs(ast_struct_t *structs, length_t structs_length);
 void ast_free_constants(ast_constant_t *constants, length_t constants_length);
+void ast_free_aliases(ast_alias_t *aliases, length_t aliases_length);
 void ast_free_globals(ast_global_t *globals, length_t globals_length);
 void ast_free_enums(ast_enum_t *enums, length_t enums_length);
 
@@ -269,13 +270,15 @@ void ast_alias_init(ast_alias_t *alias, weak_cstr_t name, ast_type_t type, trait
 // Initializes an AST enum
 void ast_enum_init(ast_enum_t *inum, weak_cstr_t name, weak_cstr_t *kinds, length_t length, source_t source);
 
-// ---------------- ast_struct_find ----------------
-// Finds a structure by name
-ast_struct_t *ast_struct_find(ast_t *ast, const char *name);
+// ---------------- ast_struct_find_exact ----------------
+// Finds a structure by its exact name
+// For more flexible struct finding, use 'object_struct_find()'
+ast_struct_t *ast_struct_find_exact(ast_t *ast, const char *name);
 
-// ---------------- ast_polymorphic_struct_find ----------------
-// Finds a polymorphic structure by name
-ast_polymorphic_struct_t *ast_polymorphic_struct_find(ast_t *ast, const char *name);
+// ---------------- ast_polymorphic_struct_find_exact ----------------
+// Finds a polymorphic structure by its exact name
+// For more flexible struct finding, use 'object_polymorphic_struct_find()'
+ast_polymorphic_struct_t *ast_polymorphic_struct_find_exact(ast_t *ast, const char *name);
 
 // ---------------- ast_struct_find_field ----------------
 // Finds a field by name within a structure

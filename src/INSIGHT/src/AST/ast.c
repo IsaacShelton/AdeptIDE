@@ -113,6 +113,7 @@ void ast_free(ast_t *ast){
     ast_free_structs(ast->structs, ast->structs_length);
     ast_free_globals(ast->globals, ast->globals_length);
     ast_free_constants(ast->constants, ast->constants_length);
+    ast_free_aliases(ast->aliases, ast->aliases_length);
 
     for(i = 0; i != ast->aliases_length; i++){
         // Delete stuff within alias
@@ -223,6 +224,13 @@ void ast_free_constants(ast_constant_t *constants, length_t constants_length){
     for(length_t i = 0; i != constants_length; i++){
         ast_constant_t *constant = &constants[i];
         if(constant->expression) ast_expr_free_fully(constant->expression);
+        free(constant->name);
+    }
+}
+
+void ast_free_aliases(ast_alias_t *aliases, length_t aliases_length){
+    for(length_t i = 0; i != aliases_length; i++){
+        free(aliases[i].name);
     }
 }
 
@@ -786,7 +794,7 @@ void ast_enum_init(ast_enum_t *inum,  weak_cstr_t name, weak_cstr_t *kinds, leng
     inum->source = source;
 }
 
-ast_struct_t *ast_struct_find(ast_t *ast, const char *name){
+ast_struct_t *ast_struct_find_exact(ast_t *ast, const char *name){
     // TODO: Maybe sort and do a binary serach or something
     for(length_t i = 0; i != ast->structs_length; i++){
         if(strcmp(ast->structs[i].name, name) == 0){
@@ -806,7 +814,7 @@ successful_t ast_struct_find_field(ast_struct_t *ast_struct, const char *name, l
     return false;
 }
 
-ast_polymorphic_struct_t *ast_polymorphic_struct_find(ast_t *ast, const char *name){
+ast_polymorphic_struct_t *ast_polymorphic_struct_find_exact(ast_t *ast, const char *name){
     // TODO: Maybe sort and do a binary serach or something
     for(length_t i = 0; i != ast->polymorphic_structs_length; i++){
         if(strcmp(ast->polymorphic_structs[i].name, name) == 0){
