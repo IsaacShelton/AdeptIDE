@@ -60,7 +60,7 @@ strong_cstr_t mallocandsprintf(const char *format, ...);
 // Escapes the contents of a modern string so that
 // special characters such as \n are transfromed into \\n
 // and surrounds the string with double quotes
-strong_cstr_t string_to_escaped_string(char *array, length_t length);
+strong_cstr_t string_to_escaped_string(char *array, length_t length, char escaped_quote);
 
 // ---------------- string_count_character ----------------
 // Returns the number of occurances of 'character' in modern
@@ -74,6 +74,21 @@ length_t find_insert_position(void *array, length_t length, int(*compare)(const 
 // ---------------- file_exists ----------------
 // Returns whether a file exits
 bool file_exists(weak_cstr_t filename);
+
+// ---------------- file_text_contents ----------------
+// Reads text contents of a file.
+// When successful, 'out_contents' will be a newly allocated
+// C-String, with 'out_length' being the number of characters.
+// If 'append_newline', a newline will be added onto the end.
+// Returns whether successful
+bool file_text_contents(weak_cstr_t filename, strong_cstr_t *out_contents, length_t *out_length, bool append_newline);
+
+// ---------------- file_binary_contents ----------------
+// Reads binary contents of a file.
+// When successful, 'out_contents' will be a newly allocated
+// C-String, with 'out_length' being the number of bytes
+// Returns whether successful
+bool file_binary_contents(weak_cstr_t filename, strong_cstr_t *out_contents, length_t *out_length);
 
 #ifdef __cplusplus
 }

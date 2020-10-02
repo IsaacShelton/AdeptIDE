@@ -446,6 +446,12 @@ errorcode_t parse_arguments(compiler_t *compiler, object_t *object, int argc, ch
             } else if(strncmp(argv[arg_index], "--std=", 6) == 0){
                 compiler->default_stdlib = &argv[arg_index][6];
                 compiler->traits |= COMPILER_FORCE_STDLIB;
+            } else if(strcmp(argv[arg_index], "--entry") == 0){
+                if(arg_index + 1 == argc){
+                    redprintf("Expected entry point after '--entry' flag\n");
+                    return FAILURE;
+                }
+                compiler->entry_point = argv[++arg_index];
             } else if(strcmp(argv[arg_index], "--repl") == 0){
                 compiler->traits |= COMPILER_REPL;
             } else if(strcmp(argv[arg_index], "--windows") == 0){
@@ -472,7 +478,10 @@ errorcode_t parse_arguments(compiler_t *compiler, object_t *object, int argc, ch
                 compiler->debug_traits |= COMPILER_DEBUG_LLVMIR;
             } else if(strcmp(argv[arg_index], "--no-verification") == 0){
                 compiler->debug_traits |= COMPILER_DEBUG_NO_VERIFICATION;
+            } else if(strcmp(argv[arg_index], "--no-result") == 0){
+                compiler->debug_traits |= COMPILER_DEBUG_NO_RESULT;
             }
+
             #endif // ENABLE_DEBUG_FEATURES ///////////////////////////////
 
             else {
@@ -825,7 +834,7 @@ void compiler_print_source(compiler_t *compiler, int line, source_t source){
 }
 
 void compiler_panic(compiler_t *compiler, source_t source, const char *message){
-    #ifndef ADEPT_INSIGHT_BUILD
+    #if !defined(ADEPT_INSIGHT_BUILD) || defined(__EMSCRIPTEN__)
     object_t *relevant_object = compiler->objects[source.object_index];
     int line, column;
 
@@ -862,7 +871,7 @@ void compiler_panicf(compiler_t *compiler, source_t source, const char *format, 
 }
 
 void compiler_vpanicf(compiler_t *compiler, source_t source, const char *format, va_list args){
-    #ifndef ADEPT_INSIGHT_BUILD
+    #if !defined(ADEPT_INSIGHT_BUILD) || defined(__EMSCRIPTEN__)
     object_t *relevant_object = compiler->objects[source.object_index];
     int line, column;
     #endif // !ADEPT_INSIGHT_BUILD
@@ -870,7 +879,7 @@ void compiler_vpanicf(compiler_t *compiler, source_t source, const char *format,
     va_list error_format_args;
     va_copy(error_format_args, args);
 
-    #ifndef ADEPT_INSIGHT_BUILD
+    #if !defined(ADEPT_INSIGHT_BUILD) || defined(__EMSCRIPTEN__)
     terminal_set_color(TERMINAL_COLOR_RED);
 
     if(format == NULL){
@@ -914,7 +923,7 @@ bool compiler_warn(compiler_t *compiler, source_t source, const char *message){
 
     if(compiler->traits & COMPILER_NO_WARN) return false;
 
-    #ifndef ADEPT_INSIGHT_BUILD
+    #if !defined(ADEPT_INSIGHT_BUILD) || defined(__EMSCRIPTEN__)
     if(compiler->traits & COMPILER_WARN_AS_ERROR){
         compiler_panic(compiler, source, message);
         return true;
@@ -955,7 +964,7 @@ bool compiler_warnf(compiler_t *compiler, source_t source, const char *format, .
 void compiler_vwarnf(compiler_t *compiler, source_t source, const char *format, va_list args){
     if(compiler->traits & COMPILER_NO_WARN) return;
 
-    #ifndef ADEPT_INSIGHT_BUILD
+    #if !defined(ADEPT_INSIGHT_BUILD) || defined(__EMSCRIPTEN__)
     object_t *relevant_object = compiler->objects[source.object_index];
     int line, column;
     #endif
@@ -963,7 +972,7 @@ void compiler_vwarnf(compiler_t *compiler, source_t source, const char *format, 
     va_list warning_format_args;
     va_copy(warning_format_args, args);
     
-    #ifndef ADEPT_INSIGHT_BUILD
+    #if !defined(ADEPT_INSIGHT_BUILD) || defined(__EMSCRIPTEN__)
     terminal_set_color(TERMINAL_COLOR_YELLOW);
 
     if(relevant_object->traits & OBJECT_PACKAGE){
@@ -991,11 +1000,15 @@ void compiler_vwarnf(compiler_t *compiler, source_t source, const char *format, 
     va_end(warning_format_args);
 }
 
-#ifndef ADEPT_INSIGHT_BUILD
+#if !defined(ADEPT_INSIGHT_BUILD) || defined(__EMSCRIPTEN__)
 void compiler_undeclared_function(compiler_t *compiler, object_t *object, source_t source,
-        const char *name, ast_type_t *types, length_t arity){
+        const char *name, ast_type_t *types, length_t arity, ast_type_t *gives){
     
     bool has_potential_candidates = compiler_undeclared_function_possiblities(object, &compiler->tmp, name, false);
+
+    // Allow for '.elements_length' to be zero
+    // to indicate no return matching
+    if(gives->elements_length == 0) gives = NULL;
 
     if(!has_potential_candidates){
         // No other function with that name exists
@@ -1004,7 +1017,9 @@ void compiler_undeclared_function(compiler_t *compiler, object_t *object, source
     } else {
         // Other functions have the same name
         char *args_string = make_args_string(types, NULL, arity, TRAIT_NONE);
-        compiler_panicf(compiler, source, "Undeclared function %s(%s)", name, args_string ? args_string : "");
+        char *gives_string = gives ? ast_type_str(gives) : NULL;
+        compiler_panicf(compiler, source, "Undeclared function %s(%s)%s%s", name, args_string ? args_string : "", gives ? " ~> " : "", gives ? gives_string : "");
+        free(gives_string);
         free(args_string);
 
         printf("\nPotential Candidates:\n");
@@ -1030,6 +1045,9 @@ bool compiler_undeclared_function_possiblities(object_t *object, tmpbuf_t *tmpbu
 }
 
 bool compiler_undeclared_function_possible_name(object_t *object, const char *name, bool should_print){
+    #ifdef ADEPT_INSIGHT_BUILD
+    return false;
+    #else
     ir_module_t *ir_module = &object->ir_module;
 
     maybe_index_t original_index = find_beginning_of_func_group(ir_module->func_mappings, ir_module->func_mappings_length, name);
@@ -1064,11 +1082,15 @@ bool compiler_undeclared_function_possible_name(object_t *object, const char *na
 
 return_result:
     return original_index != -1 || poly_index != -1;
+    #endif
 }
 
 void compiler_undeclared_method(compiler_t *compiler, object_t *object, source_t source,
         const char *name, ast_type_t *types, length_t method_arity){
-    
+    #if ADEPT_INSIGHT_BUILD
+    return;
+    #else
+
     // NOTE: Assuming that types_length == method_arity + 1
     ast_type_t this_type = types[0];
 
@@ -1204,6 +1226,7 @@ void compiler_undeclared_method(compiler_t *compiler, object_t *object, source_t
 
         print_candidate(ast_func);
     } while((length_t) ++index != object->ast.polymorphic_funcs_length);
+    #endif
 }
 #endif
 
@@ -1314,4 +1337,17 @@ void compiler_create_warning(compiler_t *compiler, strong_cstr_t message, source
 void adept_warnings_free_fully(adept_warning_t *warnings, length_t length){
     for(length_t i = 0; i != length; i++) free(warnings[i].message);
     free(warnings);
+}
+
+weak_cstr_t compiler_unnamespaced_name(weak_cstr_t input){
+    length_t i = 0;
+    length_t beginning = 0;
+
+    while(true){
+        char tmp = input[i++];
+        if(tmp == '\0') return &input[beginning];
+        if(tmp == '\\') beginning = i;
+    }
+
+    return NULL; // [unreachable]
 }

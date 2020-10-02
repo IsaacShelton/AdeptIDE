@@ -7,28 +7,10 @@
 #include "UTIL/filename.h"
 
 errorcode_t lex(compiler_t *compiler, object_t *object){
-    FILE *file = fopen(object->filename, "r");
-
-    char *buffer;
-    length_t buffer_size;
-    
-    if(file == NULL){
+    if(!file_text_contents(object->filename, &object->buffer, &object->buffer_length, true)){
         redprintf("The file '%s' doesn't exist or can't be accessed\n", object->filename);
         return FAILURE;
     }
-
-    fseek(file, 0, SEEK_END);
-    buffer_size = ftell(file);
-    fseek(file, 0, SEEK_SET);
-
-    buffer = malloc(buffer_size + 2);
-    buffer_size = fread(buffer, 1, buffer_size, file);
-    fclose(file);
-
-    buffer[buffer_size] = '\n';   // Append newline to flush everything
-    buffer[++buffer_size] = '\0'; // Terminate the string for debug purposes
-    object->buffer = buffer;
-    object->buffer_length = buffer_size;
 
     return lex_buffer(compiler, object);
 }
@@ -134,6 +116,7 @@ errorcode_t lex_buffer(compiler_t *compiler, object_t *object){
             case '!': LEX_SINGLE_STATE_MAPPING_MACRO(LEX_STATE_NOT);              break;
             case ':': LEX_SINGLE_STATE_MAPPING_MACRO(LEX_STATE_COLON);            break;
             case '^': LEX_SINGLE_STATE_MAPPING_MACRO(LEX_STATE_BIT_XOR);          break;
+            case '~': LEX_SINGLE_STATE_MAPPING_MACRO(LEX_STATE_COMPLEMENT);       break;
             //--------------------------------------------------------------------------
             case '(': LEX_SINGLE_TOKEN_MAPPING_MACRO(TOKEN_OPEN, i, 1);           break;
             case ')': LEX_SINGLE_TOKEN_MAPPING_MACRO(TOKEN_CLOSE, i, 1);          break;
@@ -143,7 +126,6 @@ errorcode_t lex_buffer(compiler_t *compiler, object_t *object){
             case '[': LEX_SINGLE_TOKEN_MAPPING_MACRO(TOKEN_BRACKET_OPEN, i, 1);   break;
             case ']': LEX_SINGLE_TOKEN_MAPPING_MACRO(TOKEN_BRACKET_CLOSE, i, 1);  break;
             case ';': LEX_SINGLE_TOKEN_MAPPING_MACRO(TOKEN_TERMINATE_JOIN, i, 1); break;
-            case '~': LEX_SINGLE_TOKEN_MAPPING_MACRO(TOKEN_BIT_COMPLEMENT, i, 1); break;
             case '?': LEX_SINGLE_TOKEN_MAPPING_MACRO(TOKEN_MAYBE, i, 1);          break;
             case '\n': LEX_SINGLE_TOKEN_MAPPING_MACRO(TOKEN_NEWLINE, i, 1);       break;
             case '.':
@@ -192,7 +174,7 @@ errorcode_t lex_buffer(compiler_t *compiler, object_t *object){
                 break;
             default:
                 // Test for word
-                if(buffer[i] == '_' || (buffer[i] >= 65 && buffer[i] <= 90) || (buffer[i] >= 97 && buffer[i] <= 122) || buffer[i] == '\\' ){
+                if(buffer[i] == '_' || (buffer[i] >= 65 && buffer[i] <= 90) || (buffer[i] >= 97 && buffer[i] <= 122) || buffer[i] == '\\'){
                     (*sources)[tokenlist->length].index = i;
                     (*sources)[tokenlist->length].object_index = object_index;
                     (*sources)[tokenlist->length].stride = 0;
@@ -222,7 +204,7 @@ errorcode_t lex_buffer(compiler_t *compiler, object_t *object){
 
                 lex_get_location(buffer, i, &line, &column);
                 redprintf("%s:%d:%d: Unrecognized symbol '%c' (0x%02X)\n", filename_name_const(object->filename), line, column, buffer[i], (int) buffer[i]);
-
+                
                 source_t here;
                 here.index = i;
                 here.object_index = object->index;
@@ -234,48 +216,59 @@ errorcode_t lex_buffer(compiler_t *compiler, object_t *object){
             break;
         case LEX_STATE_WORD:
             tmp = buffer[i];
+
             if(tmp == '_' || (tmp >= 65 && tmp <= 90) || (tmp >= 97 && tmp <= 122) || (tmp >= '0' && tmp <= '9') || tmp == '\\'){
                 expand((void**) &lex_state.buildup, sizeof(char), lex_state.buildup_length, &lex_state.buildup_capacity, 1, 256);
                 lex_state.buildup[lex_state.buildup_length++] = buffer[i];
-            } else {
-                // NOTE: MUST be pre sorted alphabetically (used for string_search)
-                //         Make sure to update values inside token.h and token.c after modifying this list
-
-                const char * const keywords[] = {
-                    "POD", "alias", "and", "as", "at", "break", "case", "cast", "const", "continue", "def", "default", "defer",
-                    "delete", "each", "else", "enum", "exhaustive", "external", "fallthrough", "false", "for", "foreign", "func",
-                    "funcptr", "global", "if", "import", "in", "inout", "namespace", "new", "null", "or", "out", "packed",
-                    "pragma", "private", "public", "repeat", "return", "sizeof", "static", "stdcall", "struct", "switch", "thread_local",
-                    "true", "typeinfo", "undef", "union", "unless", "until", "using", "va_arg", "va_copy", "va_end", "va_start", "verbatim", "while"
-                };
-
-                const length_t keywords_length = sizeof(keywords) / sizeof(const char * const);
-
-                // Terminate string buildup buffer
-                expand((void**) &lex_state.buildup, sizeof(char), lex_state.buildup_length, &lex_state.buildup_capacity, 1, 256);
-                lex_state.buildup[lex_state.buildup_length] = '\0';
-
-                // Search for string inside keyword list
-                maybe_index_t array_index = binary_string_search(keywords, keywords_length, lex_state.buildup);
-
-                if(array_index == -1){
-                    // Isn't a keyword, just an identifier
-                    t = &((*tokens)[tokenlist->length]);
-                    t->id = TOKEN_WORD;
-                    t->data = malloc(lex_state.buildup_length + 1);
-                    memcpy(t->data, lex_state.buildup, lex_state.buildup_length);
-                    ((char*) t->data)[lex_state.buildup_length] = '\0';
-                } else {
-                    // Is a keyword, figure out token index from array index
-                    t = &((*tokens)[tokenlist->length]);
-                    t->id = BEGINNING_OF_KEYWORD_TOKENS + (unsigned int) array_index; // Values 0x00000050..0x0000009F are reserved for keywords
-                    t->data = NULL;
+                break;
+            } else if(tmp == ':' && i + 1 < buffer_size){
+                tmp = buffer[i + 1];
+                if(tmp == '_' || (tmp >= 65 && tmp <= 90) || (tmp >= 97 && tmp <= 122) || (tmp >= '0' && tmp <= '9') || tmp == '\\'){
+                    expand((void**) &lex_state.buildup, sizeof(char), lex_state.buildup_length, &lex_state.buildup_capacity, 1, 256);
+                    lex_state.buildup[lex_state.buildup_length++] = '\\';
+                    break;
                 }
-
-                (*sources)[tokenlist->length++].stride = lex_state.buildup_length;
-                lex_state.state = LEX_STATE_IDLE;
-                i--;
             }
+
+            // We have reached the end of the word
+
+            // NOTE: MUST be pre sorted alphabetically (used for string_search)
+            //         Make sure to update values inside token.h and token.c after modifying this list
+
+            const char * const keywords[] = {
+                "POD", "alias", "and", "as", "at", "break", "case", "cast", "const", "continue", "def", "default", "defer",
+                "delete", "each", "else", "enum", "exhaustive", "external", "fallthrough", "false", "for", "foreign", "func",
+                "funcptr", "global", "if", "import", "in", "inout", "namespace", "new", "null", "or", "out", "packed",
+                "pragma", "private", "public", "repeat", "return", "sizeof", "static", "stdcall", "struct", "switch", "thread_local",
+                "true", "typeinfo", "undef", "union", "unless", "until", "using", "va_arg", "va_copy", "va_end", "va_start", "verbatim", "while"
+            };
+
+            const length_t keywords_length = sizeof(keywords) / sizeof(const char * const);
+
+            // Terminate string buildup buffer
+            expand((void**) &lex_state.buildup, sizeof(char), lex_state.buildup_length, &lex_state.buildup_capacity, 1, 256);
+            lex_state.buildup[lex_state.buildup_length] = '\0';
+
+            // Search for string inside keyword list
+            maybe_index_t array_index = binary_string_search(keywords, keywords_length, lex_state.buildup);
+
+            if(array_index == -1){
+                // Isn't a keyword, just an identifier
+                t = &((*tokens)[tokenlist->length]);
+                t->id = TOKEN_WORD;
+                t->data = malloc(lex_state.buildup_length + 1);
+                memcpy(t->data, lex_state.buildup, lex_state.buildup_length);
+                ((char*) t->data)[lex_state.buildup_length] = '\0';
+            } else {
+                // Is a keyword, figure out token index from array index
+                t = &((*tokens)[tokenlist->length]);
+                t->id = BEGINNING_OF_KEYWORD_TOKENS + (unsigned int) array_index; // Values 0x00000050..0x0000009F are reserved for keywords
+                t->data = NULL;
+            }
+
+            (*sources)[tokenlist->length++].stride = lex_state.buildup_length;
+            lex_state.state = LEX_STATE_IDLE;
+            i--;
             break;
         case LEX_STATE_STRING:
             if(buffer[i] == '\"'){
@@ -391,15 +384,16 @@ errorcode_t lex_buffer(compiler_t *compiler, object_t *object){
                 lex_state.buildup_inner_stride++;
             }
             break;
-        case LEX_STATE_EQUALS:   LEX_OPTIONAL_2MODS_TOKEN_MAPPING('=', TOKEN_EQUALS, '>', TOKEN_STRONG_ARROW, TOKEN_ASSIGN); break;
-        case LEX_STATE_NOT:      LEX_OPTIONAL_2MODS_TOKEN_MAPPING('=', TOKEN_NOTEQUALS, '!', TOKEN_TOGGLE, TOKEN_NOT); break;
-        case LEX_STATE_COLON:    LEX_OPTIONAL_MOD_TOKEN_MAPPING(':', TOKEN_ASSOCIATE, TOKEN_COLON);                    break;
+        case LEX_STATE_EQUALS:     LEX_OPTIONAL_2MODS_TOKEN_MAPPING('=', TOKEN_EQUALS, '>', TOKEN_STRONG_ARROW, TOKEN_ASSIGN); break;
+        case LEX_STATE_NOT:        LEX_OPTIONAL_2MODS_TOKEN_MAPPING('=', TOKEN_NOTEQUALS, '!', TOKEN_TOGGLE, TOKEN_NOT); break;
+        case LEX_STATE_COLON:      LEX_OPTIONAL_MOD_TOKEN_MAPPING(':', TOKEN_ASSOCIATE, TOKEN_COLON);                    break;
         case LEX_STATE_ADD:
             LEX_OPTIONAL_2MODS_TOKEN_MAPPING('=', TOKEN_ADD_ASSIGN, '+', TOKEN_INCREMENT, TOKEN_ADD);
             break;
-        case LEX_STATE_MULTIPLY: LEX_OPTIONAL_MOD_TOKEN_MAPPING('=', TOKEN_MULTIPLY_ASSIGN, TOKEN_MULTIPLY);   break;
-        case LEX_STATE_MODULUS:  LEX_OPTIONAL_MOD_TOKEN_MAPPING('=', TOKEN_MODULUS_ASSIGN,  TOKEN_MODULUS);    break;
-        case LEX_STATE_BIT_XOR:  LEX_OPTIONAL_MOD_TOKEN_MAPPING('=', TOKEN_BIT_XOR_ASSIGN,  TOKEN_BIT_XOR);    break;
+        case LEX_STATE_MULTIPLY:   LEX_OPTIONAL_MOD_TOKEN_MAPPING('=', TOKEN_MULTIPLY_ASSIGN, TOKEN_MULTIPLY);   break;
+        case LEX_STATE_MODULUS:    LEX_OPTIONAL_MOD_TOKEN_MAPPING('=', TOKEN_MODULUS_ASSIGN,  TOKEN_MODULUS);    break;
+        case LEX_STATE_BIT_XOR:    LEX_OPTIONAL_MOD_TOKEN_MAPPING('=', TOKEN_BIT_XOR_ASSIGN,  TOKEN_BIT_XOR);    break;
+        case LEX_STATE_COMPLEMENT: LEX_OPTIONAL_MOD_TOKEN_MAPPING('>', TOKEN_GIVES, TOKEN_BIT_COMPLEMENT);       break;
         case LEX_STATE_LESS:
             if(buffer[i] == '<'){
                 // We don't need to check whether i + 1 exceeds the buffer length because we

@@ -138,7 +138,8 @@ extern const char *global_token_name_table[];
 #define TOKEN_TOGGLE            0x00000046
 #define TOKEN_STRONG_ARROW      0x00000047
 #define TOKEN_RANGE             0x00000048
-// 48..4F
+#define TOKEN_GIVES             0x00000049
+// 4A..4F
 
 // NOTE: 0x00000050 .. 0x0000009F reserved for keywords
 // Keywords are organized as such that 0x00000050 + the id of
@@ -153,7 +154,7 @@ extern const char *global_token_name_table[];
 #define TOKEN_BREAK            0x00000055
 #define TOKEN_CASE             0x00000056
 #define TOKEN_CAST             0x00000057
-#define TOKEN_CONST            0x00000058             
+#define TOKEN_CONST            0x00000058
 #define TOKEN_CONTINUE         0x00000059
 #define TOKEN_DEF              0x0000005A
 #define TOKEN_DEFAULT          0x0000005B

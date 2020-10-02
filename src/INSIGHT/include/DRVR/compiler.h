@@ -65,6 +65,7 @@ extern "C" {
 #define COMPILER_DEBUG_DUMP            TRAIT_2
 #define COMPILER_DEBUG_LLVMIR          TRAIT_3
 #define COMPILER_DEBUG_NO_VERIFICATION TRAIT_4
+#define COMPILER_DEBUG_NO_RESULT       TRAIT_5
 #endif // ENABLE_DEBUG_FEATURES
 
 // Possible compiler result flags (for internal use)
@@ -217,11 +218,13 @@ bool compiler_warn(compiler_t *compiler, source_t source, const char *message);
 bool compiler_warnf(compiler_t *compiler, source_t source, const char *format, ...);
 void compiler_vwarnf(compiler_t *compiler, source_t source, const char *format, va_list args);
 
-#ifndef ADEPT_INSIGHT_BUILD
+#if !defined(ADEPT_INSIGHT_BUILD) || defined(__EMSCRIPTEN__)
 // ---------------- compiler_undeclared_function ----------------
 // Prints an error message for an undeclared function
+// NOTE: 'gives' can be NULL or 'gives.elements_length' can be zero
+//       to indicate to return matching
 void compiler_undeclared_function(compiler_t *compiler, object_t *object, source_t source,
-    const char *name, ast_type_t *types, length_t arity);
+    const char *name, ast_type_t *types, length_t arity, ast_type_t *gives);
 
 // ---------------- compiler_undeclared_function_possiblities ----------------
 // Checks for all potential function candidates
@@ -272,6 +275,11 @@ void compiler_create_warning(compiler_t *compiler, strong_cstr_t message, source
 // ---------------- adept_warnings_free_fully ----------------
 // Frees an array of warnings and the memory it occupies
 void adept_warnings_free_fully(adept_warning_t *warnings, length_t length);
+
+// ---------------- compiler_unnamespaced_name ----------------
+// Returns weak C-string to unnamespaced version of an identifier
+// e.g. "namespace\thing" => 'thing'
+weak_cstr_t compiler_unnamespaced_name(weak_cstr_t input);
 
 #ifdef __cplusplus
 }
