@@ -213,6 +213,7 @@ void RichText::updateSpecials(){
         {"constant", WHITESPACE, WHITESPACE, &palette.keyword},
         {"continue", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.keyword},
         {"external", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.keyword},
+        {"implicit", WHITESPACE_OR_OPERATOR, WHITESPACE, &palette.keyword},
         {"typeinfo", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.keyword},
         {"va_start", WHITESPACE_OR_OPERATOR, WHITESPACE_OR_OPERATOR, &palette.keyword},
         {"verbatim", WHITESPACE, WHITESPACE, &palette.keyword},
