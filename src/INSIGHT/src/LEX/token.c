@@ -133,10 +133,10 @@ void tokenlist_print(tokenlist_t *tokenlist, const char *buffer){
         case TOKEN_CAST:              printf("Keyword: cast\n"); break;
         case TOKEN_CONST:             printf("Keyword: const\n"); break;
         case TOKEN_CONTINUE:          printf("Keyword: continue\n"); break;
-        case TOKEN_DEF:               printf("Keyword: def\n"); break;
+        case TOKEN_DEF:               printf("Keyword: define\n"); break;
         case TOKEN_DEFAULT:           printf("Keyword: default\n"); break;
         case TOKEN_DEFER:             printf("Keyword: defer\n"); break;
-        case TOKEN_DEFINE:            printf("Keyword: define\n"); break;
+        case TOKEN_DEFINE:            printf("Keyword: def\n"); break;
         case TOKEN_DELETE:            printf("Keyword: delete\n"); break;
         case TOKEN_ELSE:              printf("Keyword: else\n"); break;
         case TOKEN_ENUM:              printf("Keyword: enum\n"); break;
