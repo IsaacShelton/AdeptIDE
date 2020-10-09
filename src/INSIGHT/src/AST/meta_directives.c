@@ -30,7 +30,7 @@ strong_cstr_t meta_expr_str(meta_expr_t *meta){
             return representation;
         }
     default:
-        redprintf("INTERNAL ERROR: Tried to get string from non-collapsed meta expression!\n");
+        internalerrorprintf("Tried to get string from non-collapsed meta expression!\n");
         redprintf("A crash will probably follow...\n");
         return NULL;
     }
@@ -79,7 +79,7 @@ void meta_expr_free(meta_expr_t *expr){
         meta_expr_free_fully(((meta_expr_not_t*) expr)->value);
         break;
     default:
-        redprintf("INTERNAL ERROR: meta_expr_free encountered unknown meta expression id %d!\n", (int) expr->id);
+        internalerrorprintf("meta_expr_free encountered unknown meta expression id %d!\n", (int) expr->id);
     }
 }
 
@@ -114,7 +114,7 @@ meta_expr_t *meta_expr_clone(meta_expr_t *expr){
             return (meta_expr_t*) result;
         }
     default:
-        redprintf("INTERNAL ERROR: Tried to clone a non-collapsed meta expression!\n");
+        internalerrorprintf("Tried to clone a non-collapsed meta expression!\n");
         redprintf("A crash will probably follow...\n");
         return NULL;
     }
@@ -176,7 +176,7 @@ errorcode_t meta_collapse(compiler_t *compiler, object_t *object, meta_definitio
                     *expr = meta_expr_clone(definition->value);
                 } else {
                     if(!(compiler->traits & COMPILER_UNSAFE_META || compiler->traits & COMPILER_NO_WARN)){
-                        bool should_exit = compiler_warnf(compiler, var->source, "Warning: Usage of undefined transcendant variable '%s'", var->name);
+                        bool should_exit = compiler_warnf(compiler, var->source, "Usage of undefined transcendant variable '%s'", var->name);
                         printf("    (you can disable this warning with '--unsafe-meta' or 'pragma unsafe_meta')\n");
 
                         if(should_exit){
@@ -452,7 +452,7 @@ errorcode_t meta_collapse(compiler_t *compiler, object_t *object, meta_definitio
             }
             break;
         default:
-            redprintf("INTERNAL ERROR: Unrecognized meta expression in meta_collapse!\n");
+            internalerrorprintf("Unrecognized meta expression in meta_collapse!\n");
             return FAILURE;
         }
     }

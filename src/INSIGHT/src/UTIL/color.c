@@ -1,5 +1,6 @@
 
 #include <stdio.h>
+#include <stdarg.h>
 
 #include "UTIL/color.h"
 
@@ -50,3 +51,35 @@ void terminal_set_color_posix(char color){
 }
 
 #endif
+
+void errorprintf(const char *format, ...){
+    va_list args;
+    va_start(args, format);
+    redprintf("error: ");
+    vprintf(format, args);
+    va_end(args);
+}
+
+void warningprintf(const char *format, ...){
+    va_list args;
+    va_start(args, format);
+    yellowprintf("warning: ");
+    vprintf(format, args);
+    va_end(args);
+}
+
+void internalerrorprintf(const char *format, ...){
+    va_list args;
+    va_start(args, format);
+    redprintf("internal-error: ");
+    vprintf(format, args);
+    va_end(args);
+}
+
+void internalwarningprintf(const char *format, ...){
+    va_list args;
+    va_start(args, format);
+    yellowprintf("internal-warning: ");
+    vprintf(format, args);
+    va_end(args);
+}

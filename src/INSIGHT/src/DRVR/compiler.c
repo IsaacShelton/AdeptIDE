@@ -78,14 +78,15 @@ void compiler_invoke(compiler_t *compiler, int argc, char **argv){
 
     if(compiler->location == NULL){
         if(argv == NULL || argv[0] == NULL || strcmp(argv[0], "") == 0){
-    		redprintf("EXTERNAL ERROR: Compiler was invoked with NULL or empty argv[0]\n");
+            redprintf("external-error: ");
+    		printf("Compiler was invoked with NULL or empty argv[0]\n");
     	} else {
             compiler->location = filename_absolute(argv[0]);
         }
     }
 
     if(compiler->location == NULL){
-        redprintf("INTERNAL ERROR: Compiler failed to locate itself\n");
+        internalerrorprintf("Compiler failed to locate itself\n");
         exit(1);
     }
     #endif
@@ -425,7 +426,7 @@ errorcode_t parse_arguments(compiler_t *compiler, object_t *object, int argc, ch
             } else if(strcmp(argv[arg_index], "--pic") == 0 || strcmp(argv[arg_index], "-fPIC") == 0 ||
                         strcmp(argv[arg_index], "-fpic") == 0){
                 // Accessibility versions of --PIC
-                yellowprintf("WARNING: Flag '%s' is not valid, assuming you meant to use --PIC\n", argv[arg_index]);
+                warningprintf("Flag '%s' is not valid, assuming you meant to use --PIC\n", argv[arg_index]);
                 compiler->use_pic = TROOLEAN_TRUE;
             } else if(strcmp(argv[arg_index], "--PIC") == 0){
                 compiler->use_pic = TROOLEAN_TRUE;
@@ -433,13 +434,13 @@ errorcode_t parse_arguments(compiler_t *compiler, object_t *object, int argc, ch
                         strcmp(argv[arg_index], "--nopic") == 0 || strcmp(argv[arg_index], "-fno-pic") == 0 ||
                         strcmp(argv[arg_index], "-fno-PIC") == 0){
                 // Accessibility versions of --no-PIC
-                yellowprintf("WARNING: Flag '%s' is not valid, assuming you meant to use --no-PIC\n", argv[arg_index]);
+                warningprintf("Flag '%s' is not valid, assuming you meant to use --no-PIC\n", argv[arg_index]);
                 compiler->use_pic = TROOLEAN_FALSE;
             } else if(strcmp(argv[arg_index], "--no-PIC") == 0){
                 compiler->use_pic = TROOLEAN_FALSE;
             } else if(strcmp(argv[arg_index], "-lm") == 0){
                 // Accessibility versions of --libm
-                yellowprintf("WARNING: Flag '%s' is not valid, assuming you meant to use --libm\n", argv[arg_index]);
+                warningprintf("Flag '%s' is not valid, assuming you meant to use --libm\n", argv[arg_index]);
                 compiler->use_libm = true;
             } else if(strcmp(argv[arg_index], "--libm") == 0){
                 compiler->use_libm = true;
@@ -517,7 +518,7 @@ errorcode_t parse_arguments(compiler_t *compiler, object_t *object, int argc, ch
 
             if(object->full_filename == NULL){
                 object->compilation_stage = COMPILATION_STAGE_NONE;
-                redprintf("INTERNAL ERROR: Failed to get absolute path of filename '%s'\n", object->filename);
+                internalerrorprintf("Failed to get absolute path of filename '%s'\n", object->filename);
                 free(object->filename);
                 return FAILURE;
             }
@@ -541,7 +542,7 @@ errorcode_t parse_arguments(compiler_t *compiler, object_t *object, int argc, ch
 
             if(object->full_filename == NULL){
                 object->compilation_stage = COMPILATION_STAGE_NONE;
-                redprintf("INTERNAL ERROR: Failed to get absolute path of filename '%s'\n", object->filename);
+                internalerrorprintf("Failed to get absolute path of filename '%s'\n", object->filename);
                 free(object->filename);
                 return FAILURE;
             }
@@ -668,6 +669,7 @@ void show_help(bool show_advanced_options){
         printf("    --unsafe-meta     Allow unsafe usage of meta constructs\n");
         printf("    --unsafe-new      Disables zero-initialization of memory allocated with new\n");
         printf("    --null-checks     Enable runtime null-checks\n");
+        printf("    --entry           Set the entry point of the program\n");
 
         printf("\nMachine Code Options:\n");
         printf("    --PIC             Forces PIC relocation model\n");
@@ -808,7 +810,7 @@ void compiler_print_source(compiler_t *compiler, int line, source_t source){
     }
 
     char prefix[128];
-    sprintf(prefix, "%d|", line);
+    sprintf(prefix, "  %d| ", line);
     length_t prefix_length = strlen(prefix);
     printf("%s", prefix);
 
@@ -832,7 +834,7 @@ void compiler_print_source(compiler_t *compiler, int line, source_t source){
     for(length_t i = line_index; i != source.index; i++) printf(relevant_object->buffer[i] != '\t' ? " " : "    ");
 
     for(length_t i = 0; i != source.stride; i++)
-        printf("^");
+        whiteprintf("^");
     printf("\n");
 }
 
@@ -843,20 +845,26 @@ void compiler_panic(compiler_t *compiler, source_t source, const char *message){
 
     if(message == NULL){
         if(relevant_object->traits & OBJECT_PACKAGE){
-            redprintf("%s:?:?:\n", filename_name_const(relevant_object->filename));
+            printf("%s:?:?:", filename_name_const(relevant_object->filename));
+            redprintf(" error:\n");
         } else {
             lex_get_location(relevant_object->buffer, source.index, &line, &column);
-            redprintf("%s:%d:%d:\n", filename_name_const(relevant_object->filename), line, column);
+            printf("%s:%d:%d:", filename_name_const(relevant_object->filename), line, column);
+            redprintf(" error:\n");
             compiler_print_source(compiler, line, source);
         }
         return;
     }
 
     if(relevant_object->traits & OBJECT_PACKAGE){
-        redprintf("%s:?:?: %s!\n", filename_name_const(relevant_object->filename), message);
+        printf("%s:?:?: ", filename_name_const(relevant_object->filename));
+        redprintf("error: ");
+        printf("%s\n", message);
     } else {
         lex_get_location(relevant_object->buffer, source.index, &line, &column);
-        redprintf("%s:%d:%d: %s!\n", filename_name_const(relevant_object->filename), line, column, message);
+        printf("%s:%d:%d: ", filename_name_const(relevant_object->filename), line, column);
+        redprintf("error: ");
+        printf("%s\n", message);
         compiler_print_source(compiler, line, source);
     }
     #endif // !ADEPT_INSIGHT_BUILD
@@ -883,14 +891,15 @@ void compiler_vpanicf(compiler_t *compiler, source_t source, const char *format,
     va_copy(error_format_args, args);
 
     #if !defined(ADEPT_INSIGHT_BUILD) || defined(__EMSCRIPTEN__)
-    terminal_set_color(TERMINAL_COLOR_RED);
 
     if(format == NULL){
         if(relevant_object->traits & OBJECT_PACKAGE){
-            redprintf("%s:?:?:\n", filename_name_const(relevant_object->filename));
+            printf("%s:?:?: ", filename_name_const(relevant_object->filename));
+            redprintf("error: \n");
         } else {
             lex_get_location(relevant_object->buffer, source.index, &line, &column);
-            redprintf("%s:%d:%d:\n", filename_name_const(relevant_object->filename), line, column);
+            printf("%s:%d:%d: ", filename_name_const(relevant_object->filename), line, column);
+            redprintf("error: \n");
             compiler_print_source(compiler, line, source);
         }
         return;
@@ -905,9 +914,9 @@ void compiler_vpanicf(compiler_t *compiler, source_t source, const char *format,
         printf("%s:%d:%d: ", filename_name_const(relevant_object->filename), line, column);
     }
 
+    redprintf("error: ");
     vprintf(format, args);
-    printf("!\n");
-    terminal_set_color(TERMINAL_COLOR_DEFAULT);
+    printf("\n");
 
     compiler_print_source(compiler, line, source);
     #endif // !ADEPT_INSIGHT_BUILD
@@ -935,7 +944,9 @@ bool compiler_warn(compiler_t *compiler, source_t source, const char *message){
     object_t *relevant_object = compiler->objects[source.object_index];
     int line, column;
     lex_get_location(relevant_object->buffer, source.index, &line, &column);
-    yellowprintf("%s:%d:%d: %s\n", filename_name_const(relevant_object->filename), line, column, message);
+    printf("%s:%d:%d: ", filename_name_const(relevant_object->filename), line, column);
+    yellowprintf("warning: ");
+    printf("%s\n", message);
 
     if(!(compiler->traits & COMPILER_SHORT_WARNINGS)){
         compiler_print_source(compiler, line, source);
@@ -976,7 +987,6 @@ void compiler_vwarnf(compiler_t *compiler, source_t source, const char *format, 
     va_copy(warning_format_args, args);
     
     #if !defined(ADEPT_INSIGHT_BUILD) || defined(__EMSCRIPTEN__)
-    terminal_set_color(TERMINAL_COLOR_YELLOW);
 
     if(relevant_object->traits & OBJECT_PACKAGE){
         line = 1;
@@ -987,10 +997,9 @@ void compiler_vwarnf(compiler_t *compiler, source_t source, const char *format, 
         printf("%s:%d:%d: ", filename_name_const(relevant_object->filename), line, column);
     }
 
+    yellowprintf("warning: ");
     vprintf(format, args);
     printf("\n");
-
-    terminal_set_color(TERMINAL_COLOR_DEFAULT);
 
     if(!(compiler->traits & COMPILER_SHORT_WARNINGS)){
         compiler_print_source(compiler, line, source);
@@ -1310,7 +1319,7 @@ void object_panicf_plain(object_t *object, const char *format, ...){
     printf("%s: ", filename_name_const(object->filename));
 
     vprintf(format, args);
-    printf("!\n");
+    printf("\n");
     terminal_set_color(TERMINAL_COLOR_DEFAULT);
 
     va_end(args);
