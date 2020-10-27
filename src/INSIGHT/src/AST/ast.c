@@ -1,6 +1,7 @@
 
 #include "AST/ast.h"
 #include "UTIL/util.h"
+#include "UTIL/color.h"
 #include "DRVR/compiler.h"
 
 void ast_init(ast_t *ast, unsigned int cross_compile_for){
@@ -186,6 +187,7 @@ void ast_free_functions(ast_func_t *functions, length_t functions_length){
         ast_free_statements(func->statements, func->statements_length);
         free(func->statements);
         ast_type_free(&func->return_type);
+        free(func->export_as);
     }
 }
 
@@ -257,7 +259,7 @@ void ast_dump(ast_t *ast, const char *filename){
     length_t i;
 
     if(file == NULL){
-        printf("INTERNAL ERROR: Failed to open ast dump file\n");
+        internalerrorprintf("Failed to open ast dump file\n");
         return;
     }
 
@@ -628,6 +630,13 @@ void ast_dump_statements(FILE *file, ast_expr_t **statements, length_t length, l
                 free(src_str);
             }
             break;
+        case EXPR_LLVM_ASM: {
+                ast_expr_llvm_asm_t *llvm_asm_stmt = (ast_expr_llvm_asm_t*) statements[s];
+                char *assembly = string_to_escaped_string(llvm_asm_stmt->assembly, strlen(llvm_asm_stmt->assembly), '\"');
+                fprintf(file, "llvm_asm ... { \"%s\" } ... (...)\n", assembly);
+                free(assembly);
+            }
+            break;
         default:
             fprintf(file, "<unknown statement>\n");
         }
@@ -726,7 +735,9 @@ void ast_dump_enums(FILE *file, ast_enum_t *enums, length_t enums_length){
     }
 }
 
-void ast_func_create_template(ast_func_t *func, strong_cstr_t name, bool is_stdcall, bool is_foreign, bool is_verbatim, bool is_implicit, source_t source, bool is_entry){
+void ast_func_create_template(ast_func_t *func, strong_cstr_t name, bool is_stdcall, bool is_foreign, bool is_verbatim,
+        bool is_implicit, source_t source, bool is_entry, maybe_null_strong_cstr_t export_as){
+    
     func->name = name;
     func->arg_names = NULL;
     func->arg_types = NULL;
@@ -746,6 +757,7 @@ void ast_func_create_template(ast_func_t *func, strong_cstr_t name, bool is_stdc
     func->statements_length = 0;
     func->statements_capacity = 0;
     func->source = source;
+    func->export_as = export_as;
 
     if(is_entry)                       func->traits |= AST_FUNC_MAIN;
     if(strcmp(name, "__defer__") == 0) func->traits |= AST_FUNC_DEFER | (is_verbatim ? TRAIT_NONE : AST_FUNC_AUTOGEN);

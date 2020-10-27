@@ -193,6 +193,12 @@ void compiler_init(compiler_t *compiler){
     compiler->show_unused_variables_how_to_disable = false;
     compiler->cross_compile_for = CROSS_COMPILE_NONE;
     compiler->entry_point = "main";
+    compiler->user_linker_options = NULL;
+    compiler->user_linker_options_length = 0;
+    compiler->user_linker_options_capacity = 0;
+    compiler->user_search_paths = NULL;
+    compiler->user_search_paths_length = 0;
+    compiler->user_search_paths_capacity = 0;
 
     // Allow '::' and ': Type' by default
     compiler->traits |= COMPILER_COLON_COLON | COMPILER_TYPE_COLON;
@@ -208,6 +214,8 @@ void compiler_free(compiler_t *compiler){
     free(compiler->location);
     free(compiler->root);
     free(compiler->output_filename);
+    free(compiler->user_linker_options);
+    freestrs(compiler->user_search_paths, compiler->user_search_paths_length);
 
     compiler_free_objects(compiler);
     compiler_free_error(compiler);
@@ -243,7 +251,7 @@ void compiler_free_objects(compiler_t *compiler){
             // Nothing to free up
             break;
         default:
-            printf("INTERNAL ERROR: Failed to delete object that has an invalid compilation stage\n");
+            internalerrorprintf("Failed to delete object that has an invalid compilation stage\n");
         }
 
         free(object); // Free memory that the object is stored in
@@ -386,6 +394,8 @@ errorcode_t parse_arguments(compiler_t *compiler, object_t *object, int argc, ch
                 compiler->traits |= COMPILER_SHORT_WARNINGS;
             } else if(strcmp(argv[arg_index], "-j") == 0){
                 compiler->traits |= COMPILER_NO_REMOVE_OBJECT;
+            } else if(strcmp(argv[arg_index], "-c") == 0){
+                compiler->traits |= COMPILER_NO_REMOVE_OBJECT | COMPILER_EMIT_OBJECT;
             } else if(strcmp(argv[arg_index], "-O0") == 0){
                 compiler->optimization = OPTIMIZATION_NONE;
             } else if(strcmp(argv[arg_index], "-O1") == 0){
@@ -468,6 +478,19 @@ errorcode_t parse_arguments(compiler_t *compiler, object_t *object, int argc, ch
                 printf("[-] Cross compiling for MacOS x86_64\n");
                 compiler->cross_compile_for = CROSS_COMPILE_MACOS;
                 #endif
+            } else if(argv[arg_index][0] == '-' && (argv[arg_index][1] == 'L' || argv[arg_index][1] == 'l')){
+                // Forward argument to linker
+                compiler_add_user_linker_option(compiler, argv[arg_index]);
+            } else if(argv[arg_index][0] == '-' && argv[arg_index][1] == 'I'){
+                if(argv[arg_index][2] == '\0'){
+                    if(arg_index + 1 == argc){
+                        redprintf("Expected search path after '-I' flag\n");
+                        return FAILURE;
+                    }
+                    compiler_add_user_search_path(compiler, argv[++arg_index], NULL);
+                } else {
+                    compiler_add_user_search_path(compiler, &argv[arg_index][2], NULL);
+                }
             }
             
             #ifdef ENABLE_DEBUG_FEATURES //////////////////////////////////
@@ -649,16 +672,20 @@ void show_help(bool show_advanced_options){
         printf("    -d                Include debugging symbols [UNIMPLEMENTED]\n");
     }
 
-
-    if(show_advanced_options)
+    printf("    -c                Emit object file\n");
+    if(show_advanced_options){
         printf("    -j                Preserve generated object file\n");
+        printf("    -I<PATH>          Add directory to import search path\n");
+        printf("    -L<PATH>          Add directory to native library search path\n");
+        printf("    -l<LIBRARY>       Link against native library\n");
+    }
     
     printf("    -O0,-O1,-O2,-O3   Set optimization level\n");
     printf("    -std=2.x          Set standard library version\n");
     
     if(show_advanced_options)
         printf("    --fussy           Show insignificant warnings\n");
-    
+
     printf("    --version         Display compiler version\n");
     printf("    --help-advanced   Show lesser used compiler flags\n");
 
@@ -753,6 +780,35 @@ void show_version(compiler_t *compiler){
 
 strong_cstr_t compiler_get_string(){
     return mallocandsprintf("Adept %s - Build %s %s CDT", ADEPT_VERSION_STRING, __DATE__, __TIME__);
+}
+
+void compiler_add_user_linker_option(compiler_t *compiler, weak_cstr_t option){
+    length_t length = strlen(option);
+
+    expand((void**) &compiler->user_linker_options, sizeof(char), compiler->user_linker_options_length,
+        &compiler->user_linker_options_capacity, length + 2, 512);
+    
+    compiler->user_linker_options[compiler->user_linker_options_length++] = ' ';
+    memcpy(&compiler->user_linker_options[compiler->user_linker_options_length], option, length + 1);
+    compiler->user_linker_options_length += length;
+}
+
+void compiler_add_user_search_path(compiler_t *compiler, weak_cstr_t search_path, maybe_null_weak_cstr_t current_file){
+    expand((void**) &compiler->user_search_paths, sizeof(weak_cstr_t), compiler->user_search_paths_length,
+        &compiler->user_search_paths_capacity, 1, 4);
+
+    if(current_file == NULL){
+        // Add absolute / cwd relative path
+        compiler->user_search_paths[compiler->user_search_paths_length++] = strclone(search_path);
+    } else {
+        // Add file relative path
+        strong_cstr_t current_path = filename_path(current_file);
+        compiler->user_search_paths[compiler->user_search_paths_length++] = mallocandsprintf("%s%s", current_path, search_path);
+        free(current_path);
+
+        // Add absolute / cwd relative path
+        compiler->user_search_paths[compiler->user_search_paths_length++] = strclone(search_path);
+    }
 }
 
 errorcode_t compiler_create_package(compiler_t *compiler, object_t *object){
